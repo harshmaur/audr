@@ -92,5 +92,6 @@ func builtins() []rules.Rule {
 		openclawBearerSecretRefRotationBypass{},
 		openclawSandboxCDPRelayPublicBind{},
 		openclawAsyncExecCompletionOwnerDowngrade{},
+		openclawDeviceTokenRoleMinting{},
 	}
 }

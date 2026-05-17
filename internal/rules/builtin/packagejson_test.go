@@ -114,6 +114,33 @@ func TestOpenClawNodePairApproveScopeBypass_AllowsFixedVersion(t *testing.T) {
 	}
 }
 
+func TestOpenClawDeviceTokenRoleMinting_FlagsVulnerablePackage(t *testing.T) {
+	doc := parse.Parse("package.json", []byte(`{"name":"openclaw","version":"2026.4.7"}`))
+	findings := (openclawDeviceTokenRoleMinting{}).Apply(doc)
+	if len(findings) != 1 {
+		t.Fatalf("got %d findings, want 1", len(findings))
+	}
+	if findings[0].RuleID != "openclaw-device-token-role-minting" {
+		t.Fatalf("rule id = %q", findings[0].RuleID)
+	}
+}
+
+func TestOpenClawDeviceTokenRoleMinting_FlagsVulnerableDependency(t *testing.T) {
+	doc := parse.Parse("package.json", []byte(`{"devDependencies":{"openclaw":"^2026.4.1"}}`))
+	findings := (openclawDeviceTokenRoleMinting{}).Apply(doc)
+	if len(findings) != 1 {
+		t.Fatalf("got %d findings, want 1", len(findings))
+	}
+}
+
+func TestOpenClawDeviceTokenRoleMinting_AllowsFixedVersion(t *testing.T) {
+	doc := parse.Parse("package.json", []byte(`{"name":"openclaw","version":"2026.4.8","dependencies":{"openclaw":"2026.4.9"}}`))
+	findings := (openclawDeviceTokenRoleMinting{}).Apply(doc)
+	if len(findings) != 0 {
+		t.Fatalf("got %d findings, want 0", len(findings))
+	}
+}
+
 func TestOpenClawPluginAuthOperatorWriteBypass_FlagsVulnerablePackage(t *testing.T) {
 	doc := parse.Parse("package.json", []byte(`{"name":"openclaw","version":"2026.3.30"}`))
 	findings := (openclawPluginAuthOperatorWriteBypass{}).Apply(doc)

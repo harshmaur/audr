@@ -24,6 +24,7 @@ type openclawFeishuWebhookAuthBypass struct{}
 type openclawBearerSecretRefRotationBypass struct{}
 type openclawSandboxCDPRelayPublicBind struct{}
 type openclawAsyncExecCompletionOwnerDowngrade struct{}
+type openclawDeviceTokenRoleMinting struct{}
 
 func (openclawUnboundBootstrapSetupCode) ID() string { return "openclaw-unbound-bootstrap-setup-code" }
 func (openclawUnboundBootstrapSetupCode) Title() string {
@@ -222,6 +223,18 @@ func (openclawAsyncExecCompletionOwnerDowngrade) Taxonomy() finding.Taxonomy {
 	return finding.TaxDetectable
 }
 func (openclawAsyncExecCompletionOwnerDowngrade) Formats() []parse.Format {
+	return []parse.Format{parse.FormatPackageJSON}
+}
+
+func (openclawDeviceTokenRoleMinting) ID() string {
+	return "openclaw-device-token-role-minting"
+}
+func (openclawDeviceTokenRoleMinting) Title() string {
+	return "OpenClaw version is vulnerable to device token role minting"
+}
+func (openclawDeviceTokenRoleMinting) Severity() finding.Severity { return finding.SeverityHigh }
+func (openclawDeviceTokenRoleMinting) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (openclawDeviceTokenRoleMinting) Formats() []parse.Format {
 	return []parse.Format{parse.FormatPackageJSON}
 }
 
@@ -453,6 +466,22 @@ func (openclawAsyncExecCompletionOwnerDowngrade) Apply(doc *parse.Document) []fi
 	return nil
 }
 
+func (openclawDeviceTokenRoleMinting) Apply(doc *parse.Document) []finding.Finding {
+	if doc.PackageJSON == nil {
+		return nil
+	}
+	pkg := doc.PackageJSON
+	if pkg.Name == "openclaw" && vulnerableOpenClawDeviceTokenRoleMintingVersion(pkg.Version) {
+		return []finding.Finding{openclawDeviceTokenRoleMintingFinding(doc.Path, fmt.Sprintf("openclaw@%s", pkg.Version))}
+	}
+	for _, deps := range []map[string]string{pkg.Dependencies, pkg.DevDependencies, pkg.OptionalDependencies, pkg.PeerDependencies} {
+		if v, ok := deps["openclaw"]; ok && vulnerableOpenClawDeviceTokenRoleMintingVersion(v) {
+			return []finding.Finding{openclawDeviceTokenRoleMintingFinding(doc.Path, fmt.Sprintf("openclaw@%s", v))}
+		}
+	}
+	return nil
+}
+
 func openclawBootstrapFinding(path, match string) finding.Finding {
 	return finding.New(finding.Args{
 		RuleID:       "openclaw-unbound-bootstrap-setup-code",
@@ -649,6 +678,20 @@ func openclawAsyncExecCompletionOwnerDowngradeFinding(path, match string) findin
 	})
 }
 
+func openclawDeviceTokenRoleMintingFinding(path, match string) finding.Finding {
+	return finding.New(finding.Args{
+		RuleID:       "openclaw-device-token-role-minting",
+		Severity:     finding.SeverityHigh,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "OpenClaw before 2026.4.8 lets device token rotation mint unapproved roles",
+		Description:  "CVE-2026-42422: OpenClaw before 2026.4.8 lets device.token.rotate mint roles that were not approved for the device, weakening role and scope boundaries during agent/device control.",
+		Path:         path,
+		Match:        match,
+		SuggestedFix: "Upgrade OpenClaw to 2026.4.8 or later and review device tokens rotated by vulnerable versions.",
+		Tags:         []string{"cve", "openclaw", "package-json", "privilege-escalation"},
+	})
+}
+
 var packageVersionRE = regexp.MustCompile(`\d+(?:\.\d+){0,2}`)
 
 func vulnerableOpenClawVersion(raw string) bool {
@@ -705,6 +748,10 @@ func vulnerableOpenClawSandboxCDPRelayPublicBindVersion(raw string) bool {
 
 func vulnerableOpenClawAsyncExecCompletionOwnerDowngradeVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 4, 10})
+}
+
+func vulnerableOpenClawDeviceTokenRoleMintingVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 4, 8})
 }
 
 func vulnerableOpenClawVersionBefore(raw string, fixed []int) bool {
