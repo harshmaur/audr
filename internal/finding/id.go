@@ -1,3 +1,5 @@
+//go:build !js || !wasm
+
 package finding
 
 // StableID and Fingerprint are the bridge between finding.Finding (the
