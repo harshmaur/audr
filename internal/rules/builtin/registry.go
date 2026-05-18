@@ -84,6 +84,7 @@ func builtins() []rules.Rule {
 		openclawNodePairApproveScopeBypass{},
 		openclawPluginAuthOperatorWriteBypass{},
 		openclawTeamsWebhookPreauthBodyDos{},
+		openclawTrustedProxyScopeClearing{},
 		openclawBundledHooksEnvOverride{},
 		openclawBundledPluginsEnvOverride{},
 		openclawHeartbeatOwnerDowngrade{},

@@ -16,6 +16,7 @@ type openclawWebsocketUpgradeExhaustion struct{}
 type openclawNodePairApproveScopeBypass struct{}
 type openclawPluginAuthOperatorWriteBypass struct{}
 type openclawTeamsWebhookPreauthBodyDos struct{}
+type openclawTrustedProxyScopeClearing struct{}
 type openclawBundledHooksEnvOverride struct{}
 type openclawBundledPluginsEnvOverride struct{}
 type openclawHeartbeatOwnerDowngrade struct{}
@@ -109,6 +110,18 @@ func (openclawTeamsWebhookPreauthBodyDos) Title() string {
 func (openclawTeamsWebhookPreauthBodyDos) Severity() finding.Severity { return finding.SeverityHigh }
 func (openclawTeamsWebhookPreauthBodyDos) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
 func (openclawTeamsWebhookPreauthBodyDos) Formats() []parse.Format {
+	return []parse.Format{parse.FormatPackageJSON}
+}
+
+func (openclawTrustedProxyScopeClearing) ID() string {
+	return "openclaw-trusted-proxy-scope-clearing"
+}
+func (openclawTrustedProxyScopeClearing) Title() string {
+	return "OpenClaw version is vulnerable to trusted-proxy scope clearing"
+}
+func (openclawTrustedProxyScopeClearing) Severity() finding.Severity { return finding.SeverityHigh }
+func (openclawTrustedProxyScopeClearing) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (openclawTrustedProxyScopeClearing) Formats() []parse.Format {
 	return []parse.Format{parse.FormatPackageJSON}
 }
 
@@ -313,6 +326,22 @@ func (openclawTeamsWebhookPreauthBodyDos) Apply(doc *parse.Document) []finding.F
 	for _, deps := range []map[string]string{pkg.Dependencies, pkg.DevDependencies, pkg.OptionalDependencies, pkg.PeerDependencies} {
 		if v, ok := deps["openclaw"]; ok && vulnerableOpenClawTeamsWebhookVersion(v) {
 			return []finding.Finding{openclawTeamsWebhookFinding(doc.Path, fmt.Sprintf("openclaw@%s", v))}
+		}
+	}
+	return nil
+}
+
+func (openclawTrustedProxyScopeClearing) Apply(doc *parse.Document) []finding.Finding {
+	if doc.PackageJSON == nil {
+		return nil
+	}
+	pkg := doc.PackageJSON
+	if pkg.Name == "openclaw" && vulnerableOpenClawTrustedProxyScopeClearingVersion(pkg.Version) {
+		return []finding.Finding{openclawTrustedProxyScopeClearingFinding(doc.Path, fmt.Sprintf("openclaw@%s", pkg.Version))}
+	}
+	for _, deps := range []map[string]string{pkg.Dependencies, pkg.DevDependencies, pkg.OptionalDependencies, pkg.PeerDependencies} {
+		if v, ok := deps["openclaw"]; ok && vulnerableOpenClawTrustedProxyScopeClearingVersion(v) {
+			return []finding.Finding{openclawTrustedProxyScopeClearingFinding(doc.Path, fmt.Sprintf("openclaw@%s", v))}
 		}
 	}
 	return nil
@@ -566,6 +595,20 @@ func openclawTeamsWebhookFinding(path, match string) finding.Finding {
 	})
 }
 
+func openclawTrustedProxyScopeClearingFinding(path, match string) finding.Finding {
+	return finding.New(finding.Args{
+		RuleID:       "openclaw-trusted-proxy-scope-clearing",
+		Severity:     finding.SeverityHigh,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "OpenClaw before 2026.3.31 lets trusted-proxy clients self-declare scopes",
+		Description:  "CVE-2026-41404: OpenClaw before 2026.3.31 clears trusted-proxy authentication scope boundaries, letting non-Control-UI trusted-proxy clients self-declare operator scopes.",
+		Path:         path,
+		Match:        match,
+		SuggestedFix: "Upgrade OpenClaw to 2026.3.31 or later and review trusted-proxy deployments and issued operator scopes on affected hosts.",
+		Tags:         []string{"cve", "openclaw", "package-json", "auth-bypass"},
+	})
+}
+
 func openclawBundledHooksFinding(path, match string) finding.Finding {
 	return finding.New(finding.Args{
 		RuleID:       "openclaw-bundled-hooks-env-override",
@@ -715,6 +758,10 @@ func vulnerableOpenClawPluginAuthVersion(raw string) bool {
 }
 
 func vulnerableOpenClawTeamsWebhookVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 3, 31})
+}
+
+func vulnerableOpenClawTrustedProxyScopeClearingVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 3, 31})
 }
 
