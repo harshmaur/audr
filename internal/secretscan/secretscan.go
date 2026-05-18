@@ -71,6 +71,14 @@ type RunOptions struct {
 	// caps that — same flag name, different mechanism. Lowprio still
 	// limits OS-level scheduling pressure.
 	Jobs int
+
+	// ExtraExcludeSegments are additional single-segment names appended
+	// to the betterleaks allowlist on top of scanignore.Defaults().
+	// The orchestrator populates this with scanignore.DaemonAdditional
+	// Segments() so the long-running daemon skips testdata/ trees that
+	// every project sprinkles with intentionally-bad fixtures. Nil for
+	// one-shot CLI scans — they need to walk fixtures.
+	ExtraExcludeSegments []string
 }
 
 // DefaultJobs returns the Betterleaks --validation-workers value
@@ -205,7 +213,7 @@ func RunBackend(ctx context.Context, opts RunOptions) ([]finding.Finding, error)
 		roots = []string{"."}
 	}
 
-	configFile, cleanupConfig, err := scanignore.WriteBetterleaksConfig()
+	configFile, cleanupConfig, err := scanignore.WriteBetterleaksConfigWithExtras(opts.ExtraExcludeSegments)
 	if err != nil {
 		return nil, fmt.Errorf("prepare betterleaks config file: %w", err)
 	}

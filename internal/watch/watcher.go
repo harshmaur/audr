@@ -103,6 +103,14 @@ type Options struct {
 
 	// Logger receives operational events. nil → discard.
 	Logger *slog.Logger
+
+	// ExtraExcludeSegments are additional single-segment names merged
+	// into the watcher's exclude set on top of scanignore.Defaults().
+	// The daemon populates this with scanignore.DaemonAdditional
+	// Segments() so testdata/ trees neither receive an inotify watch
+	// nor produce reactive scan triggers. Empty for tests / one-shot
+	// callers that want the unchanged Defaults()-only behavior.
+	ExtraExcludeSegments []string
 }
 
 // NewWatcher constructs but does not start the watcher. Discovers
@@ -189,7 +197,7 @@ func NewWatcher(opts Options) (*Watcher, error) {
 		// recursive (a single AddWatch on the root suffices), but
 		// fsnotify abstracts that for us — AddWatch on each subdir
 		// works on macOS too, just redundantly.
-		paths, walkErr := enumerateWatchableDirs(root)
+		paths, walkErr := enumerateWatchableDirs(root, opts.ExtraExcludeSegments)
 		if walkErr != nil {
 			logger.Warn("enumerate watch dirs", "root", root, "err", walkErr)
 			// Continue with whatever we got.
@@ -304,7 +312,7 @@ func (w *Watcher) Close() error {
 // eventLoop reads fsnotify events, filters via scanignore, and bumps
 // the quiescence gate. Exits on ctx cancel.
 func (w *Watcher) eventLoop(ctx context.Context) {
-	excludes := scanignoreSegmentsSet()
+	excludes := w.excludeSet()
 	for {
 		select {
 		case <-ctx.Done():
@@ -371,8 +379,11 @@ func (w *Watcher) maybeForward(t Trigger) {
 // for fsnotify.AddWatch. Skips scanignore-listed directories to bound
 // the watch count and avoid wasting inotify slots on caches.
 //
+// extras is appended to the per-segment exclude set (merged with
+// scanignore.Defaults()); pass nil to use Defaults() alone.
+//
 // If root is a file (e.g., ~/.bashrc), returns just root.
-func enumerateWatchableDirs(root string) ([]string, error) {
+func enumerateWatchableDirs(root string, extras []string) ([]string, error) {
 	info, err := os.Stat(root)
 	if err != nil {
 		return nil, err
@@ -380,7 +391,7 @@ func enumerateWatchableDirs(root string) ([]string, error) {
 	if !info.IsDir() {
 		return []string{root}, nil
 	}
-	excludes := scanignoreSegmentsSet()
+	excludes := mergeExcludes(scanignoreSegmentsSet(), extras)
 	var out []string
 	walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -400,6 +411,40 @@ func enumerateWatchableDirs(root string) ([]string, error) {
 		return nil
 	})
 	return out, walkErr
+}
+
+// excludeSet returns the merged single-segment exclude set used by
+// the watcher's runtime filters (eventLoop + enumerateWatchableDirs).
+// Defaults() always applies; ExtraExcludeSegments from the daemon
+// stack are layered on top.
+func (w *Watcher) excludeSet() map[string]bool {
+	return mergeExcludes(scanignoreSegmentsSet(), w.opts.ExtraExcludeSegments)
+}
+
+// mergeExcludes returns base extended with each non-empty entry from
+// extras (first path component only, matching scanignoreSegmentsSet's
+// own normalization).
+func mergeExcludes(base map[string]bool, extras []string) map[string]bool {
+	if len(extras) == 0 {
+		return base
+	}
+	out := make(map[string]bool, len(base)+len(extras))
+	for k, v := range base {
+		out[k] = v
+	}
+	for _, seg := range extras {
+		if seg == "" {
+			continue
+		}
+		if i := indexByte(seg, '/'); i >= 0 {
+			seg = seg[:i]
+		}
+		if seg == "" {
+			continue
+		}
+		out[seg] = true
+	}
+	return out
 }
 
 // scanignoreSegmentsSet returns a set of single-segment names that

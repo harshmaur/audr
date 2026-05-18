@@ -16,6 +16,7 @@ import (
 	"github.com/harshmaur/audr/internal/ospkg"
 	"github.com/harshmaur/audr/internal/parse"
 	"github.com/harshmaur/audr/internal/policy"
+	"github.com/harshmaur/audr/internal/scanignore"
 	"github.com/harshmaur/audr/internal/server"
 	"github.com/harshmaur/audr/internal/state"
 	"github.com/harshmaur/audr/internal/templates"
@@ -357,6 +358,11 @@ func newDaemonRunInternalCmd() *cobra.Command {
 				// orchestrator alongside the periodic ticker.
 				watcher, err := watch.NewWatcher(watch.Options{
 					Logger: orchLogger,
+					// Same daemon-only exclude augmentation the
+					// orchestrator applies to scan + secretscan: keep
+					// testdata/ trees out of the inotify watch set so
+					// editing fixtures doesn't kick reactive scans.
+					ExtraExcludeSegments: scanignore.DaemonAdditionalSegments(),
 				})
 				if err != nil {
 					_ = store.Close()

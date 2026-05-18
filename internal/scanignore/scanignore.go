@@ -19,6 +19,30 @@ import (
 	"strings"
 )
 
+// DaemonAdditionalSegments lists path segments the long-running daemon
+// excludes on top of Defaults(). These intentionally do NOT live in
+// Defaults() because explicit `audr scan <ROOT>` runs — including the
+// CI fixture scans of testdata/laptops/dirty + testdata/laptops/clean
+// — need to walk through them. The daemon's broad $HOME scan, however,
+// would otherwise descend into every project's testdata/ tree and
+// surface its intentionally-bad fixtures (planted MCP configs, planted
+// shell rcs, planted credential-shape tokens) as if they were real
+// developer-machine findings. Excluding `testdata` segments in
+// daemon-mode keeps the dashboard signal honest without breaking the
+// explicit-fixture-scan path other tools rely on.
+//
+// The orchestrator (daemon-only) injects these into each scanner
+// subsystem's exclude inputs. scan.Options.SkipDirs is extended with
+// these, secretscan.RunOptions.ExtraExcludeSegments forwards them to
+// the betterleaks config, watch.Options.ExtraExcludeSegments forwards
+// them to the watcher's exclude set. One-shot `audr scan` calls never
+// touch the orchestrator and therefore never see these.
+func DaemonAdditionalSegments() []string {
+	return []string{
+		"testdata",
+	}
+}
+
 // Defaults returns the canonical list of path-segments audr skips during
 // recursive scans. Each entry is either:
 //
@@ -218,6 +242,15 @@ func BinaryFileExtensions() []string {
 // Patterns use TOML literal strings (triple single quotes) so
 // backslashes in `\.apk$` etc. don't need escaping.
 func WriteBetterleaksConfig() (path string, cleanup func(), err error) {
+	return WriteBetterleaksConfigWithExtras(nil)
+}
+
+// WriteBetterleaksConfigWithExtras is WriteBetterleaksConfig with an
+// extra set of single-segment names appended to the allowlist. Used by
+// the daemon to inject DaemonAdditionalSegments() (e.g. "testdata")
+// without changing Defaults() — explicit `audr scan` calls keep the
+// unchanged path-allowlist behavior. extraSegments may be nil.
+func WriteBetterleaksConfigWithExtras(extraSegments []string) (path string, cleanup func(), err error) {
 	f, err := os.CreateTemp("", "audr-betterleaks-*.toml")
 	if err != nil {
 		return "", nil, fmt.Errorf("create betterleaks config tempfile: %w", err)
@@ -245,6 +278,15 @@ func WriteBetterleaksConfig() (path string, cleanup func(), err error) {
 		return "", nil, err
 	}
 	for _, segment := range Defaults() {
+		if err := write("  '''" + patternForSegment(segment) + "''',\n"); err != nil {
+			return "", nil, err
+		}
+	}
+	for _, segment := range extraSegments {
+		segment = strings.TrimSpace(segment)
+		if segment == "" {
+			continue
+		}
 		if err := write("  '''" + patternForSegment(segment) + "''',\n"); err != nil {
 			return "", nil, err
 		}

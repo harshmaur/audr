@@ -19,6 +19,7 @@ import (
 	"github.com/harshmaur/audr/internal/ospkg"
 	"github.com/harshmaur/audr/internal/policy"
 	"github.com/harshmaur/audr/internal/scan"
+	"github.com/harshmaur/audr/internal/scanignore"
 	"github.com/harshmaur/audr/internal/secretscan"
 	"github.com/harshmaur/audr/internal/state"
 	"github.com/harshmaur/audr/internal/triage"
@@ -652,6 +653,18 @@ func (o *Orchestrator) runNative(ctx context.Context, scanID int64, seen map[str
 	if opts.ScanTimeout == 0 {
 		opts.ScanTimeout = 5 * time.Minute
 	}
+	// Daemon-only skip-dir augmentation: keep testdata/ trees out of
+	// the broad $HOME scan so every project's intentionally-bad
+	// fixtures don't surface as real findings. One-shot `audr scan`
+	// bypasses the orchestrator and keeps the unchanged Skip list.
+	// Pre-allocate a fresh slice so we don't mutate the shared
+	// ScanOpts template across cycles.
+	if extras := scanignore.DaemonAdditionalSegments(); len(extras) > 0 {
+		merged := make([]string, 0, len(opts.SkipDirs)+len(extras))
+		merged = append(merged, opts.SkipDirs...)
+		merged = append(merged, extras...)
+		opts.SkipDirs = merged
+	}
 	// Wire the file-level cache. Daemon scans get fast cache hits on
 	// unchanged files; one-shot CLI runs leave ScanOpts.Cache nil so
 	// every `audr scan .` is a fresh evaluation. AudrVersion tags
@@ -729,7 +742,8 @@ func (o *Orchestrator) runSecrets(ctx context.Context, scanID int64, seen map[st
 		// the background. lowprio handles OS-level scheduling
 		// pressure on top. Daemon scans trade latency for headroom;
 		// CLI scans trade headroom for latency.
-		Jobs: secretscan.DefaultDaemonJobs(),
+		Jobs:                 secretscan.DefaultDaemonJobs(),
+		ExtraExcludeSegments: scanignore.DaemonAdditionalSegments(),
 	})
 	if err != nil {
 		return err

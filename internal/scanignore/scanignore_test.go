@@ -142,6 +142,74 @@ func TestWriteBetterleaksConfigContainsAllPatterns(t *testing.T) {
 	}
 }
 
+func TestDaemonAdditionalSegmentsIncludesTestdata(t *testing.T) {
+	got := DaemonAdditionalSegments()
+	found := false
+	for _, seg := range got {
+		if seg == "testdata" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("DaemonAdditionalSegments() missing %q; got %v", "testdata", got)
+	}
+}
+
+func TestWriteBetterleaksConfigWithExtrasAppendsSegments(t *testing.T) {
+	extras := []string{"testdata", "fixtures"}
+	path, cleanup, err := WriteBetterleaksConfigWithExtras(extras)
+	if err != nil {
+		t.Fatalf("WriteBetterleaksConfigWithExtras err: %v", err)
+	}
+	t.Cleanup(cleanup)
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config file: %v", err)
+	}
+	body := string(raw)
+
+	// Defaults still present.
+	for _, segment := range Defaults() {
+		want := `(^|/)` + regexp.QuoteMeta(segment) + `(/|$)`
+		if !strings.Contains(body, want) {
+			t.Fatalf("config dropped default pattern %q for segment %q; body:\n%s", want, segment, body)
+		}
+	}
+	// Extras appended.
+	for _, segment := range extras {
+		want := `(^|/)` + regexp.QuoteMeta(segment) + `(/|$)`
+		if !strings.Contains(body, want) {
+			t.Fatalf("config missing extra pattern %q for segment %q; body:\n%s", want, segment, body)
+		}
+	}
+}
+
+func TestWriteBetterleaksConfigWithExtrasSkipsEmptyEntries(t *testing.T) {
+	path, cleanup, err := WriteBetterleaksConfigWithExtras([]string{"", "  ", "testdata"})
+	if err != nil {
+		t.Fatalf("WriteBetterleaksConfigWithExtras err: %v", err)
+	}
+	t.Cleanup(cleanup)
+
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config file: %v", err)
+	}
+	body := string(raw)
+	// Empty / whitespace entries must NOT have produced a `(^|/)(/|$)`
+	// pattern (which would match any path with a `//` segment) or a
+	// pattern that escapes the literal whitespace.
+	if strings.Contains(body, "(^|/)(/|$)") {
+		t.Fatalf("empty extras leaked an empty-segment pattern into config:\n%s", body)
+	}
+	want := `(^|/)` + regexp.QuoteMeta("testdata") + `(/|$)`
+	if !strings.Contains(body, want) {
+		t.Fatalf("config missing testdata pattern %q; body:\n%s", want, body)
+	}
+}
+
 func TestPatternForExtensionMatchesAsSuffix(t *testing.T) {
 	tests := []struct {
 		ext            string
