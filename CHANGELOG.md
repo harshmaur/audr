@@ -3,6 +3,182 @@
 All notable changes to Audr.
 Format follows [Keep a Changelog](https://keepachangelog.com/), versioning is `MAJOR.MINOR.PATCH`.
 
+## [0.14.0] - 2026-05-19 — Project tabs (your dashboard, about YOUR projects)
+
+Audr's dashboard used to show every finding across `$HOME` in one flat
+severity-sorted list. On a typical developer machine that's a problem:
+~84% of the findings are noise — Claude Code's session caches, Hermes
+skill files, vercel-cli auth state, Go stdlib (now skipped, see Fixed
+below), tool config dirs. Real credentials in `~/.ssh/` and your
+actual code projects' actionable bugs were buried in the noise.
+
+v0.14 reshapes the dashboard around the unit of work you actually
+think in: **the project**. Open the dashboard and you see a tab row
+of your code projects, severity-sorted (red dots first, orange next,
+clean last). Click any tab → metric strip and findings list rescope
+to that project. Other locations (agent state, system caches, OS
+packages, loose files) collapse behind a single group that
+auto-expands when it contains a critical or high finding (so a
+leaked key in `~/.ssh/` is never hidden).
+
+Measured on the maintainer's dev machine:
+
+- Pre-v0.14: dashboard top-of-fold said "2,713 open · 9 crit · 285 high"
+- Post-v0.14 with MY PROJECTS active: "508 open · 4 crit · 199 high"
+
+The signal-to-noise ratio jumped from 16% to 100% on the default view.
+The noise hasn't gone away — it's just one click away when you want it.
+
+### Added
+
+- **Project tabs on the dashboard.** A new tab row below the metric
+  strip with `MY PROJECTS` (union of all code projects) on the left
+  and one tab per detected code project. Severity-priority sort: tabs
+  with criticals float left, then highs, then clean. Single leading
+  dot per tab (red / orange / hollow) — no inline severity numbers
+  on the tab itself; magnitude lives in the rescoped metric strip.
+- **OTHER LOCATIONS group** collapsed below the tab row, aggregating
+  agent-state (`.claude`, `.codex`, `.hermes`, etc.), system caches
+  (`.local`, `.config`, etc.), OS packages, and loose files. Auto-
+  expands when it contains a critical or high so security-relevant
+  findings outside your project tree don't stay buried. User toggle
+  overrides for the session via localStorage.
+- **`internal/classify` package** classifies any finding path into
+  one of `code-project` | `agent-state` | `system` | `os-package` |
+  `loose`. Detection rules:
+  - Walk the path's segments left-to-right for known agent-state /
+    system dot-dir names; first match wins (so a manifest deeper
+    inside `.claude/skills/foo/package.json` does NOT promote that
+    subtree to a code-project named "foo")
+  - Otherwise walk leaf-to-root for `.git/` or a known manifest
+    (`go.mod`, `package.json`, `pyproject.toml`, `Cargo.toml`,
+    `Gemfile`, `composer.json`, `pom.xml`); nearest match wins, so
+    monorepos with per-package manifests resolve as distinct
+    sub-projects
+  - Symlinks resolve via `filepath.EvalSymlinks` before classification
+    so `~/work/audr` (symlinked → `~/projects/audr`) collapses to
+    one project / one tab
+- **`~/.audr/classify.toml` user override.** Default rules ship
+  embedded via `go:embed`; override at `~/.audr/classify.toml`
+  REPLACES (not merges) any non-empty list. Daemon hot-reloads on
+  save via fsnotify with a 200ms debounce; bad TOML logs a warning
+  and keeps the previous rules — the daemon never crashes on user
+  config error. A dashboard banner hints at this for power users.
+- **Project switcher modal** opens on `/` keypress (or `⌘P` / `Ctrl+P`).
+  Type-to-filter, arrow keys navigate, Enter selects, Esc closes.
+  Severity-sorted so the hottest project surfaces at the top.
+- **Tab row overflow.** Past 8 visible code-project tabs, the tail
+  collapses behind `+ N more ▾` that opens the switcher modal. Active
+  tab always stays visible (swaps with the lowest-priority visible
+  tab when needed).
+- **URL fragment routing.** `#project=<canonical_path_urlencoded>`
+  bookmarks the active tab. Shared links land on the right tab. Back/
+  forward navigation restores the previous tab.
+- **Server endpoints surface project summaries.** Both
+  `GET /api/findings` and `GET /api/findings/rollup` now include
+  `projects[]` (one entry per distinct project, severity-sorted) and
+  `class_totals` (top-line tally per project_class). All `omitempty`
+  — old wire-format consumers see no change.
+- **Server-side filter params** on `/api/findings/rollup`:
+  - `?project=<canonical_id>` keeps the row if ANY of its locations
+    matches; narrows the `locations[]` array to only that project's
+    paths (per-LOCATION filtering — same vulnerability across two
+    projects appears under each project's tab with only that
+    project's paths visible)
+  - `?project_class=<csv>` accepts one or more class names; same
+    row+location semantics
+  - Filters AND together when both present
+- **Per-location project metadata** on `state.Finding` and the
+  rolled-up wire view: `project_id`, `project_label`, `project_class`
+  (basename / canonical absolute path / class), plus
+  `affected_projects[]` on each rolled-up row enumerating the
+  distinct projects its locations span.
+- **Metric strip number tweening.** 220ms easeOutQuart animation
+  on tab-click rescope. Skipped on initial load and on every-SSE
+  refresh so the strip doesn't jitter during a scan — only fires
+  when the user changed scope themselves.
+- **`✓ resolved` flash** when a project's open-finding count drops
+  from N to 0 between renders. 1.2s CSS fade-out, respects
+  `prefers-reduced-motion`.
+
+### Fixed
+
+- **Go stdlib (GOROOT/src) was being scanned.** `audr scan` and the
+  daemon walker now skip `<X>/go/src` when a sibling `<X>/go/bin/go`
+  is present (canonical Go install layout). Eliminated 331 false
+  positives on the maintainer's `~/.local` scan — 89% reduction in
+  the `.local` bucket. Detection is path-aware (not a basename skip)
+  because "src" alone is too greedy and "go/src" collides with
+  `$GOPATH/src` where user code lives. Lives in
+  `internal/scanignore.LooksLikeGoStdlibSrcRoot()` so all three
+  walkers (native scan, depscan project-root discovery, lockfile
+  fingerprinting) share the same logic.
+- **macOS daemon registered at `/Library/LaunchDaemons/` instead of
+  `~/Library/LaunchAgents/`.** `audr daemon start` failed on a fresh
+  Mac with:
+  ```
+  Warning: Expecting a LaunchAgents path since the command was run
+  as user. Got LaunchDaemons instead. Load failed: 5: Input/output error
+  ```
+  Root cause: `service_kardianos.go` set `UserService=true` only on
+  Linux, leaving macOS at system-scope. Extended to darwin. A
+  detector in `audr daemon install` and `audr daemon start` warns
+  about the stale system-level plist (if present from a pre-v0.14
+  install) and prints the `sudo rm` recovery steps.
+- **Orchestrator's finding-to-state converters were dropping project
+  metadata.** Found by live-testing the v0.14 stack: the classifier
+  ran, `FillTriageFields` populated the new fields on the in-memory
+  `finding.Finding`, then `findingToStateFinding` and
+  `depscanFindingToState` constructed `state.Finding` literals
+  without copying them. Wire surfaced 0 classified projects despite
+  ~2,400 findings flowing through the classifier each scan. Added
+  regression tests at the convert boundary so this can't recur
+  silently.
+
+### Schema
+
+- **Database: schema v6 migration.** Adds three `TEXT NULL` columns
+  to the `findings` table (`project_id`, `project_label`,
+  `project_class`) plus two indexes. Additive — no DELETE this
+  time, unlike v3 (the columns can be re-derived from the existing
+  `locator` column on the next scan cycle, so retroactive backfill
+  happens naturally).
+- **Wire (`report.v1.json`): additive bump.** Existing pre-v0.14
+  consumers ignoring the new fields parse correctly. New optional
+  fields:
+  - `findings[].project_id`, `findings[].project_label`,
+    `findings[].project_class`
+  - `rolled_up_view.affected_projects[]`
+  - `rolled_up_path.project_id`, `project_label`, `project_class`
+  - Top-level `projects[]` and `class_totals` on snapshot and
+    rolled-up responses
+  Locked by a regression test that decodes a v0.14 response into a
+  pre-v0.14 struct.
+
+### Changed
+
+- **Dashboard's default landing tab is MY PROJECTS**, not ALL.
+  Single-project users see no change — the tab row stays hidden
+  when only one code-project is detected (regression guarantee).
+  ALL view remains available by clearing the URL fragment.
+- **`internal/triage.FillTriageFields` signature** now takes an
+  optional `*classify.Classifier`. Pass nil for one-shot CLI scans
+  or legacy tests — project fields stay empty in that case, and
+  the dashboard treats them as the "loose" fallback. Rule-supplied
+  values always win.
+
+### Internal
+
+- **9 PRs landed**: #19 (Go stdlib skip), #20 (classify package),
+  #21 (per-location metadata), #22 (server endpoints), #23
+  (dashboard render), #24 (convert bug fix), #25 (polish), #26
+  (regression tests), #27 (macOS daemon fix).
+- **Cross-model review.** Codex review caught two structural
+  bugs in the draft design: per-Finding vs per-LOCATION metadata,
+  and the rule-precedence inversion that would have classified
+  `.claude` as a code-project. Both are now in the locked design
+  and have explicit regression tests.
+
 ## [0.13.0] - 2026-05-16 — AI fix loop (let your coding agent close the loop)
 
 Audr finds vulnerabilities. Until this release, your coding agent had to
