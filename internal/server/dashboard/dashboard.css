@@ -535,3 +535,207 @@ a.copy-btn {
   }
   .findings .expanded-detail { display: block; }
 }
+
+/* --- Project tabs (v6, project-tabs work) ------------------------ */
+/* The tab row sits between the metric strip and the existing
+   filter rows. Hidden via the `hidden` HTML attribute when there's
+   only one project (or none) — the 1-project case must look
+   identical to the pre-v6 dashboard. */
+
+.metric-context {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em;
+  color: var(--text-muted); margin-top: 4px;
+}
+.metric-context strong { color: var(--text); font-weight: 500; }
+
+.tabrow {
+  display: flex; align-items: stretch;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.tabrow-scroll-wrap {
+  position: relative; flex: 1; display: flex; min-width: 0;
+}
+.tabrow-scroll-wrap::after {
+  content: ''; position: absolute; top: 0; right: 0; bottom: 0;
+  width: 32px; pointer-events: none;
+  background: linear-gradient(to right, rgba(14,14,12,0), rgba(14,14,12,1));
+}
+.tabrow-scroll {
+  display: flex; flex: 1; overflow-x: auto; min-width: 0;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.tabrow-scroll::-webkit-scrollbar { height: 4px; }
+.tabrow-scroll::-webkit-scrollbar-thumb { background: var(--border); }
+
+.tab {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 18px;
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: transparent;
+  border-right: 1px solid var(--border);
+  cursor: pointer; white-space: nowrap;
+  position: relative;
+  transition: color 120ms, background 120ms;
+}
+.tab:first-child { border-left: 1px solid var(--border); }
+.tab:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+.tab.active {
+  color: var(--text); background: var(--surface); font-weight: 500;
+}
+.tab.active::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 2px; background: var(--ok);
+}
+
+/* Leading severity dot. Three states only — the count itself
+   carries magnitude information; the dot is a state, not a number.
+   See D10 of the project-tabs design. */
+.tab-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block;
+  background: transparent;
+  flex: 0 0 8px;
+}
+.tab-dot.crit { background: var(--critical); }
+.tab-dot.high { background: var(--high); }
+.tab-dot.clean {
+  background: transparent;
+  border: 1px solid var(--text-muted);
+  width: 7px; height: 7px;
+}
+
+.tab-name { color: inherit; text-transform: lowercase; letter-spacing: 0.04em; }
+.tab-count { color: var(--text-muted); padding-left: 4px; }
+.tab.active .tab-count { color: var(--text-muted); }
+
+/* MY PROJECTS union tab visually distinct: bold spaced uppercase. */
+.tab.union {
+  text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600;
+}
+.tab.union .tab-name { text-transform: uppercase; letter-spacing: 0.14em; }
+.tab.union .tab-count { color: var(--text); }
+
+/* + N more overflow button */
+.tab-overflow {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 14px 18px;
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em;
+  color: var(--text-muted);
+  background: transparent;
+  border-right: 1px solid var(--border);
+  cursor: pointer; white-space: nowrap;
+}
+.tab-overflow:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+.tab-overflow .more-count { color: var(--text); font-weight: 500; }
+
+/* Right-edge keyboard-shortcut hint for the search modal */
+.tab-search {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 18px;
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em;
+  color: var(--text-muted);
+  background: transparent;
+  border-left: 1px solid var(--border);
+  cursor: pointer; white-space: nowrap;
+  flex: 0 0 auto;
+}
+.tab-search:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+.tab-search svg {
+  width: 12px; height: 12px;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.5; stroke-linecap: round;
+}
+.tab-search .kbd {
+  display: inline-block;
+  padding: 1px 6px; border: 1px solid var(--border); border-radius: 2px;
+  font-size: 10px; color: var(--text-muted);
+}
+
+/* --- Other Locations collapsed group ----------------------------- */
+.noise-group {
+  display: flex; align-items: center;
+  padding: 10px 32px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-muted);
+  cursor: pointer; user-select: none;
+}
+.noise-group:hover { color: var(--text); }
+.noise-group .chev { display: inline-block; width: 14px; }
+.noise-group[data-expanded="false"] .chev::before { content: "▸"; }
+.noise-group[data-expanded="true"]  .chev::before { content: "▾"; }
+.noise-group .noise-title { color: var(--text-muted); margin-left: 4px; }
+.noise-group .noise-count {
+  margin-left: 12px; color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+.noise-group .noise-warn {
+  margin-left: auto;
+  color: var(--critical);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.noise-group .noise-warn:empty { display: none; }
+.noise-expanded {
+  display: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.noise-expanded.show { display: block; }
+.noise-expanded .tabrow { background: var(--surface); border-bottom: 0; }
+
+/* --- Per-finding chip showing affected_projects count ----------- */
+.affected-projects-chip {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em;
+  color: var(--ok); border: 1px solid var(--ok);
+  padding: 2px 6px; opacity: 0.75;
+  margin-left: 8px;
+}
+
+/* --- Project switcher modal ------------------------------------- */
+.switcher-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55); z-index: 100;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 120px;
+}
+.switcher-overlay[hidden] { display: none; }
+.switcher {
+  width: 520px; max-width: 90vw;
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: 0 16px 60px rgba(0,0,0,0.6);
+}
+.switcher-input {
+  width: 100%; padding: 16px 20px;
+  border: 0; border-bottom: 1px solid var(--border);
+  background: transparent; color: var(--text);
+  font-family: var(--mono); font-size: 14px; letter-spacing: 0.04em;
+  outline: none;
+}
+.switcher-input::placeholder { color: var(--text-muted); }
+.switcher-list { max-height: 360px; overflow-y: auto; }
+.switcher-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--text-muted); cursor: pointer;
+}
+.switcher-item:hover, .switcher-item.focused {
+  background: var(--surface-2); color: var(--text);
+}
+.switcher-item .item-count { margin-left: auto; color: var(--text-muted); font-size: 11px; }
+.switcher-hint {
+  padding: 10px 20px; font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.1em; color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  display: flex; gap: 16px;
+}
+.switcher-hint span { display: inline-flex; align-items: center; gap: 4px; }
+.switcher-hint .kbd {
+  display: inline-block;
+  padding: 1px 4px; border: 1px solid var(--border); border-radius: 2px;
+  color: var(--text-muted);
+}
