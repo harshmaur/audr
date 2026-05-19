@@ -70,6 +70,29 @@
     // event. Powers the "WATCHING — last scan X min ago" sub-label.
     lastScanCompletedAt: 0,
     dismissedBanners: new Set(),
+
+    // v6 (project-tabs): server-supplied summaries.
+    //   projects: [{class, id, label, count, severity_counts}]
+    //   classTotals: { "<class>": {count, severity_counts}, ... }
+    // Both reflect the FULL store, not the filtered subset; the
+    // dashboard filters client-side from state.findings so the
+    // global landscape stays visible even while focused on one tab.
+    projects: [],
+    classTotals: {},
+
+    // activeTab is one of:
+    //   ''                   — ALL (no tab filtering; pre-v6 view)
+    //   '__my_projects__'    — union of all code-project tabs
+    //   '<project_id>'       — a single project (any class)
+    // Persisted in localStorage; restored on next load. URL fragment
+    // override wins (so shared links land on the right tab).
+    activeTab: '__my_projects__',
+
+    // noiseExpanded: collapse state of the OTHER LOCATIONS group.
+    // Auto-expands when its findings contain a crit/high (D11);
+    // user toggle overrides for the session via localStorage.
+    noiseExpanded: false,
+    noiseExpandedManual: null, // null = follow auto; true/false = user override
   };
 
   const SCAN_CATEGORIES = ['ai-agent', 'secrets', 'deps', 'os-pkg'];
@@ -128,11 +151,270 @@
   }
 
   function renderMetrics() {
-    const m = state.metrics || { open_total: 0, open_critical: 0, open_high: 0, resolved_today: 0 };
-    $('m-open').textContent = m.open_total;
-    $('m-crit').textContent = m.open_critical;
-    $('m-high').textContent = m.open_high;
-    $('m-resolved').textContent = '+' + (m.resolved_today || 0);
+    const globalM = state.metrics || { open_total: 0, open_critical: 0, open_high: 0, resolved_today: 0 };
+    // Rescope per active tab: when MY PROJECTS is active or a
+    // specific project tab, the strip shows that scope's counts;
+    // ALL keeps the global numbers. Global totals stay visible as
+    // a secondary line under the Open Findings card so users don't
+    // lose the panopticon view.
+    const scope = computeStripScope(globalM);
+    $('m-open').textContent = scope.open;
+    $('m-crit').textContent = scope.critical;
+    $('m-high').textContent = scope.high;
+    $('m-resolved').textContent = '+' + (globalM.resolved_today || 0);
+
+    // Secondary "scope / global" context line.
+    const ctx = $('m-context');
+    if (ctx) {
+      if (scope.label && scope.global !== scope.open) {
+        ctx.innerHTML = '';
+        ctx.append(
+          el('strong', { text: scope.label }),
+          document.createTextNode(' · global: ' + scope.global),
+        );
+      } else if (scope.label) {
+        ctx.innerHTML = '';
+        ctx.append(el('strong', { text: scope.label }));
+      } else {
+        ctx.textContent = '';
+      }
+    }
+  }
+
+  // computeStripScope returns the metric-strip numbers for the
+  // active tab. Reads from state.classTotals + state.projects (which
+  // come pre-aggregated from the server) so this is O(1) regardless
+  // of finding count.
+  function computeStripScope(globalM) {
+    const total = globalM.open_total || 0;
+    const empty = { open: total, critical: globalM.open_critical || 0, high: globalM.open_high || 0, global: total, label: '' };
+    if (!state.activeTab || state.activeTab === '') return empty;
+
+    if (state.activeTab === '__my_projects__') {
+      const cp = state.classTotals['code-project'];
+      if (!cp) return Object.assign({}, empty, { label: 'MY PROJECTS' });
+      return {
+        open: cp.count || 0,
+        critical: (cp.severity_counts && cp.severity_counts.critical) || 0,
+        high: (cp.severity_counts && cp.severity_counts.high) || 0,
+        global: total,
+        label: 'MY PROJECTS',
+      };
+    }
+    // Specific project id.
+    const proj = state.projects.find((p) => p.id === state.activeTab);
+    if (!proj) return Object.assign({}, empty, { label: state.activeTab });
+    return {
+      open: proj.count || 0,
+      critical: (proj.severity_counts && proj.severity_counts.critical) || 0,
+      high: (proj.severity_counts && proj.severity_counts.high) || 0,
+      global: total,
+      label: proj.label || proj.id,
+    };
+  }
+
+  // ----- Project tabs (v6) -----------------------------------------
+  //
+  // Tab semantics:
+  //   - ALL                 → no row-level filter; pre-v6 view
+  //   - MY PROJECTS         → rows whose ANY location is class=code-project
+  //   - <project_id>        → rows whose ANY location matches that id
+  // Filtering happens client-side in rowMatchesActiveTab(); the
+  // server endpoint can also do it but skipping that round-trip
+  // keeps tab clicks instant.
+  function rowMatchesActiveTab(row) {
+    if (!state.activeTab) return true;
+    const locs = collectRowLocations(row);
+    if (state.activeTab === '__my_projects__') {
+      return locs.some((l) => l.project_class === 'code-project');
+    }
+    return locs.some((l) => l.project_id === state.activeTab);
+  }
+
+  function collectRowLocations(row) {
+    const out = [];
+    for (const g of row.groups || []) {
+      for (const p of g.paths || []) out.push(p);
+    }
+    return out;
+  }
+
+  function renderTabs() {
+    const wrap = $('tabrow');
+    const inner = $('tabrow-tabs');
+    if (!wrap || !inner) return;
+
+    // Hide the row entirely in the single-project case (1-project
+    // regression guarantee). Also hidden when there are no projects
+    // at all (fresh daemon, empty store).
+    const codeProjects = state.projects.filter((p) => p.class === 'code-project');
+    if (codeProjects.length <= 1) {
+      wrap.setAttribute('hidden', '');
+      renderNoiseGroup();
+      return;
+    }
+    wrap.removeAttribute('hidden');
+
+    inner.innerHTML = '';
+
+    // MY PROJECTS union tab.
+    inner.append(makeTabButton({
+      id: '__my_projects__',
+      label: 'MY PROJECTS',
+      count: state.classTotals['code-project'] ? state.classTotals['code-project'].count : 0,
+      severity: state.classTotals['code-project'] ? state.classTotals['code-project'].severity_counts : null,
+      isUnion: true,
+    }));
+
+    // Code-project tabs, server already sorts them severity-first.
+    for (const p of codeProjects) {
+      inner.append(makeTabButton({
+        id: p.id,
+        label: p.label,
+        count: p.count,
+        severity: p.severity_counts,
+        isUnion: false,
+      }));
+    }
+
+    renderNoiseGroup();
+  }
+
+  function makeTabButton({ id, label, count, severity, isUnion }) {
+    const dot = dotClassFor(severity);
+    const active = id === state.activeTab;
+    const node = el(
+      'button',
+      {
+        class: 'tab' + (isUnion ? ' union' : '') + (active ? ' active' : ''),
+        dataset: { tab: id },
+        onclick: () => setActiveTab(id),
+      },
+    );
+    if (!isUnion) {
+      node.append(el('span', { class: 'tab-dot ' + dot }));
+    }
+    node.append(el('span', { class: 'tab-name', text: label || id }));
+    if (typeof count === 'number') {
+      node.append(el('span', { class: 'tab-count', text: '· ' + count }));
+    }
+    return node;
+  }
+
+  function dotClassFor(severityCounts) {
+    if (!severityCounts) return 'clean';
+    if (severityCounts.critical) return 'crit';
+    if (severityCounts.high) return 'high';
+    return 'clean';
+  }
+
+  function renderNoiseGroup() {
+    const toggle = $('noise-toggle');
+    const expandedEl = $('noise-expanded');
+    const tabsEl = $('noise-tabs');
+    const countEl = $('noise-count');
+    const warnEl = $('noise-warn');
+    if (!toggle || !expandedEl || !tabsEl || !countEl) return;
+
+    const others = state.projects.filter((p) => p.class !== 'code-project');
+    if (others.length === 0) {
+      toggle.setAttribute('hidden', '');
+      expandedEl.classList.remove('show');
+      return;
+    }
+    toggle.removeAttribute('hidden');
+
+    // Aggregate count for the collapsed-bar label.
+    let totalCount = 0, crit = 0, high = 0;
+    for (const p of others) {
+      totalCount += p.count || 0;
+      crit += (p.severity_counts && p.severity_counts.critical) || 0;
+      high += (p.severity_counts && p.severity_counts.high) || 0;
+    }
+    countEl.textContent = totalCount.toLocaleString() + ' findings';
+
+    if (warnEl) {
+      if (crit > 0) {
+        warnEl.textContent = '● ' + crit + ' critical here';
+      } else if (high > 0) {
+        warnEl.textContent = '● ' + high + ' high here';
+      } else {
+        warnEl.textContent = '';
+      }
+    }
+
+    // Auto-expand when a crit or high is present (D11). User
+    // override (noiseExpandedManual) wins for the session.
+    if (state.noiseExpandedManual !== null) {
+      state.noiseExpanded = state.noiseExpandedManual;
+    } else {
+      state.noiseExpanded = crit > 0 || high > 0;
+    }
+    toggle.setAttribute('data-expanded', state.noiseExpanded ? 'true' : 'false');
+    expandedEl.classList.toggle('show', state.noiseExpanded);
+
+    // Inner tabs for each non-code-project bucket.
+    tabsEl.innerHTML = '';
+    for (const p of others) {
+      tabsEl.append(makeTabButton({
+        id: p.id || ('__class__' + p.class),
+        label: p.label,
+        count: p.count,
+        severity: p.severity_counts,
+        isUnion: false,
+      }));
+    }
+  }
+
+  function setActiveTab(id) {
+    state.activeTab = id;
+    persistActiveTab(id);
+    updateURLFragment(id);
+    scheduleRender();
+  }
+
+  // URL fragment + localStorage sync ---------------------------------
+  function updateURLFragment(id) {
+    try {
+      if (!id || id === '') history.replaceState(null, '', '#');
+      else history.replaceState(null, '', '#project=' + encodeURIComponent(id));
+    } catch (_) { /* ignore in case the browser blocks it (file://) */ }
+  }
+  function readURLFragment() {
+    if (!location.hash) return null;
+    const m = location.hash.match(/[#&]project=([^&]+)/);
+    if (m) {
+      try { return decodeURIComponent(m[1]); } catch { return null; }
+    }
+    return null;
+  }
+  function persistActiveTab(id) {
+    try { localStorage.setItem('audr.activeTab', id || ''); } catch (_) {}
+  }
+  function restoreActiveTab() {
+    try {
+      const fragId = readURLFragment();
+      if (fragId !== null) return fragId;
+      const v = localStorage.getItem('audr.activeTab');
+      if (v !== null) return v;
+    } catch (_) {}
+    return '__my_projects__';
+  }
+
+  // Toggle noise group manually (user click overrides auto-expand).
+  function toggleNoiseGroup() {
+    // If currently auto-tracking and the auto-state is expanded,
+    // user click should collapse (and stick). And vice versa.
+    state.noiseExpandedManual = !state.noiseExpanded;
+    try { localStorage.setItem('audr.noiseExpandedManual', JSON.stringify(state.noiseExpandedManual)); } catch (_) {}
+    scheduleRender();
+  }
+  function restoreNoiseManualOverride() {
+    try {
+      const v = localStorage.getItem('audr.noiseExpandedManual');
+      if (v === null) return null;
+      return JSON.parse(v);
+    } catch (_) { return null; }
   }
 
   // ----- Findings list --------------------------------------------
@@ -147,6 +429,7 @@
   function filteredFindings() {
     const { category, severity } = state.filters;
     return state.findings.filter((row) => {
+      if (!rowMatchesActiveTab(row)) return false;
       if (category !== 'all' && row.category !== category) return false;
       if (severity !== 'all' && row.worst_severity !== severity) return false;
       return true;
@@ -432,6 +715,7 @@
   function render() {
     renderTop();
     renderMetrics();
+    renderTabs();
     renderBanners();
     renderScanProgress();
     renderFindings();
@@ -815,6 +1099,9 @@
         const snap = await apiGet('/api/findings/rollup');
         state.findings = snap.rows || [];
         if (snap.metrics) state.metrics = snap.metrics;
+        // v6: project summaries flow with every rollup response.
+        state.projects = snap.projects || [];
+        state.classTotals = snap.class_totals || {};
         scheduleRender();
       } catch (_) {
         // Swallow the error — the next SSE event or manual reload
@@ -878,6 +1165,22 @@
       state.metrics = rollup.metrics || flat.metrics;
       state.daemon = flat.daemon;
       state.scanners = flat.scanners || [];
+      // v6: project summaries flow with every rollup response.
+      state.projects = rollup.projects || [];
+      state.classTotals = rollup.class_totals || {};
+      // Restore the user's last-active tab (URL fragment wins over
+      // localStorage). Verify the id still exists in the loaded
+      // projects[]; if not (project resolved entirely between
+      // sessions), fall back to MY PROJECTS.
+      const want = restoreActiveTab();
+      if (want === '__my_projects__' || want === '') {
+        state.activeTab = want;
+      } else if (state.projects.some((p) => p.id === want)) {
+        state.activeTab = want;
+      } else {
+        state.activeTab = '__my_projects__';
+      }
+      state.noiseExpandedManual = restoreNoiseManualOverride();
       // A scanner row in the snapshot means at least one scan cycle
       // has completed (or the daemon recorded sidecar statuses
       // pre-cycle). Either way, treat first-run as past so the
@@ -912,6 +1215,126 @@
   document.getElementById('reload').addEventListener('click', (e) => {
     e.preventDefault();
     load();
+  });
+
+  // ----- Project switcher modal (v6) ------------------------------
+  // Triggered by:
+  //   - clicking the "jump to project" affordance in the tab row
+  //   - pressing '/' anywhere on the page (not inside a text input)
+  //   - pressing Cmd+P / Ctrl+P (overrides the browser's default
+  //     print shortcut while the dashboard tab is focused — common
+  //     pattern in editor-style UIs like VS Code's command palette)
+  //
+  // Items are pre-sorted by the same severity priority the tab row
+  // uses (server-side sort).
+  let switcherFocusIndex = 0;
+  function openSwitcher() {
+    const overlay = $('switcher');
+    if (!overlay) return;
+    overlay.removeAttribute('hidden');
+    renderSwitcherList(state.projects, '');
+    const input = $('switcher-input');
+    if (input) {
+      input.value = '';
+      setTimeout(() => input.focus(), 0);
+    }
+  }
+  function closeSwitcher() {
+    const overlay = $('switcher');
+    if (overlay) overlay.setAttribute('hidden', '');
+  }
+  function renderSwitcherList(items, q) {
+    const list = $('switcher-list');
+    if (!list) return;
+    list.innerHTML = '';
+    const matches = items.filter((p) => {
+      if (!q) return true;
+      const needle = q.toLowerCase();
+      return (
+        (p.label || '').toLowerCase().includes(needle) ||
+        (p.id || '').toLowerCase().includes(needle)
+      );
+    });
+    if (switcherFocusIndex >= matches.length) switcherFocusIndex = 0;
+    matches.forEach((p, i) => {
+      const dot = dotClassFor(p.severity_counts);
+      const row = el(
+        'div',
+        {
+          class: 'switcher-item' + (i === switcherFocusIndex ? ' focused' : ''),
+          onclick: () => {
+            setActiveTab(p.id);
+            closeSwitcher();
+          },
+        },
+        el('span', { class: 'tab-dot ' + dot }),
+        document.createTextNode(p.label || p.id),
+        el('span', { class: 'item-count', text: '' + (p.count || 0) }),
+      );
+      list.append(row);
+    });
+  }
+  const switcherTrigger = $('search-trigger');
+  if (switcherTrigger) switcherTrigger.addEventListener('click', openSwitcher);
+  const switcherOverlay = $('switcher');
+  if (switcherOverlay) {
+    switcherOverlay.addEventListener('click', (e) => {
+      if (e.target === switcherOverlay) closeSwitcher();
+    });
+  }
+  const switcherInput = $('switcher-input');
+  if (switcherInput) {
+    switcherInput.addEventListener('input', (e) => {
+      switcherFocusIndex = 0;
+      renderSwitcherList(state.projects, e.target.value);
+    });
+    switcherInput.addEventListener('keydown', (e) => {
+      const items = state.projects; // mirror render filter
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        switcherFocusIndex = Math.min(items.length - 1, switcherFocusIndex + 1);
+        renderSwitcherList(items, e.target.value);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        switcherFocusIndex = Math.max(0, switcherFocusIndex - 1);
+        renderSwitcherList(items, e.target.value);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const list = $('switcher-list');
+        const focused = list && list.querySelector('.focused');
+        if (focused) focused.click();
+      }
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    // Global '/' opens the switcher unless the user is typing into
+    // an input/textarea/contenteditable.
+    const tag = (e.target && e.target.tagName) || '';
+    const inField = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable);
+    if (e.key === 'Escape') {
+      closeSwitcher();
+      return;
+    }
+    if (inField) return;
+    if (e.key === '/' || ((e.metaKey || e.ctrlKey) && (e.key === 'p' || e.key === 'P'))) {
+      e.preventDefault();
+      openSwitcher();
+    }
+  });
+
+  // ----- OTHER LOCATIONS group toggle -----------------------------
+  const noiseToggle = $('noise-toggle');
+  if (noiseToggle) noiseToggle.addEventListener('click', toggleNoiseGroup);
+
+  // ----- URL fragment listener ------------------------------------
+  // Browser back/forward should restore the tab in the fragment.
+  window.addEventListener('hashchange', () => {
+    const want = readURLFragment();
+    if (want === null) return;
+    if (want === '' || want === '__my_projects__' || state.projects.some((p) => p.id === want)) {
+      state.activeTab = want || '__my_projects__';
+      scheduleRender();
+    }
   });
 
   // Carry the auth token across in-app navigation. Topbar nav links

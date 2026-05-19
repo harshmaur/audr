@@ -34,10 +34,42 @@
 </section>
 
 <section class="metrics" id="metrics">
-  <div class="metric"><div class="metric-num" id="m-open">—</div><div class="metric-label">Open findings</div></div>
+  <div class="metric">
+    <div class="metric-num" id="m-open">—</div>
+    <div class="metric-label">Open findings</div>
+    <div class="metric-context" id="m-context"></div>
+  </div>
   <div class="metric"><div class="metric-num crit" id="m-crit">—</div><div class="metric-label">Critical</div></div>
   <div class="metric"><div class="metric-num high" id="m-high">—</div><div class="metric-label">High</div></div>
   <div class="metric"><div class="metric-num ok" id="m-resolved">—</div><div class="metric-label">Resolved today</div></div>
+</section>
+
+<!-- Project tabs row. Hidden when there's only one project. -->
+<section class="tabrow" id="tabrow" aria-label="Project tabs" hidden>
+  <div class="tabrow-scroll-wrap">
+    <div class="tabrow-scroll" id="tabrow-tabs"></div>
+  </div>
+  <button class="tab-search" id="search-trigger" title="Jump to project">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="14.5" y2="14.5"/></svg>
+    <span>jump to project</span>
+    <span class="kbd">/</span>
+  </button>
+</section>
+
+<!-- OTHER LOCATIONS group: collapsed by default, auto-expands when
+     it contains a critical or high finding (D11 of the design). -->
+<section class="noise-group" id="noise-toggle" data-expanded="false" hidden>
+  <span class="chev" aria-hidden="true"></span>
+  <span class="noise-title">Other locations</span>
+  <span class="noise-count" id="noise-count"></span>
+  <span class="noise-warn" id="noise-warn"></span>
+</section>
+<section class="noise-expanded" id="noise-expanded">
+  <div class="tabrow">
+    <div class="tabrow-scroll-wrap">
+      <div class="tabrow-scroll" id="noise-tabs"></div>
+    </div>
+  </div>
 </section>
 
 <section class="filters" aria-label="Filters">
@@ -60,6 +92,19 @@
 <main class="findings" id="findings" aria-live="polite" aria-busy="true">
   <div class="empty" id="loading">loading…</div>
 </main>
+
+<!-- Project switcher modal (D8 of the design — keyboard-driven type-to-jump). -->
+<div class="switcher-overlay" id="switcher" hidden role="dialog" aria-modal="true" aria-label="Jump to project">
+  <div class="switcher">
+    <input class="switcher-input" id="switcher-input" placeholder="jump to project…" autocomplete="off">
+    <div class="switcher-list" id="switcher-list"></div>
+    <div class="switcher-hint">
+      <span><span class="kbd">↑↓</span> navigate</span>
+      <span><span class="kbd">↵</span> select</span>
+      <span><span class="kbd">esc</span> close</span>
+    </div>
+  </div>
+</div>
 
 <footer class="footer">
   <div>audr · <span id="version">unknown</span> · token authenticated</div>
