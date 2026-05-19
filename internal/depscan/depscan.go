@@ -270,6 +270,9 @@ func LockfileFingerprint(projectRoot string) (string, error) {
 			if shouldSkipDir(d.Name()) || shouldSkipPath(path) {
 				return filepath.SkipDir
 			}
+			if scanignore.LooksLikeGoStdlibSrcRoot(path) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if !isDependencySourceFile(d.Name()) {
@@ -343,6 +346,11 @@ func DiscoverProjectRoots(roots []string) ([]string, error) {
 				// Without this, a $HOME walk discovers thousands of
 				// stale package.json files inside tool caches.
 				if shouldSkipPath(path) {
+					return filepath.SkipDir
+				}
+				// Structural skip: GOROOT/src holds Go's stdlib + its
+				// own go.mod. Detected by sibling bin/go.
+				if scanignore.LooksLikeGoStdlibSrcRoot(path) {
 					return filepath.SkipDir
 				}
 				return nil

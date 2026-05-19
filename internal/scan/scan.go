@@ -36,6 +36,7 @@ import (
 	"github.com/harshmaur/audr/internal/finding"
 	"github.com/harshmaur/audr/internal/parse"
 	"github.com/harshmaur/audr/internal/rules"
+	"github.com/harshmaur/audr/internal/scanignore"
 	"github.com/harshmaur/audr/internal/suppress"
 )
 
@@ -538,6 +539,9 @@ func walkRoot(ctx context.Context, root string, skipSet map[string]bool, out cha
 				if base == "node_modules" {
 					walkMiniShaiHuludNodeModules(ctx, path, out, logger)
 				}
+				return fs.SkipDir
+			}
+			if scanignore.LooksLikeGoStdlibSrcRoot(path) {
 				return fs.SkipDir
 			}
 			return nil
