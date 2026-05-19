@@ -432,11 +432,14 @@ func (s *Server) handleFindings(w http.ResponseWriter, r *http.Request) {
 			"os-pkg":   cfg.OSPkg,
 		}
 	}
+	projects, classTotals := computeProjectsAndClassTotals(rows)
 	resp := SnapshotResponse{
-		Findings: findings,
-		Metrics:  computeMetrics(rows),
-		Daemon:   daemonInfo,
-		Scanners: scannerStatusesToInfo(statuses),
+		Findings:    findings,
+		Metrics:     computeMetrics(rows),
+		Daemon:      daemonInfo,
+		Scanners:    scannerStatusesToInfo(statuses),
+		Projects:    projects,
+		ClassTotals: classTotals,
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
