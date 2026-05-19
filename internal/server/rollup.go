@@ -32,13 +32,33 @@ const overrideDisclaimer = "⚠️ This override pins the transitive dep. Verify
 // can render the strip identically across both routes.
 func (s *Server) handleFindingsRollup(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	q := r.URL.Query()
 
 	cap := rolledUpPathsCapDefault
-	if v := r.URL.Query().Get("cap"); v != "" {
+	if v := q.Get("cap"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
 			cap = n
 		}
 	}
+
+	// Project / class filters. Both are optional and AND together when
+	// both are present (a row is kept iff it survives both filters).
+	//
+	//   ?project=<canonical_id>  — single project; row included iff
+	//                              ANY of its locations is in this
+	//                              project; row's locations[] is
+	//                              narrowed to only that project's
+	//                              paths (D6 of the project-tabs
+	//                              design — per-location filtering).
+	//
+	//   ?project_class=<csv>     — one or more comma-separated class
+	//                              names from {code-project,
+	//                              agent-state, system, os-package,
+	//                              loose}; row included iff ANY of
+	//                              its locations matches; locations[]
+	//                              narrowed to matching paths.
+	projectFilter := q.Get("project")
+	classFilter := parseClassFilter(q.Get("project_class"))
 
 	rolled, err := s.opts.Store.ListRolledUp(ctx, cap)
 	if err != nil {
@@ -46,10 +66,10 @@ func (s *Server) handleFindingsRollup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Reuse the flat findings query for metrics — the metric strip
-	// counts ARE per-path (1 finding = 1 thing the user could resolve),
-	// not per-vulnerability. The dashboard surfaces both: the
-	// rolled-up row count, plus the underlying open count.
+	// Always recompute project summaries from the full (un-filtered)
+	// findings set — the dashboard needs to know the global
+	// landscape of tabs even when viewing a single project. See the
+	// RolledUpResponse type doc.
 	rows, err := s.opts.Store.SnapshotFindings(ctx)
 	if err != nil {
 		http.Error(w, "snapshot findings: "+err.Error(), http.StatusInternalServerError)
@@ -69,13 +89,21 @@ func (s *Server) handleFindingsRollup(w http.ResponseWriter, r *http.Request) {
 			FirstSeen:        time.Unix(row.WorstFirstSeen, 0).UTC().Format(time.RFC3339),
 			AffectedProjects: row.AffectedProjects,
 		}
+		// Build groups, narrowing locations[] to filter-matching paths.
+		// Track whether any location passed the filter so we know
+		// whether to include the row at all.
+		anyMatched := false
 		for _, g := range row.Groups {
 			groupView := RolledUpGroupVw{
 				FixAuthority:    g.FixAuthority,
 				SecondaryNotify: g.SecondaryNotify,
-				PathCount:       g.PathCount,
+				PathCount:       g.PathCount, // unchanged: reflects unfiltered count
 			}
 			for _, p := range g.Paths {
+				if !pathMatchesFilters(p, projectFilter, classFilter) {
+					continue
+				}
+				anyMatched = true
 				groupView.Paths = append(groupView.Paths, RolledUpPathVw{
 					Fingerprint:  p.Fingerprint,
 					Path:         p.Path,
@@ -84,17 +112,68 @@ func (s *Server) handleFindingsRollup(w http.ResponseWriter, r *http.Request) {
 					ProjectClass: p.ProjectClass,
 				})
 			}
+			// Drop empty groups so the dashboard doesn't render
+			// fix-authority sections with zero rows when filtering.
+			if len(groupView.Paths) == 0 && (projectFilter != "" || classFilter != nil) {
+				continue
+			}
 			v.Groups = append(v.Groups, groupView)
+		}
+
+		// Skip rows whose locations were all filtered out. When no
+		// filter is active, anyMatched stays true for every row that
+		// had any path (and rows with zero paths were already missing
+		// from the store).
+		if (projectFilter != "" || classFilter != nil) && !anyMatched {
+			continue
 		}
 		views = append(views, v)
 	}
 
+	projects, classTotals := computeProjectsAndClassTotals(rows)
 	resp := RolledUpResponse{
-		Rows:    views,
-		Metrics: computeMetrics(rows),
-		Daemon:  DaemonInfo{State: "RUN", Version: s.opts.Version},
+		Rows:        views,
+		Metrics:     computeMetrics(rows),
+		Daemon:      DaemonInfo{State: "RUN", Version: s.opts.Version},
+		Projects:    projects,
+		ClassTotals: classTotals,
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// parseClassFilter splits a comma-separated list of class names into a
+// set. Returns nil when input is empty so callers can distinguish
+// "no filter" from "filter to no classes" (the latter would be a
+// nonsense query that returns nothing).
+func parseClassFilter(csv string) map[string]bool {
+	if csv == "" {
+		return nil
+	}
+	out := map[string]bool{}
+	for _, c := range strings.Split(csv, ",") {
+		c = strings.TrimSpace(c)
+		if c == "" {
+			continue
+		}
+		out[c] = true
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// pathMatchesFilters reports whether a path passes the project and
+// class filters. Empty filter means "match everything." Both filters
+// AND together when both are set.
+func pathMatchesFilters(p state.RolledUpPath, projectFilter string, classFilter map[string]bool) bool {
+	if projectFilter != "" && p.ProjectID != projectFilter {
+		return false
+	}
+	if classFilter != nil && !classFilter[p.ProjectClass] {
+		return false
+	}
+	return true
 }
 
 // handleRemediateSnippet renders an override-snippet for a single

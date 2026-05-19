@@ -26,11 +26,40 @@ type FindingView struct {
 
 // SnapshotResponse is the body of GET /api/findings: the dashboard's
 // initial state.
+//
+// Projects + ClassTotals (v6, project-tabs work) summarize the
+// findings list by project and by project-class so the dashboard
+// can render the tab row + collapsed OTHER LOCATIONS group without
+// re-scanning the full findings array client-side. Both are
+// recomputed from the snapshot on every request — there's no
+// separate cache layer (D8 of the design doc: simple > smart).
 type SnapshotResponse struct {
-	Findings []FindingView   `json:"findings"`
-	Metrics  SnapshotMetrics `json:"metrics"`
-	Daemon   DaemonInfo      `json:"daemon"`
-	Scanners []ScannerInfo   `json:"scanners"`
+	Findings    []FindingView         `json:"findings"`
+	Metrics     SnapshotMetrics       `json:"metrics"`
+	Daemon      DaemonInfo            `json:"daemon"`
+	Scanners    []ScannerInfo         `json:"scanners"`
+	Projects    []ProjectSummary      `json:"projects,omitempty"`
+	ClassTotals map[string]ClassTotal `json:"class_totals,omitempty"`
+}
+
+// ProjectSummary is one entry in SnapshotResponse.Projects: a single
+// project (or pseudo-project bucket like ".hermes" or "os-packages")
+// with its open-finding tally and severity breakdown. Sorted by the
+// caller; the dashboard re-sorts by worst-severity-first.
+type ProjectSummary struct {
+	Class          string         `json:"class"`             // "code-project" | "agent-state" | "system" | "os-package" | "loose"
+	ID             string         `json:"id"`                // canonical project_id (or "" for os-package)
+	Label          string         `json:"label"`             // basename for tab rendering
+	Count          int            `json:"count"`             // total open findings under this project
+	SeverityCounts map[string]int `json:"severity_counts"`   // {"critical":N, "high":N, ...}; omits zero keys
+}
+
+// ClassTotal aggregates ProjectSummary entries by class — the top-line
+// numbers used to populate the MY PROJECTS union tab and the
+// collapsed OTHER LOCATIONS header in the dashboard.
+type ClassTotal struct {
+	Count          int            `json:"count"`
+	SeverityCounts map[string]int `json:"severity_counts"`
 }
 
 // SnapshotMetrics is the metric strip data: totals shown across the top
@@ -170,10 +199,21 @@ type RolledUpPathVw struct {
 }
 
 // RolledUpResponse is the body of GET /api/findings/rollup.
+//
+// Projects + ClassTotals are populated identically to SnapshotResponse
+// so the dashboard can use either endpoint as its source of truth for
+// tab counts without a second round trip. Both fields reflect the
+// FULL store, not the filtered subset returned by ?project= /
+// ?project_class= filters — the dashboard needs to know the un-filtered
+// landscape (the existence and counts of other tabs) even when
+// viewing one project. The caller filters Rows; the summaries stay
+// global.
 type RolledUpResponse struct {
-	Rows    []RolledUpView  `json:"rows"`
-	Metrics SnapshotMetrics `json:"metrics"`
-	Daemon  DaemonInfo      `json:"daemon"`
+	Rows        []RolledUpView        `json:"rows"`
+	Metrics     SnapshotMetrics       `json:"metrics"`
+	Daemon      DaemonInfo            `json:"daemon"`
+	Projects    []ProjectSummary      `json:"projects,omitempty"`
+	ClassTotals map[string]ClassTotal `json:"class_totals,omitempty"`
 }
 
 // RemediateSnippetResponse is the body of GET /api/remediate/snippet/:fp.
