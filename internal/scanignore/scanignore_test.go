@@ -2,10 +2,74 @@ package scanignore
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+// TestLooksLikeGoStdlibSrcRoot covers the structural detection of a Go
+// install's GOROOT/src directory. Detection is layout-based (sibling
+// bin/go), not env-var-based, so it works for system installs, user
+// installs under ~/.local/go, gvm/asdf/goenv trees, and tarball extracts.
+func TestLooksLikeGoStdlibSrcRoot(t *testing.T) {
+	tmp := t.TempDir()
+	goRoot := filepath.Join(tmp, "myroot", "go")
+	srcDir := filepath.Join(goRoot, "src")
+	binDir := filepath.Join(goRoot, "bin")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	binGo := "go"
+	if runtime.GOOS == "windows" {
+		binGo = "go.exe"
+	}
+	if err := os.WriteFile(filepath.Join(binDir, binGo), []byte("fake go binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if !LooksLikeGoStdlibSrcRoot(srcDir) {
+		t.Errorf("expected fake Go install src/ to be detected, got false for %q", srcDir)
+	}
+
+	// Negative: a project's own src/ directory (no sibling bin/go).
+	projectSrc := filepath.Join(tmp, "myproject", "src")
+	if err := os.MkdirAll(projectSrc, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if LooksLikeGoStdlibSrcRoot(projectSrc) {
+		t.Errorf("project's own src/ should NOT be detected; got true for %q", projectSrc)
+	}
+
+	// Negative: src/ under a dir named go/ but WITHOUT sibling bin/go.
+	// Could be a Go-themed project literally named "go". MUST NOT match.
+	fakeGoRoot := filepath.Join(tmp, "fake-go-no-bin", "go")
+	fakeGoSrc := filepath.Join(fakeGoRoot, "src")
+	if err := os.MkdirAll(fakeGoSrc, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if LooksLikeGoStdlibSrcRoot(fakeGoSrc) {
+		t.Errorf("dir named src/ under dir named go/ but WITHOUT sibling bin/go should NOT be detected; got true for %q", fakeGoSrc)
+	}
+
+	// Negative: directory not named src.
+	notSrc := filepath.Join(goRoot, "pkg")
+	if err := os.MkdirAll(notSrc, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if LooksLikeGoStdlibSrcRoot(notSrc) {
+		t.Errorf("non-src directory should NOT match: %q", notSrc)
+	}
+
+	// Negative: empty path.
+	if LooksLikeGoStdlibSrcRoot("") {
+		t.Error("empty path should NOT match")
+	}
+}
 
 func TestDefaultsContainsCanonicalSkipNames(t *testing.T) {
 	got := Defaults()

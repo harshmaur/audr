@@ -15,6 +15,7 @@ package scanignore
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -356,6 +357,57 @@ func IsExcludedBaseName(name string) bool {
 		if !strings.ContainsRune(entry, '/') && entry == name {
 			return true
 		}
+	}
+	return false
+}
+
+// LooksLikeGoStdlibSrcRoot returns true when path is the `src`
+// subdirectory of a Go installation tree (GOROOT/src). Structural
+// detection: looks for a sibling `bin/go` (or `bin/go.exe` on
+// Windows) alongside `src`, which is the canonical layout for every
+// Go install — system package, manual tarball, gvm/asdf/goenv,
+// `~/.local/go` user-install.
+//
+// This can't be a basename-only or component-subsequence skip:
+//
+//   - "src" alone is too greedy (every project has a src/ directory).
+//   - "go/src" alone is too greedy (collides with $GOPATH/src where
+//     user code lives, and with any project nested under a dir named
+//     "go"). Structural confirmation via the sibling binary is what
+//     distinguishes "this is GOROOT/src" from "this is just a src/
+//     under a dir that happens to be named 'go'".
+//
+// Why this matters: scanning Go's stdlib emits hundreds of false-
+// positive findings (`crypto/`, `runtime/`, etc. contain example
+// tokens and test vectors that secret-pattern rules legitimately
+// fire on). The user can't fix Go's stdlib; treating it as in-scope
+// just pollutes the dashboard.
+//
+// Not skipped: $GOPATH/src (user code lives there) or $GOPATH/pkg/mod
+// (handled by the multi-segment "go/pkg" entry in Defaults() above).
+//
+// Three call sites today:
+//
+//   - internal/scan walker — invoked per-directory during the file walk.
+//   - internal/depscan project-root discovery + lockfile fingerprinting.
+//   - secretscan / betterleaks does NOT call this directly; its skip
+//     list comes from PathExcluded() + WriteBetterleaksConfig() which
+//     are statically-typed regex patterns. The walker-side skip handles
+//     it before betterleaks ever sees the stdlib path.
+func LooksLikeGoStdlibSrcRoot(path string) bool {
+	if filepath.Base(path) != "src" {
+		return false
+	}
+	parent := filepath.Dir(path)
+	if filepath.Base(parent) != "go" {
+		return false
+	}
+	// Confirm with sibling `bin/go` (or `bin/go.exe` on Windows).
+	if _, err := os.Stat(filepath.Join(parent, "bin", "go")); err == nil {
+		return true
+	}
+	if _, err := os.Stat(filepath.Join(parent, "bin", "go.exe")); err == nil {
+		return true
 	}
 	return false
 }
