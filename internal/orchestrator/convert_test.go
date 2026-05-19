@@ -81,6 +81,67 @@ func TestFindingToStateFindingShape(t *testing.T) {
 	}
 }
 
+// TestFindingToStateFindingCarriesProjectFields verifies the bug-fix
+// for v6 project columns: findingToStateFinding MUST copy ProjectID,
+// ProjectLabel, ProjectClass from the input finding.Finding to the
+// output state.Finding. Without this, the classifier output gets
+// silently dropped at the orchestrator's persistence boundary and
+// the dashboard sees 0 projects despite a successful classification.
+func TestFindingToStateFindingCarriesProjectFields(t *testing.T) {
+	args := finding.Args{
+		RuleID:   "rule-x",
+		Severity: finding.SeverityHigh,
+		Title:    "t",
+		Path:     "/home/u/projects/audr/main.go",
+		Line:     1,
+	}
+	f := finding.New(args)
+	// Simulate what triage.FillTriageFields would set.
+	f.ProjectID = "/home/u/projects/audr"
+	f.ProjectLabel = "audr"
+	f.ProjectClass = "code-project"
+
+	got, err := findingToStateFinding(f, 1, "ai-agent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ProjectID != f.ProjectID {
+		t.Errorf("ProjectID dropped: got %q, want %q", got.ProjectID, f.ProjectID)
+	}
+	if got.ProjectLabel != f.ProjectLabel {
+		t.Errorf("ProjectLabel dropped: got %q, want %q", got.ProjectLabel, f.ProjectLabel)
+	}
+	if got.ProjectClass != f.ProjectClass {
+		t.Errorf("ProjectClass dropped: got %q, want %q", got.ProjectClass, f.ProjectClass)
+	}
+}
+
+// TestDepscanFindingToStateCarriesProjectFields covers the same fix
+// for the depscan-emitter conversion path.
+func TestDepscanFindingToStateCarriesProjectFields(t *testing.T) {
+	args := finding.Args{
+		RuleID:   "dependency-osv-vulnerability",
+		Severity: finding.SeverityHigh,
+		Title:    "t",
+		Path:     "/home/u/projects/audr/package-lock.json",
+		Match:    "npm undici@5.28.0",
+		Context:  "advisory=GHSA-xxxx-yyyy fixed=5.28.4",
+	}
+	f := finding.New(args)
+	f.ProjectID = "/home/u/projects/audr"
+	f.ProjectLabel = "audr"
+	f.ProjectClass = "code-project"
+
+	got, err := depscanFindingToState(f, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ProjectID != f.ProjectID || got.ProjectLabel != f.ProjectLabel || got.ProjectClass != f.ProjectClass {
+		t.Errorf("dep-package project fields dropped: id=%q label=%q class=%q",
+			got.ProjectID, got.ProjectLabel, got.ProjectClass)
+	}
+}
+
 func TestParseDepscanMatchSplitsCorrectly(t *testing.T) {
 	cases := []struct {
 		match            string
