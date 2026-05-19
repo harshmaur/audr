@@ -127,16 +127,22 @@ type RemediationResponse struct {
 // state.RolledUpRow with two differences: severity / authority are
 // kept as strings (the dashboard JS doesn't need typed enums), and
 // FirstSeen is rendered as RFC3339 for consistent display.
+//
+// v6+ (project-tabs work): AffectedProjects carries the distinct set
+// of project_ids across this row's member locations, enabling the
+// "+N projects" chip the dashboard renders on rolled-up rows that
+// span multiple projects (D6 of the project-tabs design).
 type RolledUpView struct {
-	DedupGroupKey string             `json:"dedup_group_key"`
-	WorstSeverity string             `json:"worst_severity"`
-	Category      string             `json:"category"`
-	RuleID        string             `json:"rule_id"`
-	Title         string             `json:"title"`
-	Description   string             `json:"description"`
-	PathCount     int                `json:"path_count"`
-	Groups        []RolledUpGroupVw  `json:"groups"`
-	FirstSeen     string             `json:"first_seen"` // RFC3339, earliest in group
+	DedupGroupKey    string            `json:"dedup_group_key"`
+	WorstSeverity    string            `json:"worst_severity"`
+	Category         string            `json:"category"`
+	RuleID           string            `json:"rule_id"`
+	Title            string            `json:"title"`
+	Description      string            `json:"description"`
+	PathCount        int               `json:"path_count"`
+	Groups           []RolledUpGroupVw `json:"groups"`
+	FirstSeen        string            `json:"first_seen"`                  // RFC3339, earliest in group
+	AffectedProjects []string          `json:"affected_projects,omitempty"` // distinct project_ids; omitted when none
 }
 
 // RolledUpGroupVw is one fix-authority bucket inside a RolledUpView row.
@@ -148,9 +154,19 @@ type RolledUpGroupVw struct {
 }
 
 // RolledUpPathVw is one path row underneath a sub-group.
+//
+// v6+ (project-tabs work): each path carries its own project
+// classification (D6 of the project-tabs design — per-LOCATION
+// project metadata, since a rolled-up row can span projects after
+// dedup). Empty strings represent pre-v6 findings or CLI-scan
+// findings where no classifier was bootstrapped; the dashboard treats
+// those as the "loose" fallback.
 type RolledUpPathVw struct {
-	Fingerprint string `json:"fingerprint"`
-	Path        string `json:"path"`
+	Fingerprint  string `json:"fingerprint"`
+	Path         string `json:"path"`
+	ProjectID    string `json:"project_id,omitempty"`
+	ProjectLabel string `json:"project_label,omitempty"`
+	ProjectClass string `json:"project_class,omitempty"`
 }
 
 // RolledUpResponse is the body of GET /api/findings/rollup.

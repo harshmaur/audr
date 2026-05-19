@@ -162,6 +162,32 @@ var migrations = []string{
 	ALTER TABLE file_cache ADD COLUMN findings BLOB;
 	ALTER TABLE file_cache ADD COLUMN audr_version TEXT;
 	`,
+
+	// v6 (2026-05-19): project-aware path classification for the
+	// project-tabs dashboard work.
+	//
+	// Adds three TEXT NULL columns mirroring the project_id /
+	// project_label / project_class fields on finding.Finding (see
+	// internal/classify). Populated by internal/triage.FillTriageFields
+	// at scan time. The classifier is constructed by the daemon's
+	// orchestrator; one-shot CLI scans pass nil and leave these
+	// columns NULL, which the dashboard renders as "loose" fallback.
+	//
+	// No DELETE this time (unlike v3): the project_class for existing
+	// rows can be re-derived from the existing `locator` column on the
+	// next scan cycle, so retroactive backfill happens naturally
+	// without a wipe.
+	//
+	// Index on project_id covers /api/findings/rollup?project=<id>
+	// filtering (locked in D6 of the project-tabs design).
+	`
+	ALTER TABLE findings ADD COLUMN project_id    TEXT;
+	ALTER TABLE findings ADD COLUMN project_label TEXT;
+	ALTER TABLE findings ADD COLUMN project_class TEXT;
+
+	CREATE INDEX IF NOT EXISTS findings_project_id    ON findings(project_id);
+	CREATE INDEX IF NOT EXISTS findings_project_class ON findings(project_class);
+	`,
 }
 
 // runMigrations applies any migrations newer than the current schema

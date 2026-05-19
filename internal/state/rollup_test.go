@@ -281,3 +281,123 @@ func mustUpsert(t *testing.T, s *Store, f Finding) {
 		t.Fatalf("UpsertFinding(%s): %v", f.Fingerprint, err)
 	}
 }
+
+// TestListRolledUp_CarriesPerLocationProject covers D6: a rolled-up
+// row spanning multiple projects must:
+//   - carry per-location project_id/label/class on each Path
+//   - populate AffectedProjects with the DISTINCT set of project_ids
+//
+// This is the load-bearing semantic Codex caught — per-Finding metadata
+// would lose this information after dedup.
+func TestListRolledUp_CarriesPerLocationProject(t *testing.T) {
+	s := openTestStore(t)
+	ctx := context.Background()
+	scanID, err := s.OpenScan("all")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Same vulnerability (same DedupGroupKey) across two projects.
+	mustUpsert(t, s, Finding{
+		Fingerprint:   "fp-A",
+		RuleID:        "dependency-osv-vulnerability",
+		Severity:      "high",
+		Category:      "deps",
+		Kind:          "dep-package",
+		Locator:       []byte(`{"path":"/home/alice/projects/audr/package-lock.json"}`),
+		Title:         "next 15.0.0 RCE",
+		Description:   "x",
+		DedupGroupKey: "osv:npm:next:15.0.4:GHSA-x",
+		FixAuthority:  "you",
+		ProjectID:     "/home/alice/projects/audr",
+		ProjectLabel:  "audr",
+		ProjectClass:  "code-project",
+		FirstSeenScan: scanID,
+		LastSeenScan:  scanID,
+	})
+	mustUpsert(t, s, Finding{
+		Fingerprint:   "fp-B",
+		RuleID:        "dependency-osv-vulnerability",
+		Severity:      "high",
+		Category:      "deps",
+		Kind:          "dep-package",
+		Locator:       []byte(`{"path":"/home/alice/projects/reddit-scraper/package-lock.json"}`),
+		Title:         "next 15.0.0 RCE",
+		Description:   "x",
+		DedupGroupKey: "osv:npm:next:15.0.4:GHSA-x",
+		FixAuthority:  "you",
+		ProjectID:     "/home/alice/projects/reddit-scraper",
+		ProjectLabel:  "reddit-scraper",
+		ProjectClass:  "code-project",
+		FirstSeenScan: scanID,
+		LastSeenScan:  scanID,
+	})
+
+	rows, err := s.ListRolledUp(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 rolled-up row (same DedupGroupKey), got %d", len(rows))
+	}
+	row := rows[0]
+
+	if len(row.AffectedProjects) != 2 {
+		t.Errorf("expected AffectedProjects to span 2 projects, got %d: %v",
+			len(row.AffectedProjects), row.AffectedProjects)
+	}
+
+	// Collect paths' project metadata.
+	gotByProject := map[string]RolledUpPath{}
+	for _, g := range row.Groups {
+		for _, p := range g.Paths {
+			gotByProject[p.ProjectID] = p
+		}
+	}
+	if len(gotByProject) != 2 {
+		t.Fatalf("expected 2 distinct ProjectIDs across locations, got %d: %v",
+			len(gotByProject), gotByProject)
+	}
+	if p, ok := gotByProject["/home/alice/projects/audr"]; !ok || p.ProjectLabel != "audr" || p.ProjectClass != "code-project" {
+		t.Errorf("audr location metadata wrong: %+v", p)
+	}
+	if p, ok := gotByProject["/home/alice/projects/reddit-scraper"]; !ok || p.ProjectLabel != "reddit-scraper" {
+		t.Errorf("reddit-scraper location metadata wrong: %+v", p)
+	}
+}
+
+// TestListRolledUp_NoProjectFieldsKeepsEmpty: when no member of a
+// rolled-up row carries project metadata, AffectedProjects must be
+// empty (not [""] from a blank).
+func TestListRolledUp_NoProjectFieldsKeepsEmpty(t *testing.T) {
+	s := openTestStore(t)
+	ctx := context.Background()
+	scanID, _ := s.OpenScan("all")
+
+	mustUpsert(t, s, Finding{
+		Fingerprint:   "fp-no-proj",
+		RuleID:        "rule-x",
+		Severity:      "high",
+		Category:      "ai-agent",
+		Kind:          "file",
+		Locator:       []byte(`{"path":"/some/path"}`),
+		Title:         "t",
+		Description:   "d",
+		DedupGroupKey: "k",
+		FixAuthority:  "you",
+		FirstSeenScan: scanID,
+		LastSeenScan:  scanID,
+	})
+
+	rows, err := s.ListRolledUp(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("rows = %d, want 1", len(rows))
+	}
+	if len(rows[0].AffectedProjects) != 0 {
+		t.Errorf("AffectedProjects must be empty when no member has project metadata, got %v",
+			rows[0].AffectedProjects)
+	}
+}

@@ -59,14 +59,15 @@ func (s *Server) handleFindingsRollup(w http.ResponseWriter, r *http.Request) {
 	views := make([]RolledUpView, 0, len(rolled))
 	for _, row := range rolled {
 		v := RolledUpView{
-			DedupGroupKey: row.DedupGroupKey,
-			WorstSeverity: row.WorstSeverity,
-			Category:      row.Category,
-			RuleID:        row.RuleID,
-			Title:         row.Title,
-			Description:   row.Description,
-			PathCount:     row.PathCount,
-			FirstSeen:     time.Unix(row.WorstFirstSeen, 0).UTC().Format(time.RFC3339),
+			DedupGroupKey:    row.DedupGroupKey,
+			WorstSeverity:    row.WorstSeverity,
+			Category:         row.Category,
+			RuleID:           row.RuleID,
+			Title:            row.Title,
+			Description:      row.Description,
+			PathCount:        row.PathCount,
+			FirstSeen:        time.Unix(row.WorstFirstSeen, 0).UTC().Format(time.RFC3339),
+			AffectedProjects: row.AffectedProjects,
 		}
 		for _, g := range row.Groups {
 			groupView := RolledUpGroupVw{
@@ -76,8 +77,11 @@ func (s *Server) handleFindingsRollup(w http.ResponseWriter, r *http.Request) {
 			}
 			for _, p := range g.Paths {
 				groupView.Paths = append(groupView.Paths, RolledUpPathVw{
-					Fingerprint: p.Fingerprint,
-					Path:        p.Path,
+					Fingerprint:  p.Fingerprint,
+					Path:         p.Path,
+					ProjectID:    p.ProjectID,
+					ProjectLabel: p.ProjectLabel,
+					ProjectClass: p.ProjectClass,
 				})
 			}
 			v.Groups = append(v.Groups, groupView)

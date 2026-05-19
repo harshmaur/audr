@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"strings"
 
+	"github.com/harshmaur/audr/internal/classify"
 	"github.com/harshmaur/audr/internal/finding"
 )
 
@@ -39,20 +40,28 @@ func DefaultDedupKey(f finding.Finding) string {
 	return f.RuleID + ":" + hex.EncodeToString(h.Sum(nil))[:16]
 }
 
-// FillTriageFields populates the v1.3 fields on a finding when the rule
+// FillTriageFields populates derived fields on a finding when the rule
 // did not supply them:
 //
 //   - DedupGroupKey defaults from DefaultDedupKey.
-//   - FixAuthority defaults from path-class classification.
-//   - SecondaryNotify defaults from the same path-class lookup.
+//   - FixAuthority + SecondaryNotify default from path-class
+//     classification (fix-authority semantics, not the project
+//     classifier).
+//   - ProjectID + ProjectLabel + ProjectClass default from the project
+//     classifier (added 2026-05-19, project-tabs work).
 //
 // Rules that pre-populate any of these fields always win — triage only
 // fills blanks.
 //
-// `home` is the user's HOME directory; pass os.UserHomeDir() at the
-// call site. Empty `home` is safe (path-class matching skips the
-// HOME-canonicalisation step).
-func FillTriageFields(f finding.Finding, home string) finding.Finding {
+//	home is the user's HOME directory; pass os.UserHomeDir() at the
+//	call site. Empty home is safe (fix-authority classification skips
+//	the HOME-canonicalisation step).
+//
+//	pc is the project classifier (internal/classify). May be nil for
+//	one-shot CLI scans, legacy tests, or any flow that hasn't
+//	bootstrapped a classifier — project fields stay empty in that case,
+//	and the dashboard's fallback rendering treats them as "loose".
+func FillTriageFields(f finding.Finding, home string, pc *classify.Classifier) finding.Finding {
 	if f.DedupGroupKey == "" {
 		f.DedupGroupKey = DefaultDedupKey(f)
 	}
@@ -62,6 +71,18 @@ func FillTriageFields(f finding.Finding, home string) finding.Finding {
 		if f.SecondaryNotify == "" {
 			f.SecondaryNotify = maintainer
 		}
+	}
+	if pc != nil && f.ProjectID == "" {
+		info, err := pc.Classify(f.Path)
+		// Classifier returns errors only for transient FS failures;
+		// it always returns a usable ProjectInfo even on error
+		// (degraded to ClassLoose for unrecognised paths). Silently
+		// accept either — the worst case is a finding rendered under
+		// the dashboard's loose bucket, which is correct.
+		_ = err
+		f.ProjectID = info.ID
+		f.ProjectLabel = info.Label
+		f.ProjectClass = string(info.Class)
 	}
 	return f
 }

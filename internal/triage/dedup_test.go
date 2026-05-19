@@ -1,9 +1,12 @@
 package triage
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/harshmaur/audr/internal/classify"
 	"github.com/harshmaur/audr/internal/finding"
 )
 
@@ -83,7 +86,7 @@ func TestFillTriageFields_RulePopulatedFieldsWin(t *testing.T) {
 		FixAuthority:    finding.FixAuthorityMaintainer,
 		SecondaryNotify: "vercel-pinned-from-rule",
 	}
-	got := FillTriageFields(rulePopulated, home)
+	got := FillTriageFields(rulePopulated, home, nil)
 	if got.DedupGroupKey != "osv:picomatch:2.3.1:CVE-2024-xxxx" {
 		t.Errorf("rule-supplied DedupGroupKey was overwritten: %q", got.DedupGroupKey)
 	}
@@ -102,7 +105,7 @@ func TestFillTriageFields_BlanksGetClassified(t *testing.T) {
 		Match:  "picomatch < 2.3.1",
 		Path:   home + "/.claude/plugins/cache/vercel/0.42.1/bun.lock",
 	}
-	got := FillTriageFields(f, home)
+	got := FillTriageFields(f, home, nil)
 	if got.DedupGroupKey == "" {
 		t.Error("blank DedupGroupKey should be filled with default")
 	}
@@ -114,6 +117,95 @@ func TestFillTriageFields_BlanksGetClassified(t *testing.T) {
 	}
 }
 
+// TestFillTriageFields_PopulatesProjectFieldsFromClassifier covers
+// the v6 project-metadata wiring: when a Classifier is supplied,
+// FillTriageFields populates Finding.ProjectID + ProjectLabel +
+// ProjectClass.
+func TestFillTriageFields_PopulatesProjectFieldsFromClassifier(t *testing.T) {
+	home := t.TempDir()
+
+	// Real code-project (go.mod) so the classifier returns concrete
+	// info, not the fallback.
+	projDir := filepath.Join(home, "projects", "audr")
+	if err := os.MkdirAll(filepath.Join(projDir, "cmd", "audr"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projDir, "go.mod"), []byte("module audr"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findingPath := filepath.Join(projDir, "cmd", "audr", "main.go")
+	if err := os.WriteFile(findingPath, []byte("package main"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	pc, err := classify.NewClassifier(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f := finding.Finding{
+		RuleID: "secret-anthropic-key",
+		Match:  "ant-...",
+		Path:   findingPath,
+	}
+	got := FillTriageFields(f, home, pc)
+
+	if got.ProjectClass != "code-project" {
+		t.Errorf("expected ProjectClass=code-project, got %q", got.ProjectClass)
+	}
+	if got.ProjectLabel != "audr" {
+		t.Errorf("expected ProjectLabel=audr, got %q", got.ProjectLabel)
+	}
+	if got.ProjectID == "" {
+		t.Error("expected non-empty ProjectID")
+	}
+}
+
+// TestFillTriageFields_NilClassifierLeavesProjectFieldsEmpty documents
+// the CLI-scan fallback: no classifier → project fields stay empty.
+// Dashboard renders these as the "loose" fallback. Also a regression
+// check that the new flow didn't break the old DedupGroupKey filling.
+func TestFillTriageFields_NilClassifierLeavesProjectFieldsEmpty(t *testing.T) {
+	const home = "/home/alice"
+	f := finding.Finding{
+		RuleID: "dependency-osv-vulnerability",
+		Match:  "picomatch < 2.3.1",
+		Path:   home + "/projects/audr/package-lock.json",
+	}
+	got := FillTriageFields(f, home, nil)
+	if got.ProjectID != "" || got.ProjectLabel != "" || got.ProjectClass != "" {
+		t.Errorf("nil classifier should leave project fields empty; got id=%q label=%q class=%q",
+			got.ProjectID, got.ProjectLabel, got.ProjectClass)
+	}
+	if got.DedupGroupKey == "" {
+		t.Error("DedupGroupKey should still be filled when classifier is nil")
+	}
+}
+
+// TestFillTriageFields_RulePopulatedProjectFieldsWin: rules that
+// pre-populate ProjectID etc. should win over the classifier.
+func TestFillTriageFields_RulePopulatedProjectFieldsWin(t *testing.T) {
+	home := t.TempDir()
+	pc, err := classify.NewClassifier(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := finding.Finding{
+		RuleID:       "secret-anthropic-key",
+		Path:         home + "/projects/audr/main.go",
+		ProjectID:    "pre-populated-id",
+		ProjectLabel: "pre-populated-label",
+		ProjectClass: "code-project",
+	}
+	got := FillTriageFields(f, home, pc)
+	if got.ProjectID != "pre-populated-id" {
+		t.Errorf("rule-supplied ProjectID was overwritten: %q", got.ProjectID)
+	}
+	if got.ProjectLabel != "pre-populated-label" {
+		t.Errorf("rule-supplied ProjectLabel was overwritten: %q", got.ProjectLabel)
+	}
+}
+
 func TestFillTriageFields_UserProjectFallthrough(t *testing.T) {
 	const home = "/home/alice"
 	f := finding.Finding{
@@ -121,7 +213,7 @@ func TestFillTriageFields_UserProjectFallthrough(t *testing.T) {
 		Match:  "picomatch < 2.3.1",
 		Path:   home + "/projects/audr/package-lock.json",
 	}
-	got := FillTriageFields(f, home)
+	got := FillTriageFields(f, home, nil)
 	if got.FixAuthority != finding.FixAuthorityYou {
 		t.Errorf("user project should fall through to YOU, got %q", got.FixAuthority)
 	}

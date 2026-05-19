@@ -18,6 +18,7 @@ import (
 	"github.com/harshmaur/audr/internal/lowprio"
 	"github.com/harshmaur/audr/internal/ospkg"
 	"github.com/harshmaur/audr/internal/policy"
+	"github.com/harshmaur/audr/internal/classify"
 	"github.com/harshmaur/audr/internal/scan"
 	"github.com/harshmaur/audr/internal/scanignore"
 	"github.com/harshmaur/audr/internal/secretscan"
@@ -58,6 +59,15 @@ type Orchestrator struct {
 	autoSecrets bool
 	autoDeps    bool
 	autoOSPkg   bool
+
+	// classifier provides per-finding project classification used by
+	// triage to populate Finding.ProjectID / ProjectLabel /
+	// ProjectClass. Constructed in New() with the embedded default
+	// rules; if construction fails, the orchestrator runs without a
+	// classifier (findings get empty project fields, dashboard
+	// renders them under the "loose" fallback). nil-safe at the
+	// triage call site.
+	classifier *classify.Classifier
 }
 
 // Options configures an Orchestrator. Most fields default sanely.
@@ -233,12 +243,29 @@ func New(opts Options) (*Orchestrator, error) {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(discardWriter{}, &slog.HandlerOptions{Level: slog.LevelError}))
 	}
+
+	// Construct the project classifier (project-tabs work, T2).
+	// Loads the embedded default ruleset and overlays
+	// ~/.audr/classify.toml if present. On failure (malformed user
+	// override): log a warning and run WITHOUT a classifier; findings
+	// stay project-field-empty and the dashboard renders them via the
+	// loose fallback. We do not fail orchestrator construction on
+	// classifier load errors — the daemon must still come up.
+	classifier, cerr := classify.NewClassifier(opts.HomeDir)
+	if cerr != nil {
+		logger.Warn("classifier init failed; project tabs will fall back",
+			"err", cerr,
+			"home", opts.HomeDir)
+		classifier = nil
+	}
+
 	return &Orchestrator{
 		opts:        opts,
 		log:         logger,
 		autoSecrets: autoSecrets,
 		autoDeps:    autoDeps,
 		autoOSPkg:   autoOSPkg,
+		classifier:  classifier,
 	}, nil
 }
 
@@ -980,7 +1007,7 @@ func (o *Orchestrator) runDeps(ctx context.Context, scanID int64, seen map[strin
 		// SecondaryNotify) BEFORE conversion so the state row carries
 		// the rolled-up partition. depscan's OSV emitter pre-populates
 		// DedupGroupKey; FixAuthority is path-derived here.
-		f = triage.FillTriageFields(f, o.opts.HomeDir)
+		f = triage.FillTriageFields(f, o.opts.HomeDir, o.classifier)
 		sf, err := depscanFindingToState(f, scanID)
 		if err != nil {
 			o.log.Warn("deps: convert finding", "rule_id", f.RuleID, "err", err)
@@ -1052,7 +1079,7 @@ func (o *Orchestrator) persistFindings(scanID int64, findings []finding.Finding,
 		// and fill DedupGroupKey for any rule that didn't pre-populate.
 		// Secret-family rules require the YOU-forced authority — they
 		// always rotate, even when the leaked path lives in a vendor dir.
-		f = triage.FillTriageFields(f, o.opts.HomeDir)
+		f = triage.FillTriageFields(f, o.opts.HomeDir, o.classifier)
 		if isSecretRule(f.RuleID) {
 			auth, secondary := triage.ForSecret(f.FixAuthority, f.SecondaryNotify)
 			f.FixAuthority = auth
