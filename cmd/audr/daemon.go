@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -24,6 +25,44 @@ import (
 	"github.com/harshmaur/audr/internal/watch"
 	"github.com/spf13/cobra"
 )
+
+// stalemacOSDaemonPlist is the path where pre-fix audr versions
+// accidentally wrote a system-level plist (because UserService wasn't
+// set on darwin in kardianos). When this file exists, the user is in
+// a broken state: their daemon registration is at the wrong scope,
+// `audr daemon start` fails with a launchctl I/O error referencing
+// LaunchDaemons. Detection is path-based since the file may have been
+// created by an earlier audr build that's no longer on the machine.
+//
+// Empty on non-darwin so the lookup is a cheap no-op.
+const staleDarwinDaemonPlist = "/Library/LaunchDaemons/com.harshmaur.audr.plist"
+
+// warnIfStaleDarwinDaemonPlist prints a clear migration message when
+// a pre-fix system-level plist is found. Called from install + start
+// so the user sees the recovery steps regardless of which command
+// they tried first. No-op on non-darwin or when the file doesn't
+// exist.
+func warnIfStaleDarwinDaemonPlist(w *cobra.Command) {
+	if runtime.GOOS != "darwin" {
+		return
+	}
+	if _, err := os.Stat(staleDarwinDaemonPlist); err != nil {
+		return // file missing or unreadable → nothing to migrate
+	}
+	out := w.ErrOrStderr()
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, "audr daemon: stale system-wide install detected.")
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, "  A previous audr build (before the macOS user-scope fix) accidentally")
+	fmt.Fprintln(out, "  installed itself to /Library/LaunchDaemons/, which requires admin and")
+	fmt.Fprintln(out, "  fails to start under your user shell. Remove it once with:")
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, "    sudo launchctl unload "+staleDarwinDaemonPlist+" 2>/dev/null")
+	fmt.Fprintln(out, "    sudo rm "+staleDarwinDaemonPlist)
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, "  Then re-run: audr daemon install && audr daemon start")
+	fmt.Fprintln(out, "")
+}
 
 // newDaemonCmd builds the `audr daemon` subcommand group: install /
 // uninstall / start / stop / status, plus the hidden `run-internal`
@@ -172,6 +211,7 @@ func newDaemonInstallCmd() *cobra.Command {
 
 This only registers the service. Use 'audr daemon start' to actually run it.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			warnIfStaleDarwinDaemonPlist(cmd)
 			svc, err := newDaemonService()
 			if err != nil {
 				return err
@@ -214,6 +254,10 @@ func newDaemonStartCmd() *cobra.Command {
 				return err
 			}
 			if err := svc.Start(); err != nil {
+				// macOS user hit by the pre-fix LaunchDaemons bug:
+				// surface the migration steps instead of letting the
+				// cryptic launchctl I/O error stand alone.
+				warnIfStaleDarwinDaemonPlist(cmd)
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "audr daemon: started")

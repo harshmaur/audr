@@ -39,9 +39,7 @@ func newServiceBackend(cfg ServiceConfig, run func(ctx context.Context) error) (
 		Arguments:   cfg.Args,
 		Option:      service.KeyValue{},
 	}
-	// On Linux, kardianos defaults to system services. We force user
-	// scope so we never touch /etc/systemd/system or require admin.
-	if runtime.GOOS == "linux" {
+	if shouldRunAsUserService() {
 		svcCfg.Option["UserService"] = true
 	}
 
@@ -51,6 +49,25 @@ func newServiceBackend(cfg ServiceConfig, run func(ctx context.Context) error) (
 	}
 	prog.svc = svc
 	return &kardianosBackend{svc: svc, prog: prog, cfg: cfg}, nil
+}
+
+// shouldRunAsUserService reports whether the daemon registers at
+// per-user scope on the current platform. true on Linux + macOS:
+//
+//   - Linux: writes to ~/.config/systemd/user/<name>.service rather
+//     than /etc/systemd/system (no sudo required, isolated per user).
+//   - macOS: writes to ~/Library/LaunchAgents/<name>.plist rather
+//     than /Library/LaunchDaemons/ (no sudo required, and `launchctl
+//     load` as a regular user doesn't fail with "Got LaunchDaemons
+//     instead. Load failed: 5" — the symptom that motivated this
+//     split).
+//
+// Windows uses a separate backend (service_windows.go) entirely.
+//
+// Extracted into a function so tests can verify the platform list
+// hasn't drifted — see TestKardianosUserScopeForLinuxAndDarwin.
+func shouldRunAsUserService() bool {
+	return runtime.GOOS == "linux" || runtime.GOOS == "darwin"
 }
 
 func (b *kardianosBackend) Install() error   { return b.svc.Install() }
