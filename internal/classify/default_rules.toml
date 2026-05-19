@@ -1,0 +1,48 @@
+# audr classifier default rules.
+#
+# Override by creating ~/.audr/classify.toml. Override semantics:
+# any non-empty list in the override REPLACES the corresponding
+# default. To add a manifest, copy the full list and append.
+
+# Files whose presence in a directory marks that directory as the
+# root of a code-project. Walked LEAF-TO-ROOT; nearest match wins
+# (monorepos with per-package manifests resolve as distinct
+# sub-projects). `.git/` (directory) is always also a project
+# marker, hard-coded — no need to list it here.
+manifests = [
+  "go.mod",
+  "package.json",
+  "pyproject.toml",
+  "Cargo.toml",
+  "Gemfile",
+  "composer.json",
+  "pom.xml",
+]
+
+# Dot-dirs whose contents are AI-agent state (Claude Code, Codex,
+# Hermes, etc.). When ANY segment of a finding's path matches one
+# of these, the entire path classifies as agent-state — even if a
+# manifest exists deeper in the tree (.claude/skills/foo/package.json
+# does NOT become a code-project named "foo").
+agent_state_dirs = [
+  ".claude",
+  ".codex",
+  ".hermes",
+  ".cursor",
+  ".factory",
+  ".gbrain",
+  ".convex",
+]
+
+# Dot-dirs whose contents are system / cache / config state. Same
+# segment-anywhere matching as agent_state_dirs. Order matters when
+# there's overlap with code-project signals: system wins over
+# code-project (so a manifest under .local/share/foo does not
+# promote to code-project).
+system_dirs = [
+  ".local",
+  ".config",
+  ".cache",
+  ".ssh",
+  ".npm",
+]
