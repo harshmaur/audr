@@ -739,3 +739,27 @@ a.copy-btn {
   padding: 1px 4px; border: 1px solid var(--border); border-radius: 2px;
   color: var(--text-muted);
 }
+
+/* --- Tab resolve flash (v6 polish) ------------------------------ */
+/* Painted into the tab row when a project's open-finding count
+   drops to zero. ~1.2s fade-out, then the tab disappears naturally
+   on the next render because state.projects no longer has it. */
+.tab-resolve-flash {
+  display: inline-flex; align-items: center;
+  padding: 14px 18px;
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em;
+  color: var(--ok);
+  border-right: 1px solid var(--border);
+  background: rgba(79,168,110,0.06);
+  animation: tab-resolve-fade 1200ms ease-out forwards;
+  pointer-events: none;
+}
+@keyframes tab-resolve-fade {
+  0%   { opacity: 0;   transform: translateY(-2px); }
+  20%  { opacity: 1;   transform: translateY(0); }
+  85%  { opacity: 1;   }
+  100% { opacity: 0;   }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-resolve-flash { animation: none; opacity: 0; }
+}

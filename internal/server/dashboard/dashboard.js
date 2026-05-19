@@ -93,6 +93,11 @@
     // user toggle overrides for the session via localStorage.
     noiseExpanded: false,
     noiseExpandedManual: null, // null = follow auto; true/false = user override
+
+    // Internal: per-render bookkeeping for project-tabs polish.
+    _metricsBootstrapped: false,
+    _lastProjectCounts: null,
+    _flashingTabs: new Set(),
   };
 
   const SCAN_CATEGORIES = ['ai-agent', 'secrets', 'deps', 'os-pkg'];
@@ -158,10 +163,15 @@
     // a secondary line under the Open Findings card so users don't
     // lose the panopticon view.
     const scope = computeStripScope(globalM);
-    $('m-open').textContent = scope.open;
-    $('m-crit').textContent = scope.critical;
-    $('m-high').textContent = scope.high;
-    $('m-resolved').textContent = '+' + (globalM.resolved_today || 0);
+    // Subtle number tween on tab-click rescope. Skip on initial load
+    // (no previous value) and on every-SSE-redraw (otherwise the
+    // strip jitters during a scan). Tween only fires when the user
+    // changed something, not when the dashboard refreshed itself.
+    tweenMetric($('m-open'), scope.open, !state._metricsBootstrapped);
+    tweenMetric($('m-crit'), scope.critical, !state._metricsBootstrapped);
+    tweenMetric($('m-high'), scope.high, !state._metricsBootstrapped);
+    tweenMetric($('m-resolved'), globalM.resolved_today || 0, !state._metricsBootstrapped, '+');
+    state._metricsBootstrapped = true;
 
     // Secondary "scope / global" context line.
     const ctx = $('m-context');
@@ -179,6 +189,42 @@
         ctx.textContent = '';
       }
     }
+  }
+
+  // tweenMetric animates a metric-strip number toward target over
+  // ~220ms using requestAnimationFrame. easeOutQuart for a snappy
+  // settle. Skipped when force=true (initial load) — the number
+  // jumps to target without animation in that case.
+  //
+  // Cancellation: re-calling tween on the same element while a
+  // previous animation is in-flight cancels the old and starts a
+  // new one (no overlap, no rubber-band).
+  const TWEEN_MS = 220;
+  function tweenMetric(elNode, target, force, prefix) {
+    if (!elNode) return;
+    prefix = prefix || '';
+    if (force) {
+      elNode.textContent = prefix + target;
+      elNode._tweenCurrent = target;
+      return;
+    }
+    const start = typeof elNode._tweenCurrent === 'number' ? elNode._tweenCurrent : parseInt(elNode.textContent.replace(/[^\d-]/g, ''), 10) || 0;
+    if (start === target) return;
+    if (elNode._tweenRAF) cancelAnimationFrame(elNode._tweenRAF);
+    const t0 = performance.now();
+    function step(now) {
+      const t = Math.min(1, (now - t0) / TWEEN_MS);
+      const eased = 1 - Math.pow(1 - t, 4);
+      const v = Math.round(start + (target - start) * eased);
+      elNode.textContent = prefix + v;
+      if (t < 1) {
+        elNode._tweenRAF = requestAnimationFrame(step);
+      } else {
+        elNode._tweenCurrent = target;
+        elNode._tweenRAF = null;
+      }
+    }
+    elNode._tweenRAF = requestAnimationFrame(step);
   }
 
   // computeStripScope returns the metric-strip numbers for the
@@ -239,6 +285,13 @@
     return out;
   }
 
+  // Max tabs visible inline before the overflow `+ N more ▾` button
+  // takes over. Beyond this threshold the tail goes behind the
+  // switcher modal — single click → searchable list. Picked so the
+  // first row of tabs stays readable on a typical 1440-1920px wide
+  // dashboard without horizontal scrolling.
+  const TAB_OVERFLOW_THRESHOLD = 8;
+
   function renderTabs() {
     const wrap = $('tabrow');
     const inner = $('tabrow-tabs');
@@ -266,8 +319,25 @@
       isUnion: true,
     }));
 
-    // Code-project tabs, server already sorts them severity-first.
-    for (const p of codeProjects) {
+    // Code-project tabs. Server already sorts severity-first so we
+    // just take the head; the tail goes behind the overflow button.
+    const visible = codeProjects.slice(0, TAB_OVERFLOW_THRESHOLD);
+    const hidden = codeProjects.slice(TAB_OVERFLOW_THRESHOLD);
+
+    // Always keep the active tab visible — if the user picked one
+    // that landed in the overflow set, swap it into the visible
+    // slice. Without this, clicking a deep-overflow tab via the
+    // switcher would briefly leave the row showing "nothing active."
+    if (state.activeTab && hidden.some((p) => p.id === state.activeTab) && state.activeTab !== '__my_projects__') {
+      const idx = hidden.findIndex((p) => p.id === state.activeTab);
+      const activeProj = hidden.splice(idx, 1)[0];
+      // Drop the last visible tab to make room (least-priority by
+      // server-sort), put the active one at the end of visible.
+      hidden.unshift(visible.pop());
+      visible.push(activeProj);
+    }
+
+    for (const p of visible) {
       inner.append(makeTabButton({
         id: p.id,
         label: p.label,
@@ -277,7 +347,80 @@
       }));
     }
 
+    if (hidden.length > 0) {
+      inner.append(makeOverflowButton(hidden.length));
+    }
+
     renderNoiseGroup();
+
+    // ✓ flash for projects that resolved to zero (D10).
+    // Detect: any id in lastRenderProjectCounts had count > 0 AND
+    // now has count == 0 (or no longer appears in state.projects).
+    // We do a one-shot DOM overlay that hangs for FLASH_MS then
+    // schedules a re-render to drop the resolved entry from the
+    // tabs list naturally.
+    detectAndFlashResolvedTabs(codeProjects);
+  }
+
+  // Project resolution flash --------------------------------------
+  // Tracks the per-project count from the previous render so we can
+  // detect transitions to zero. When detected, paint a brief ✓ in
+  // the place where the tab used to be, then schedule a re-render
+  // that drops the tab naturally (because it's no longer in
+  // state.projects).
+  const FLASH_MS = 1200;
+  function detectAndFlashResolvedTabs(currentCodeProjects) {
+    if (!state._lastProjectCounts) {
+      state._lastProjectCounts = {};
+      for (const p of currentCodeProjects) state._lastProjectCounts[p.id] = p.count;
+      return;
+    }
+    const current = {};
+    for (const p of currentCodeProjects) current[p.id] = p.count;
+    for (const [id, prev] of Object.entries(state._lastProjectCounts)) {
+      const now = current[id] || 0;
+      if (prev > 0 && now === 0 && !state._flashingTabs.has(id)) {
+        flashResolvedTab(id, prev);
+      }
+    }
+    state._lastProjectCounts = current;
+  }
+  function flashResolvedTab(id, prevCount) {
+    if (!state._flashingTabs) state._flashingTabs = new Set();
+    state._flashingTabs.add(id);
+    // Inject a flash chip into the tab row in the place where the
+    // tab WOULD have been. Cheapest path: re-render with a sentinel
+    // and let CSS animate it.
+    const inner = $('tabrow-tabs');
+    if (!inner) return;
+    const chip = el(
+      'span',
+      { class: 'tab-resolve-flash', dataset: { tab: id }, ariaLabel: 'project resolved' },
+      document.createTextNode('✓ resolved'),
+    );
+    inner.append(chip);
+    setTimeout(() => {
+      state._flashingTabs.delete(id);
+      try { chip.remove(); } catch (_) {}
+    }, FLASH_MS);
+  }
+
+  // makeOverflowButton: opens the switcher modal pre-filtered to the
+  // overflow set. The modal already supports type-to-jump; the
+  // overflow button is just a more-discoverable entry point.
+  function makeOverflowButton(hiddenCount) {
+    const node = el(
+      'button',
+      {
+        class: 'tab-overflow',
+        title: `${hiddenCount} more project${hiddenCount === 1 ? '' : 's'}`,
+        onclick: openSwitcher,
+      },
+      document.createTextNode('+ '),
+      el('span', { class: 'more-count', text: '' + hiddenCount }),
+      document.createTextNode(' more ▾'),
+    );
+    return node;
   }
 
   function makeTabButton({ id, label, count, severity, isUnion }) {
@@ -806,6 +949,19 @@
         kind: 'info',
         tag: 'REMOTE FS',
         text: `${d.remote_fs_skipped} mount(s) skipped (NFS / SMB / 9P / FUSE). Networked storage is intentionally excluded.`,
+        fix: '',
+      });
+    }
+    // classify.toml hint — surfaces ONLY when there are projects to
+    // talk about (otherwise the banner is meaningless). Dismissable;
+    // the dismissed state persists across reloads via the existing
+    // dismissedBanners + localStorage mechanism the other banners use.
+    if (state.projects.length > 0) {
+      out.push({
+        id: 'classify-hint',
+        kind: 'info',
+        tag: 'PROJECT TABS',
+        text: 'Reclassify any folder by editing ~/.audr/classify.toml — the daemon hot-reloads on save.',
         fix: '',
       });
     }
