@@ -56,6 +56,9 @@ func findingToStateFinding(f finding.Finding, scanID int64, category string) (st
 		DedupGroupKey:   f.DedupGroupKey,
 		FixAuthority:    string(f.FixAuthority),
 		SecondaryNotify: f.SecondaryNotify,
+		ProjectID:       f.ProjectID,
+		ProjectLabel:    f.ProjectLabel,
+		ProjectClass:    f.ProjectClass,
 		FirstSeenScan:   scanID,
 		LastSeenScan:    scanID,
 	}, nil
@@ -159,6 +162,9 @@ func depscanFindingToState(f finding.Finding, scanID int64) (state.Finding, erro
 		DedupGroupKey:   f.DedupGroupKey,
 		FixAuthority:    string(f.FixAuthority),
 		SecondaryNotify: f.SecondaryNotify,
+		ProjectID:       f.ProjectID,
+		ProjectLabel:    f.ProjectLabel,
+		ProjectClass:    f.ProjectClass,
 		FirstSeenScan:   scanID,
 		LastSeenScan:    scanID,
 	}, nil
