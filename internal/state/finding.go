@@ -63,11 +63,13 @@ func (s *Store) UpsertFinding(f Finding) (opened bool, err error) {
 				    (fingerprint, rule_id, severity, category, kind, locator,
 				     title, description, match_redacted,
 				     dedup_group_key, fix_authority, secondary_notify,
+				     project_id, project_label, project_class,
 				     first_seen_scan, last_seen_scan, resolved_at, first_seen_at, updated_at)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
 			`, f.Fingerprint, f.RuleID, f.Severity, f.Category, f.Kind, string(f.Locator),
 				f.Title, f.Description, nullableString(f.MatchRedacted),
 				nullableString(f.DedupGroupKey), nullableString(f.FixAuthority), nullableString(f.SecondaryNotify),
+				nullableString(f.ProjectID), nullableString(f.ProjectLabel), nullableString(f.ProjectClass),
 				f.FirstSeenScan, f.LastSeenScan, f.FirstSeenAt, f.UpdatedAt)
 			if err != nil {
 				return fmt.Errorf("insert: %w", err)
@@ -99,6 +101,9 @@ func (s *Store) UpsertFinding(f Finding) (opened bool, err error) {
 				       dedup_group_key = ?,
 				       fix_authority = ?,
 				       secondary_notify = ?,
+				       project_id = ?,
+				       project_label = ?,
+				       project_class = ?,
 				       first_seen_scan = ?,
 				       last_seen_scan  = ?,
 				       resolved_at = NULL,
@@ -106,6 +111,7 @@ func (s *Store) UpsertFinding(f Finding) (opened bool, err error) {
 				 WHERE fingerprint = ?
 			`, f.RuleID, f.Severity, f.Title, f.Description, nullableString(f.MatchRedacted),
 				nullableString(f.DedupGroupKey), nullableString(f.FixAuthority), nullableString(f.SecondaryNotify),
+				nullableString(f.ProjectID), nullableString(f.ProjectLabel), nullableString(f.ProjectClass),
 				f.LastSeenScan, f.LastSeenScan, f.UpdatedAt, f.Fingerprint)
 			if err != nil {
 				return fmt.Errorf("reopen: %w", err)
@@ -130,11 +136,15 @@ func (s *Store) UpsertFinding(f Finding) (opened bool, err error) {
 			       dedup_group_key = ?,
 			       fix_authority = ?,
 			       secondary_notify = ?,
+			       project_id = ?,
+			       project_label = ?,
+			       project_class = ?,
 			       last_seen_scan = ?,
 			       updated_at = ?
 			 WHERE fingerprint = ?
 		`, f.RuleID, f.Severity, f.Title, f.Description, nullableString(f.MatchRedacted),
 			nullableString(f.DedupGroupKey), nullableString(f.FixAuthority), nullableString(f.SecondaryNotify),
+			nullableString(f.ProjectID), nullableString(f.ProjectLabel), nullableString(f.ProjectClass),
 			f.LastSeenScan, f.UpdatedAt, f.Fingerprint)
 		if err != nil {
 			return fmt.Errorf("update: %w", err)
@@ -235,6 +245,7 @@ func (s *Store) SnapshotFindings(ctx context.Context) ([]Finding, error) {
 		SELECT fingerprint, rule_id, severity, category, kind, locator,
 		       title, description, COALESCE(match_redacted,''),
 		       COALESCE(dedup_group_key,''), COALESCE(fix_authority,''), COALESCE(secondary_notify,''),
+		       COALESCE(project_id,''), COALESCE(project_label,''), COALESCE(project_class,''),
 		       first_seen_scan, last_seen_scan, resolved_at, first_seen_at, updated_at
 		  FROM findings
 	`)
@@ -251,6 +262,7 @@ func (s *Store) SnapshotFindings(ctx context.Context) ([]Finding, error) {
 		if err := rows.Scan(&f.Fingerprint, &f.RuleID, &f.Severity, &f.Category, &f.Kind,
 			&loc, &f.Title, &f.Description, &f.MatchRedacted,
 			&f.DedupGroupKey, &f.FixAuthority, &f.SecondaryNotify,
+			&f.ProjectID, &f.ProjectLabel, &f.ProjectClass,
 			&f.FirstSeenScan, &f.LastSeenScan, &rAt, &f.FirstSeenAt, &f.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan finding: %w", err)
 		}
@@ -274,6 +286,7 @@ func (s *Store) FindingByFingerprint(ctx context.Context, fp string) (Finding, e
 		SELECT fingerprint, rule_id, severity, category, kind, locator,
 		       title, description, COALESCE(match_redacted,''),
 		       COALESCE(dedup_group_key,''), COALESCE(fix_authority,''), COALESCE(secondary_notify,''),
+		       COALESCE(project_id,''), COALESCE(project_label,''), COALESCE(project_class,''),
 		       first_seen_scan, last_seen_scan, resolved_at, first_seen_at, updated_at
 		  FROM findings WHERE fingerprint = ?
 	`, fp)
@@ -283,6 +296,7 @@ func (s *Store) FindingByFingerprint(ctx context.Context, fp string) (Finding, e
 	if err := row.Scan(&f.Fingerprint, &f.RuleID, &f.Severity, &f.Category, &f.Kind,
 		&loc, &f.Title, &f.Description, &f.MatchRedacted,
 		&f.DedupGroupKey, &f.FixAuthority, &f.SecondaryNotify,
+		&f.ProjectID, &f.ProjectLabel, &f.ProjectClass,
 		&f.FirstSeenScan, &f.LastSeenScan, &rAt, &f.FirstSeenAt, &f.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Finding{}, ErrNotFound

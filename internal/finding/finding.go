@@ -131,6 +131,38 @@ type Finding struct {
 	// Always populated for FixAuthorityMaintainer; optionally populated
 	// for FixAuthorityYou when a secret leaked into a vendor dir.
 	SecondaryNotify string `json:"secondary_notify,omitempty"`
+
+	// Project-awareness fields (added 2026-05-19, project-tabs work).
+	// Populated by internal/triage.FillTriageFields when a Classifier is
+	// available (the daemon constructs one in orchestrator.New); empty
+	// for one-shot CLI scans and pre-classifier-era rows.
+	//
+	// ProjectID is the canonical, symlink-resolved absolute path of the
+	// project root (e.g. "/home/user/projects/audr" or "/home/user/.claude").
+	// Used as the wire identity for dashboard tab filtering and URL
+	// fragment state. Collision-disambiguated via parent directory on
+	// the wire layer when two ProjectIDs share a basename.
+	ProjectID string `json:"project_id,omitempty"`
+
+	// ProjectLabel is the basename of the project root, the
+	// human-readable name shown on the dashboard tab. May collide with
+	// other projects' labels — the dashboard renders collisions via
+	// "audr (projects)" / "audr (work)" using ProjectID's parent dir.
+	ProjectLabel string `json:"project_label,omitempty"`
+
+	// ProjectClass is the top-level bucket:
+	//
+	//   - "code-project" — under .git/ or a known manifest (renders as
+	//     a first-class tab in the dashboard's MY PROJECTS row)
+	//   - "agent-state"  — under .claude/.codex/.hermes/etc. (rolled
+	//     up into the OTHER LOCATIONS group, collapsed by default)
+	//   - "system"       — under .local/.config/etc. (rolled into
+	//     OTHER LOCATIONS)
+	//   - "os-package"   — no path on disk (e.g. OS pkg vulnerabilities)
+	//   - "loose"        — Downloads/Documents/snap/etc.
+	//
+	// See internal/classify package for the classification rules.
+	ProjectClass string `json:"project_class,omitempty"`
 }
 
 // Args describes the not-yet-redacted inputs to New. Fields that may contain

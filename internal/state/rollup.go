@@ -46,6 +46,9 @@ func (s *Store) ListRolledUp(ctx context.Context, pathsPerGroupCap int) ([]Rolle
 		       COALESCE(dedup_group_key, ''),
 		       COALESCE(fix_authority, ''),
 		       COALESCE(secondary_notify, ''),
+		       COALESCE(project_id, ''),
+		       COALESCE(project_label, ''),
+		       COALESCE(project_class, ''),
 		       first_seen_at
 		  FROM findings
 		 WHERE resolved_at IS NULL
@@ -66,18 +69,24 @@ func (s *Store) ListRolledUp(ctx context.Context, pathsPerGroupCap int) ([]Rolle
 		title           string
 		description     string
 		category        string
+		projectID       string
+		projectLabel    string
+		projectClass    string
 	}
 	groups := make(map[string][]member)
 	for rows.Next() {
 		var (
-			fp, ruleID, severity, category, kind        string
-			loc, title, description                     string
-			dedupKey, fixAuthority, secondaryNotify     string
-			firstSeenAt                                 int64
+			fp, ruleID, severity, category, kind          string
+			loc, title, description                       string
+			dedupKey, fixAuthority, secondaryNotify       string
+			projectID, projectLabel, projectClass         string
+			firstSeenAt                                   int64
 		)
 		if err := rows.Scan(&fp, &ruleID, &severity, &category, &kind,
 			&loc, &title, &description,
-			&dedupKey, &fixAuthority, &secondaryNotify, &firstSeenAt); err != nil {
+			&dedupKey, &fixAuthority, &secondaryNotify,
+			&projectID, &projectLabel, &projectClass,
+			&firstSeenAt); err != nil {
 			return nil, fmt.Errorf("scan rolled-up row: %w", err)
 		}
 		key := dedupKey
@@ -99,6 +108,9 @@ func (s *Store) ListRolledUp(ctx context.Context, pathsPerGroupCap int) ([]Rolle
 			title:           title,
 			description:     description,
 			category:        category,
+			projectID:       projectID,
+			projectLabel:    projectLabel,
+			projectClass:    projectClass,
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -185,12 +197,32 @@ func (s *Store) ListRolledUp(ctx context.Context, pathsPerGroupCap int) ([]Rolle
 			grp.Paths = make([]RolledUpPath, 0, limit)
 			for i := 0; i < limit; i++ {
 				grp.Paths = append(grp.Paths, RolledUpPath{
-					Fingerprint: unique[i].fingerprint,
-					Path:        unique[i].path,
+					Fingerprint:  unique[i].fingerprint,
+					Path:         unique[i].path,
+					ProjectID:    unique[i].projectID,
+					ProjectLabel: unique[i].projectLabel,
+					ProjectClass: unique[i].projectClass,
 				})
 			}
 			row.Groups = append(row.Groups, grp)
 		}
+
+		// Compute AffectedProjects: distinct ProjectIDs across all
+		// member locations, in insertion order. Per D6 of the
+		// project-tabs design, this is the chip rendered alongside a
+		// rolled-up row that spans multiple projects.
+		seenProjects := map[string]struct{}{}
+		for _, m := range members {
+			if m.projectID == "" {
+				continue
+			}
+			if _, ok := seenProjects[m.projectID]; ok {
+				continue
+			}
+			seenProjects[m.projectID] = struct{}{}
+			row.AffectedProjects = append(row.AffectedProjects, m.projectID)
+		}
+
 		out = append(out, row)
 	}
 

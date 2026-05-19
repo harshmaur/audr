@@ -26,6 +26,15 @@ type Finding struct {
 	FixAuthority    string // "you" | "maintainer" | "upstream"
 	SecondaryNotify string // maintainer hint (e.g. "vercel") when applicable
 
+	// Project-awareness fields (v6 migration, 2026-05-19). Populated by
+	// internal/triage.FillTriageFields when the orchestrator supplies a
+	// *classify.Classifier. All TEXT NULL in the schema; empty Go
+	// strings represent pre-v6 rows or rows from CLI scans that didn't
+	// construct a classifier. See finding.Finding for field semantics.
+	ProjectID    string
+	ProjectLabel string
+	ProjectClass string
+
 	FirstSeenScan int64
 	LastSeenScan  int64
 	ResolvedAt    *int64 // nil = open; non-nil = unix seconds at resolution
@@ -54,6 +63,15 @@ type RolledUpRow struct {
 	PathCount      int             // total affected paths in the group
 	Groups         []RolledUpGroup // one entry per FixAuthority bucket that has ≥1 member
 	WorstFirstSeen int64           // first_seen_at across the group, used for "newest first" sort
+
+	// AffectedProjects is the distinct set of ProjectIDs across this
+	// row's member locations. v6+. Order-stable: insertion order
+	// during aggregation. Empty when no member carries project
+	// metadata (pre-v6 rows or CLI-scan rows without a classifier).
+	// Used by the dashboard to render the "+N projects" chip on
+	// rolled-up rows that span multiple projects (D6 of the
+	// project-tabs design).
+	AffectedProjects []string
 }
 
 // RolledUpGroup is one fix-authority bucket within a RolledUpRow.
@@ -74,9 +92,18 @@ type RolledUpGroup struct {
 // RolledUpPath is one row underneath a fix-authority group. Carries
 // the minimal data the dashboard needs to render the row + drill back
 // to the underlying finding via Fingerprint.
+//
+// v6+: each path also carries its own project metadata (D6 of the
+// project-tabs design — per-location, not per-row, because a rolled-up
+// row can span projects after dedup). Empty strings represent pre-v6
+// rows or CLI-scan rows without a classifier; the dashboard treats
+// those as the "loose" fallback bucket.
 type RolledUpPath struct {
-	Fingerprint string
-	Path        string
+	Fingerprint  string
+	Path         string
+	ProjectID    string
+	ProjectLabel string
+	ProjectClass string
 }
 
 // Scan is a single scan-cycle row. Scans aggregate the per-category

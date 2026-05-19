@@ -179,6 +179,93 @@ func TestUpsertFindingNewVsRedetection(t *testing.T) {
 	}
 }
 
+// TestUpsertFinding_ProjectFieldsRoundtrip verifies the v6 project
+// columns (project_id, project_label, project_class) survive the
+// write → read cycle through SnapshotFindings and FindingByFingerprint.
+func TestUpsertFinding_ProjectFieldsRoundtrip(t *testing.T) {
+	s := openTestStore(t)
+	scanID, err := s.OpenScan("all")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f := Finding{
+		Fingerprint:   "fp-proj-rt",
+		RuleID:        "rule-x",
+		Severity:      "high",
+		Category:      "ai-agent",
+		Kind:          "file",
+		Locator:       []byte(`{"path":"/home/parallels/projects/audr/main.go"}`),
+		Title:         "t",
+		Description:   "d",
+		ProjectID:     "/home/parallels/projects/audr",
+		ProjectLabel:  "audr",
+		ProjectClass:  "code-project",
+		FirstSeenScan: scanID,
+		LastSeenScan:  scanID,
+	}
+
+	if _, err := s.UpsertFinding(f); err != nil {
+		t.Fatalf("UpsertFinding: %v", err)
+	}
+
+	got, err := s.SnapshotFindings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("snapshot len = %d, want 1", len(got))
+	}
+	if got[0].ProjectID != f.ProjectID {
+		t.Errorf("ProjectID roundtrip: got %q want %q", got[0].ProjectID, f.ProjectID)
+	}
+	if got[0].ProjectLabel != f.ProjectLabel {
+		t.Errorf("ProjectLabel roundtrip: got %q want %q", got[0].ProjectLabel, f.ProjectLabel)
+	}
+	if got[0].ProjectClass != f.ProjectClass {
+		t.Errorf("ProjectClass roundtrip: got %q want %q", got[0].ProjectClass, f.ProjectClass)
+	}
+
+	byFP, err := s.FindingByFingerprint(context.Background(), "fp-proj-rt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if byFP.ProjectID != f.ProjectID || byFP.ProjectLabel != f.ProjectLabel || byFP.ProjectClass != f.ProjectClass {
+		t.Errorf("FindingByFingerprint missing project fields: %+v", byFP)
+	}
+}
+
+// TestUpsertFinding_ProjectFieldsEmptyStaysEmpty: pre-v6 / CLI-scan
+// flows store NULL in the project columns, which COALESCE-reads as
+// the Go empty string. Snapshot must not invent a non-empty value.
+func TestUpsertFinding_ProjectFieldsEmptyStaysEmpty(t *testing.T) {
+	s := openTestStore(t)
+	scanID, _ := s.OpenScan("all")
+	f := Finding{
+		Fingerprint:   "fp-empty",
+		RuleID:        "rule-x",
+		Severity:      "high",
+		Category:      "ai-agent",
+		Kind:          "file",
+		Locator:       []byte(`{"path":"/x"}`),
+		Title:         "t",
+		Description:   "d",
+		FirstSeenScan: scanID,
+		LastSeenScan:  scanID,
+		// ProjectID/Label/Class intentionally left empty.
+	}
+	if _, err := s.UpsertFinding(f); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.SnapshotFindings(context.Background())
+	if len(got) != 1 {
+		t.Fatalf("snapshot len = %d", len(got))
+	}
+	if got[0].ProjectID != "" || got[0].ProjectLabel != "" || got[0].ProjectClass != "" {
+		t.Errorf("empty project fields must stay empty: %+v", got[0])
+	}
+}
+
 func TestResolveFindingTransitions(t *testing.T) {
 	s := openTestStore(t)
 	scanID, _ := s.OpenScan("all")
