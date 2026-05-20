@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -204,9 +205,20 @@ func TestOrchestratorRecordsScannerStatusForEveryCategory(t *testing.T) {
 			if s.Status != "ok" {
 				t.Errorf("ai-agent status = %q, want ok", s.Status)
 			}
-		case "secrets", "deps", "os-pkg":
+		case "secrets", "deps":
 			if s.Status != "unavailable" {
 				t.Errorf("%s status = %q, want unavailable", c, s.Status)
+			}
+			if s.ErrorText == "" {
+				t.Errorf("%s status: error_text should be non-empty so the dashboard banner has content", c)
+			}
+		case "os-pkg":
+			want := "unavailable"
+			if runtime.GOOS != "linux" {
+				want = "not-applicable"
+			}
+			if s.Status != want {
+				t.Errorf("os-pkg status = %q, want %s", s.Status, want)
 			}
 			if s.ErrorText == "" {
 				t.Errorf("%s status: error_text should be non-empty so the dashboard banner has content", c)
