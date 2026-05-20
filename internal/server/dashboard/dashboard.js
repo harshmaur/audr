@@ -917,9 +917,11 @@
     // the scan-progress pill already shows DISABLED clearly, and a
     // banner per user-disabled category would clutter the dashboard
     // when the user has 2-3 turned off deliberately.
+    // "not-applicable" is also silent: it's a platform limitation
+    // (e.g. os-pkg on macOS), not an actionable problem.
     for (const sc of state.scanners) {
       const stateName = sc.state || sc.status; // wire field, defensive
-      if (!stateName || stateName === 'ok' || stateName === 'disabled') continue;
+      if (!stateName || stateName === 'ok' || stateName === 'disabled' || stateName === 'not-applicable') continue;
       const category = sc.name || sc.category;
       const fix = stateName === 'unavailable' || stateName === 'missing'
         ? guessInstallCommand(category)
@@ -1006,11 +1008,14 @@
     if (stateName === 'outdated') {
       return `${(category || 'scanner').toUpperCase()} scanner is older than audr's minimum.`;
     }
+    if (stateName === 'not-applicable') {
+      return `${(category || 'scanner').toUpperCase()} is not applicable on this platform.`;
+    }
     return `${(category || 'scanner').toUpperCase()}: ${stateName}`;
   }
 
   function guessInstallCommand(category) {
-    if (category === 'secrets') return 'audr update-scanners --backend trufflehog --yes';
+    if (category === 'secrets') return 'audr update-scanners --backend betterleaks --yes';
     if (category === 'deps')    return 'audr update-scanners --backend osv-scanner --yes';
     return '';
   }
@@ -1086,6 +1091,9 @@
       else if (stateName === 'unavailable' || stateName === 'missing') {
         cls = 'unavailable'; stateLabel = 'OFF';
       } else if (stateName === 'outdated')    { cls = 'unavailable'; stateLabel = 'OUTDATED'; }
+      else if (stateName === 'not-applicable') {
+        cls = 'disabled'; stateLabel = 'N/A';
+      }
 
       // userEnabled is the source of truth for the toggle: false
       // when the user explicitly disabled the category. Passed

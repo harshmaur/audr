@@ -3,6 +3,19 @@
 All notable changes to Audr.
 Format follows [Keep a Changelog](https://keepachangelog.com/), versioning is `MAJOR.MINOR.PATCH`.
 
+## [0.14.1] - 2026-05-20 — Scanner-install plumbing fixes
+
+Cleanup pass on the install / update-scanners flow surfaced by users.
+
+### Fixed
+- **Dashboard's "missing scanner" install command pointed at trufflehog.** The dashboard banner's copy-pasteable fix-command for an unavailable secret scanner emitted `audr update-scanners --backend trufflehog --yes`, which the CLI rejected — `betterleaks` replaced trufflehog in v0.11 and the dashboard's `guessInstallCommand` wasn't updated. Also fixed the corresponding rule-id (`secret-trufflehog-verified` → `secret-betterleaks-valid`) in the policy editor's worked example, and the install-script's tail text.
+- **Daemon didn't pick up freshly-installed scanners until restart.** `audr update-scanners --yes` would install betterleaks / osv-scanner, but the running daemon kept reporting the category as unavailable until either the periodic ticker rolled (up to 1h) or the user uninstalled+reinstalled the daemon. The orchestrator already re-probed sidecars at the top of each cycle (D15), but had no way to be poked. Added `Orchestrator.Kick(reason)` on a buffered channel that the Run loop selects on alongside the ticker and watcher, exposed as `POST /api/rescan` on the daemon, and `audr update-scanners --yes` now POSTs to it after a successful install. Dashboard reflects the new scanner within seconds.
+- **OS-package category showed "missing scanner" banner on macOS.** os-pkg isn't implemented on macOS / Windows in v1 (OSV doesn't cover Homebrew / winget natively yet), but the dashboard treated the unsupported-platform state the same as "betterleaks not installed" — including the alarming red banner and a fix-command that wouldn't help. Added `ospkg.Applicable()` separating "wrong platform" from "right platform, sidecar missing". On macOS / Windows the category now renders as a quiet `N/A` pill with no banner; on Linux without osv-scanner the actionable "install this" banner still fires.
+
+### Added
+- **`audr daemon install` prompts to install missing scanners.** After registering the service, audr probes for betterleaks + osv-scanner and offers to install any that are missing in the same step. Non-interactive sessions (CI, piped) print the suggestion without prompting. Opt out with `--no-scanner-prompt`.
+- **`.npm/_npx` + `.npm/_logs` added to scan-ignore defaults.** `npx <pkg>` extracts a fresh package tree under `~/.npm/_npx/<hash>/node_modules/...` on every invocation, producing churn-y dependency-CVE findings that rotate as the cache evicts. Joins `.npm/_cacache` (already excluded) — `.npm/global` (where the user's global packages actually live) remains in scope.
+
 ## [0.14.0] - 2026-05-19 — Project tabs (your dashboard, about YOUR projects)
 
 Audr's dashboard used to show every finding across `$HOME` in one flat

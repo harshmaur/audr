@@ -9,11 +9,14 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/exec"
 	"regexp"
@@ -989,6 +992,7 @@ side effects (dry run). With --yes, executes them.`,
 			if runOSV {
 				backends = []depscan.Backend{depscan.BackendOSVScanner}
 			}
+			anyInstalled := false
 			for _, b := range backends {
 				if !force && b == depscan.BackendOSVScanner {
 					st := depscan.BackendStatus(b)
@@ -1004,10 +1008,14 @@ side effects (dry run). With --yes, executes them.`,
 				if !dbOnly {
 					commands = append(append([]string(nil), plan.BinaryCommands...), plan.DatabaseCommands...)
 				}
-				if err := runScannerUpdatePlan(cmd, w, ctx, plan.Name, commands, plan.Notes, yes, ci, func() error {
+				didRun, err := runScannerUpdatePlan(cmd, w, ctx, plan.Name, commands, plan.Notes, yes, ci, func() error {
 					return depscan.RunUpdatePlan(ctx, plan, depscan.UpdateOptions{DBOnly: dbOnly})
-				}); err != nil {
+				})
+				if err != nil {
 					return err
+				}
+				if didRun {
+					anyInstalled = true
 				}
 			}
 			if runSecrets {
@@ -1025,11 +1033,21 @@ side effects (dry run). With --yes, executes them.`,
 				if !dbOnly {
 					secretCommands = append(append([]string(nil), secretPlan.BinaryCommands...), secretPlan.DatabaseCommands...)
 				}
-				if err := runScannerUpdatePlan(cmd, w, ctx, secretPlan.Name, secretCommands, secretPlan.Notes, yes, ci, func() error {
+				didRun, err := runScannerUpdatePlan(cmd, w, ctx, secretPlan.Name, secretCommands, secretPlan.Notes, yes, ci, func() error {
 					return secretscan.RunUpdatePlan(ctx, secretPlan, secretscan.UpdateOptions{})
-				}); err != nil {
+				})
+				if err != nil {
 					return err
 				}
+				if didRun {
+					anyInstalled = true
+				}
+			}
+			// Signal the running daemon (if any) to rescan with the
+			// freshly-installed sidecar(s) instead of waiting up to one
+			// scan interval. No-op when no daemon is running.
+			if anyInstalled {
+				kickDaemonRescan(ctx, w, "update-scanners completed")
 			}
 			return nil
 		},
@@ -1098,7 +1116,12 @@ func probeBinaryVersion(ctx context.Context, binary string) string {
 
 var scannerVersionRE = regexp.MustCompile(`(?m)(?:version[:\s]*)?([0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][A-Za-z0-9.+]+)?)`)
 
-func runScannerUpdatePlan(cmd *cobra.Command, w io.Writer, ctx context.Context, name string, commands []string, notes []string, yes bool, ci bool, run func() error) error {
+// runScannerUpdatePlan returns (didRun, err). didRun=true means the
+// installer command actually executed (vs. being skipped because of
+// dry-run, an empty plan, or a "no" answer at the prompt). The
+// outer update-scanners command uses this to decide whether to kick
+// the running daemon to rescan with the freshly-installed sidecar.
+func runScannerUpdatePlan(cmd *cobra.Command, w io.Writer, ctx context.Context, name string, commands []string, notes []string, yes bool, ci bool, run func() error) (bool, error) {
 	fmt.Fprintf(w, "%s\n", name)
 	for _, c := range commands {
 		fmt.Fprintf(w, "  update: %s\n", c)
@@ -1108,26 +1131,63 @@ func runScannerUpdatePlan(cmd *cobra.Command, w io.Writer, ctx context.Context, 
 	}
 	if len(commands) == 0 {
 		fmt.Fprintf(w, "  no update command available for this platform\n")
-		return nil
+		return false, nil
 	}
 	if !yes {
 		if ci || !isTerminal(os.Stdin) || !isTerminal(os.Stderr) {
 			fmt.Fprintf(w, "  dry-run: rerun with --yes to execute these updates.\n")
-			return nil
+			return false, nil
 		}
 		fmt.Fprintf(os.Stderr, "Run these %s updates now? [y/N] ", name)
 		answer, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 		answer = strings.ToLower(strings.TrimSpace(answer))
 		if answer != "y" && answer != "yes" {
 			fmt.Fprintf(w, "  skipped\n")
-			return nil
+			return false, nil
 		}
 	}
 	if err := run(); err != nil {
-		return fmt.Errorf("update %s: %w", name, err)
+		return false, fmt.Errorf("update %s: %w", name, err)
 	}
 	fmt.Fprintf(w, "  updated\n")
-	return nil
+	return true, nil
+}
+
+// kickDaemonRescan POSTs to the running daemon's /api/rescan endpoint
+// so a freshly-installed sidecar shows up in the dashboard within
+// seconds instead of waiting up to one scan interval. Best-effort:
+// any failure (no daemon, port not answering, network blip) is
+// reported on stderr but never propagates. Reason is logged on the
+// daemon side and shown to the user here.
+func kickDaemonRescan(ctx context.Context, w io.Writer, reason string) {
+	paths, err := daemon.Resolve()
+	if err != nil {
+		return
+	}
+	state, found, err := daemon.ReadStateFile(paths.StateFile())
+	if err != nil || !found {
+		return
+	}
+	body, _ := json.Marshal(map[string]string{"reason": reason})
+	reqCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	url := fmt.Sprintf("http://127.0.0.1:%d/api/rescan?t=%s", state.Port, state.Token)
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(w, "  note: could not signal running daemon (%v); next scheduled scan will pick up the new scanner\n", err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		fmt.Fprintf(w, "  daemon: requested immediate rescan\n")
+		return
+	}
+	fmt.Fprintf(w, "  note: daemon rescan request returned %s; next scheduled scan will pick up the new scanner\n", resp.Status)
 }
 
 func buildLogger(f scanFlags) *slog.Logger {

@@ -343,7 +343,7 @@
                 <td><em>none</em></td>
               </tr>
               <tr>
-                <td><code>secret-trufflehog-verified</code></td>
+                <td><code>secret-betterleaks-valid</code></td>
                 <td><code>~/projects/legacy-app/.env.example</code></td>
                 <td>Tracked sample env file with placeholder keys; not a real secret leak.</td>
                 <td><code>2026-12-31T00:00:00Z</code></td>
@@ -481,7 +481,7 @@ rules:
     path: "**/testdata/**/package-lock.json"
     reason: "Test fixtures pin vulnerable versions on purpose."
 
-  - rule: secret-trufflehog-verified
+  - rule: secret-betterleaks-valid
     path: "~/projects/legacy-app/.env.example"
     reason: "Tracked sample env file with placeholder keys."
     expires: "2026-12-31T00:00:00Z"</pre>

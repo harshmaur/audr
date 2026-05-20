@@ -67,6 +67,16 @@ type Options struct {
 	// one-shot CLI path which doesn't have a long-running watcher.
 	WatcherProbe WatcherProbe
 
+	// Rescan, when non-nil, is invoked by POST /api/rescan to
+	// request an immediate scan cycle. The daemon wires this to
+	// Orchestrator.Kick; the CLI's `audr update-scanners --yes`
+	// calls the endpoint after a successful sidecar install so the
+	// dashboard reflects the new scanner within seconds rather than
+	// waiting up to one scan interval. Returns true when the kick
+	// was accepted, false when one is already queued. nil disables
+	// the endpoint (returns 503).
+	Rescan func(reason string) bool
+
 	// shutdownTimeout caps how long Close() waits for in-flight
 	// requests after the listener is closed. 5s default.
 	shutdownTimeout time.Duration
@@ -277,6 +287,7 @@ func (s *Server) buildMux() http.Handler {
 	mux.HandleFunc("GET /api/remediate/snippet/{fp}", s.requireToken(s.handleRemediateSnippet))
 	mux.HandleFunc("GET /api/remediate/maintainer/{fp}", s.requireToken(s.handleRemediateMaintainer))
 	mux.HandleFunc("POST /api/scanners", s.requireToken(s.handleScannersToggle))
+	mux.HandleFunc("POST /api/rescan", s.requireToken(s.handleRescan))
 
 	// Policy editor (v1.2 — user-editable rule overlay).
 	mux.HandleFunc("GET /policy/edit", s.requireToken(s.handlePolicyPage))
@@ -359,6 +370,36 @@ func (s *Server) handleScannersToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, updated)
+}
+
+// handleRescan asks the orchestrator to run a scan cycle right now.
+// Used by `audr update-scanners --yes` after installing a sidecar so
+// the dashboard reflects the new scanner within seconds instead of
+// waiting up to one scan interval.
+//
+// 503 when the daemon was constructed without a Rescan hook (e.g.
+// tests). 202 when the kick was accepted. 200 with queued=false when
+// a kick is already queued — caller treats both as success.
+func (s *Server) handleRescan(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Reason string `json:"reason"`
+	}
+	// Body is optional — empty POST is fine.
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	if s.opts.Rescan == nil {
+		http.Error(w, "rescan: orchestrator not wired", http.StatusServiceUnavailable)
+		return
+	}
+	reason := strings.TrimSpace(body.Reason)
+	if reason == "" {
+		reason = "api"
+	}
+	queued := s.opts.Rescan(reason)
+	status := http.StatusAccepted
+	if !queued {
+		status = http.StatusOK
+	}
+	writeJSON(w, status, map[string]bool{"queued": queued})
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {

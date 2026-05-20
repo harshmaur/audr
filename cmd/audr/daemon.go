@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -12,12 +14,14 @@ import (
 	"time"
 
 	"github.com/harshmaur/audr/internal/daemon"
+	"github.com/harshmaur/audr/internal/depscan"
 	"github.com/harshmaur/audr/internal/lowprio"
 	"github.com/harshmaur/audr/internal/orchestrator"
 	"github.com/harshmaur/audr/internal/ospkg"
 	"github.com/harshmaur/audr/internal/parse"
 	"github.com/harshmaur/audr/internal/policy"
 	"github.com/harshmaur/audr/internal/scanignore"
+	"github.com/harshmaur/audr/internal/secretscan"
 	"github.com/harshmaur/audr/internal/server"
 	"github.com/harshmaur/audr/internal/state"
 	"github.com/harshmaur/audr/internal/templates"
@@ -200,7 +204,8 @@ User-disabled scanners show 'disabled' and point back to this command.`,
 }
 
 func newDaemonInstallCmd() *cobra.Command {
-	return &cobra.Command{
+	var skipScannerPrompt bool
+	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Register the audr daemon with the OS service manager",
 		Long: `Register the audr daemon as a per-user service:
@@ -209,7 +214,11 @@ func newDaemonInstallCmd() *cobra.Command {
   - Linux:   systemd --user unit at ~/.config/systemd/user/audr-daemon.service
   - Windows: a per-user entry in the Windows Service Manager
 
-This only registers the service. Use 'audr daemon start' to actually run it.`,
+This only registers the service. Use 'audr daemon start' to actually run it.
+
+After registration, audr probes for the external scanner sidecars
+(osv-scanner, betterleaks) and offers to install any that are missing
+in the same step — skip with --no-scanner-prompt.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			warnIfStaleDarwinDaemonPlist(cmd)
 			svc, err := newDaemonService()
@@ -220,10 +229,111 @@ This only registers the service. Use 'audr daemon start' to actually run it.`,
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "audr daemon: installed")
+			if !skipScannerPrompt {
+				promptInstallMissingScanners(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr())
+			}
 			fmt.Fprintln(cmd.OutOrStdout(), "next: audr daemon start")
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&skipScannerPrompt, "no-scanner-prompt", false, "skip the post-install scanner-install prompt (useful in CI / scripted setups)")
+	return cmd
+}
+
+// promptInstallMissingScanners checks whether the external sidecars
+// audr augments its native rules with — betterleaks (secrets) and
+// osv-scanner (dependency / OS-package CVEs) — are on PATH. For any
+// missing ones, the user is shown the install command for their
+// platform and asked whether to run it now. Non-interactive sessions
+// (CI, pipe) silently print the suggestion without prompting so
+// scripted installs don't hang.
+//
+// Best-effort: any failure is logged to stderr and ignored. Daemon
+// registration has already succeeded by the time we get here, so a
+// scanner-install glitch should not propagate up.
+func promptInstallMissingScanners(ctx context.Context, out, errW io.Writer) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	missing := missingScanners()
+	if len(missing) == 0 {
+		fmt.Fprintln(out, "audr: external scanners detected on PATH:", strings.Join(installedScannerNames(), ", "))
+		return
+	}
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, "audr: the following optional scanners are not installed:")
+	for _, m := range missing {
+		fmt.Fprintf(out, "  - %s (%s)\n", m.name, m.purpose)
+	}
+	fmt.Fprintln(out, "")
+	if !isTerminal(os.Stdin) || !isTerminal(os.Stderr) {
+		fmt.Fprintln(out, "audr: re-run interactively, or install with: audr update-scanners --yes")
+		return
+	}
+	fmt.Fprintf(errW, "Install missing scanners now via `audr update-scanners --yes`? [Y/n] ")
+	answer, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	if answer == "n" || answer == "no" {
+		fmt.Fprintln(out, "audr: skipped — run `audr update-scanners --yes` later when ready.")
+		return
+	}
+	for _, m := range missing {
+		if err := runScannerInstall(ctx, errW, m); err != nil {
+			fmt.Fprintf(errW, "audr: %s install failed: %v\n", m.name, err)
+		}
+	}
+}
+
+type scannerInstallTarget struct {
+	name    string
+	purpose string
+	plan    secretscan.InstallerPlan
+	deps    depscan.InstallerPlan
+	isDeps  bool
+}
+
+func missingScanners() []scannerInstallTarget {
+	var out []scannerInstallTarget
+	if !secretscan.BackendStatus().Installed {
+		out = append(out, scannerInstallTarget{
+			name:    "betterleaks",
+			purpose: "secret scanning (credentials in code, env files, transcripts)",
+			plan:    secretscan.InstallPlan(),
+		})
+	}
+	if !depscan.BackendStatus(depscan.BackendOSVScanner).Installed {
+		out = append(out, scannerInstallTarget{
+			name:    "osv-scanner",
+			purpose: "dependency + OS-package CVE detection",
+			deps:    depscan.InstallPlan(depscan.BackendOSVScanner),
+			isDeps:  true,
+		})
+	}
+	return out
+}
+
+func installedScannerNames() []string {
+	var names []string
+	if secretscan.BackendStatus().Installed {
+		names = append(names, "betterleaks")
+	}
+	if depscan.BackendStatus(depscan.BackendOSVScanner).Installed {
+		names = append(names, "osv-scanner")
+	}
+	if len(names) == 0 {
+		return []string{"(none)"}
+	}
+	return names
+}
+
+func runScannerInstall(ctx context.Context, errW io.Writer, t scannerInstallTarget) error {
+	fmt.Fprintf(errW, "audr: installing %s...\n", t.name)
+	if t.isDeps {
+		plan := depscan.UpdatePlan(depscan.BackendOSVScanner)
+		return depscan.RunUpdatePlan(ctx, plan, depscan.UpdateOptions{})
+	}
+	plan := secretscan.UpdatePlan()
+	return secretscan.RunUpdatePlan(ctx, plan, secretscan.UpdateOptions{})
 }
 
 func newDaemonUninstallCmd() *cobra.Command {
@@ -493,6 +603,7 @@ func newDaemonRunInternalCmd() *cobra.Command {
 					Version:      Version,
 					UpdateProbe:  updaterProbe{upd},
 					WatcherProbe: watcher,
+					Rescan:       orch.Kick,
 				})
 				if err != nil {
 					_ = store.Close()

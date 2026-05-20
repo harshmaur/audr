@@ -68,6 +68,22 @@ type Orchestrator struct {
 	// renders them under the "loose" fallback). nil-safe at the
 	// triage call site.
 	classifier *classify.Classifier
+
+	// kicks carries on-demand scan triggers (POST /api/rescan, or
+	// `audr update-scanners --yes` after a successful install). The
+	// orchestrator selects on it alongside the periodic ticker and
+	// the watcher's ExternalTriggers so a freshly-installed sidecar
+	// shows up in the dashboard within seconds instead of waiting up
+	// to one scan interval. Buffered (1) so concurrent kicks coalesce
+	// into a single follow-up cycle.
+	kicks chan kickRequest
+}
+
+// kickRequest is the message Kick sends to the orchestrator's run
+// loop. Reason is logged so it's clear in the daemon log which
+// surface asked for the rescan.
+type kickRequest struct {
+	Reason string
 }
 
 // Options configures an Orchestrator. Most fields default sanely.
@@ -266,7 +282,29 @@ func New(opts Options) (*Orchestrator, error) {
 		autoDeps:    autoDeps,
 		autoOSPkg:   autoOSPkg,
 		classifier:  classifier,
+		kicks:       make(chan kickRequest, 1),
 	}, nil
+}
+
+// Kick requests an immediate scan cycle. Returns false when the
+// orchestrator already has a kick queued (the buffered channel is
+// full) or has shut down — callers can treat both as "fine, a scan
+// is or will be in flight." Reason is logged so the daemon log makes
+// it clear which surface triggered the rescan (e.g. "update-scanners
+// completed", "user clicked Rescan").
+//
+// Safe to call from any goroutine. Non-blocking by design: the HTTP
+// handler that wraps this must not stall on a busy orchestrator.
+func (o *Orchestrator) Kick(reason string) bool {
+	if o == nil {
+		return false
+	}
+	select {
+	case o.kicks <- kickRequest{Reason: reason}:
+		return true
+	default:
+		return false
+	}
 }
 
 // reprobeSidecars re-checks sidecar availability for any scanner
@@ -346,6 +384,15 @@ func (o *Orchestrator) Run(ctx context.Context) error {
 			if err := o.runOnce(ctx); err != nil {
 				o.log.Error("scan cycle failed", "err", err)
 			}
+		case k := <-o.kicks:
+			// On-demand kick (e.g. POST /api/rescan after
+			// `audr update-scanners` finishes installing a sidecar).
+			// Bypasses the watcher's backoff gate — the user just took
+			// an explicit action, they deserve immediate feedback.
+			o.log.Info("scan triggered by kick", "reason", k.Reason)
+			if err := o.runOnce(ctx); err != nil {
+				o.log.Error("scan cycle failed", "err", err)
+			}
 		case t, ok := <-o.opts.ExternalTriggers:
 			if !ok {
 				// Watcher closed its channel (daemon shutting down or
@@ -389,7 +436,7 @@ var runMu sync.Mutex
 //  2. Capture the set of currently-open finding fingerprints (for
 //     resolution detection at the end).
 //  3. Run native rules via scan.Run.
-//  4. Run TruffleHog if enabled, with AI chat transcript paths added
+//  4. Run Betterleaks if enabled, with AI chat transcript paths added
 //     to the roots. Convert + persist findings.
 //  5. Record scanner status per category.
 //  6. Resolve any previously-open finding that wasn't re-detected.
@@ -571,6 +618,16 @@ func (o *Orchestrator) runOnce(ctx context.Context) error {
 			return
 		}
 		if !*o.opts.RunOSPkg {
+			// Distinguish "wrong platform" (macOS / Windows / unknown
+			// distro) from "right platform but osv-scanner missing".
+			// The first is informational — there's nothing for the
+			// user to install; the second is actionable and the
+			// dashboard should prompt them to run update-scanners.
+			if !ospkg.Applicable() {
+				osPkgStatus.Status = "not-applicable"
+				osPkgStatus.ErrorText = "OS-package CVE detection is Linux-only in v1; brew/winget coming in v1.1"
+				return
+			}
 			osPkgStatus.Status = "unavailable"
 			_, osPkgStatus.ErrorText = ospkg.Available()
 			if osPkgStatus.ErrorText == "" {

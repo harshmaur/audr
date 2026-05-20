@@ -92,6 +92,8 @@ func Defaults() []string {
 		// both pkg/mod (cache) AND src (potentially user repos)).
 		"go/pkg",                       // Go module cache
 		".npm/_cacache",                // npm install cache (keep .npm/global)
+		".npm/_npx",                    // npx ephemeral package extracts — rotate on every `npx <pkg>` run
+		".npm/_logs",                   // npm debug logs — rotate on every install/error
 		".gradle/caches",               // explicit second match in case .gradle isn't matched at root
 		"Library/Caches",               // macOS user caches
 		"AppData/Local/Temp",           // Windows user temp

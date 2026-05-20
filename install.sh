@@ -145,5 +145,5 @@ echo "  audr daemon install                  # register the per-OS background se
 echo "  audr open                            # opens the live dashboard in your browser"
 echo
 echo "audr: full coverage needs two open-source scanners on PATH (optional):"
-echo "  audr update-scanners --yes           # installs osv-scanner (deps CVEs) + trufflehog (secrets)"
+echo "  audr update-scanners --yes           # installs osv-scanner (deps CVEs) + betterleaks (secrets)"
 echo "  audr doctor                          # check current scanner status"

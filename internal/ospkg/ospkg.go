@@ -62,6 +62,28 @@ func Available() (bool, string) {
 	return true, ""
 }
 
+// Applicable reports whether the OS-package CVE category is even
+// meaningful on this platform. Returns true on supported Linux
+// distros (regardless of whether osv-scanner is installed) so the
+// dashboard can distinguish:
+//
+//   - macOS / Windows / unknown distro: Applicable=false → category
+//     is a platform limitation, render as informational ("not
+//     applicable"), do NOT prompt to install anything.
+//   - Linux with a covered distro but osv-scanner missing:
+//     Applicable=true → category is "unavailable", DO prompt to run
+//     `audr update-scanners`.
+//
+// Use Available() when you need to know whether to actually run the
+// scanner; use Applicable() when deciding what to show the user.
+func Applicable() bool {
+	info, err := detectDistro()
+	if err != nil {
+		return false
+	}
+	return info.ID != ""
+}
+
 // EnumerateAndScan is the orchestrator's entrypoint: enumerate
 // installed packages on this machine, run them through OSV-Scanner,
 // return the list of vulnerabilities. Each step is bounded by ctx;
