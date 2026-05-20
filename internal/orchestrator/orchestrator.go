@@ -13,12 +13,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/harshmaur/audr/internal/classify"
 	"github.com/harshmaur/audr/internal/depscan"
 	"github.com/harshmaur/audr/internal/finding"
 	"github.com/harshmaur/audr/internal/lowprio"
 	"github.com/harshmaur/audr/internal/ospkg"
 	"github.com/harshmaur/audr/internal/policy"
-	"github.com/harshmaur/audr/internal/classify"
 	"github.com/harshmaur/audr/internal/scan"
 	"github.com/harshmaur/audr/internal/scanignore"
 	"github.com/harshmaur/audr/internal/secretscan"
@@ -624,7 +624,7 @@ func (o *Orchestrator) runOnce(ctx context.Context) error {
 			// user to install; the second is actionable and the
 			// dashboard should prompt them to run update-scanners.
 			if !ospkg.Applicable() {
-				osPkgStatus.Status = "not-applicable"
+				osPkgStatus.Status = "unavailable"
 				osPkgStatus.ErrorText = "OS-package CVE detection is Linux-only in v1; brew/winget coming in v1.1"
 				return
 			}
