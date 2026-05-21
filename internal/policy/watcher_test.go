@@ -251,3 +251,27 @@ func TestWatcher_ParallelFiresStayBounded(t *testing.T) {
 		t.Errorf("watcher fired %d times for 80 writes in 8 goroutines; want <= 10 (debounce should coalesce)", got)
 	}
 }
+
+// TestWatcher_DebouncedFireFiresAfterExtendedWindow covers the debounce
+// timer directly. Repeated events should extend the settling window and
+// still fire once after the last event. The previous implementation could
+// drop the only scheduled goroutine when the first timer woke up while the
+// window was still being extended.
+func TestWatcher_DebouncedFireFiresAfterExtendedWindow(t *testing.T) {
+	var calls atomic.Int32
+	w, err := NewWatcher("/tmp/policy.yaml", func() { calls.Add(1) }, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = w.Close() }()
+
+	for i := 0; i < 4; i++ {
+		w.debouncedFire()
+		time.Sleep(75 * time.Millisecond)
+	}
+	time.Sleep(250 * time.Millisecond)
+
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("debounced callback fired %d times; want exactly 1", got)
+	}
+}

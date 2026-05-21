@@ -44,8 +44,8 @@ type Watcher struct {
 	mu sync.Mutex
 	w  *fsnotify.Watcher
 
-	debounceMu sync.Mutex
-	debounceAt time.Time
+	debounceMu    sync.Mutex
+	debounceTimer *time.Timer
 }
 
 // NewWatcher constructs a watcher for the given policy path. The
@@ -159,6 +159,14 @@ func (w *Watcher) Close() error {
 	cur := w.w
 	w.w = nil
 	w.mu.Unlock()
+
+	w.debounceMu.Lock()
+	if w.debounceTimer != nil {
+		w.debounceTimer.Stop()
+		w.debounceTimer = nil
+	}
+	w.debounceMu.Unlock()
+
 	if cur == nil {
 		return nil
 	}
@@ -205,24 +213,15 @@ func (w *Watcher) debouncedFire() {
 	w.debounceMu.Lock()
 	defer w.debounceMu.Unlock()
 
-	now := time.Now()
-	if !w.debounceAt.IsZero() && now.Sub(w.debounceAt) < 150*time.Millisecond {
-		w.debounceAt = now
-		return
+	if w.debounceTimer != nil {
+		w.debounceTimer.Stop()
 	}
-	w.debounceAt = now
-	go func() {
-		time.Sleep(150 * time.Millisecond)
+	w.debounceTimer = time.AfterFunc(150*time.Millisecond, func() {
 		w.debounceMu.Lock()
-		fireTime := w.debounceAt
+		w.debounceTimer = nil
 		w.debounceMu.Unlock()
-		// If another event extended the window past our sleep, skip;
-		// the next goroutine will fire after its own settling.
-		if time.Since(fireTime) < 100*time.Millisecond {
-			return
-		}
 		w.cb()
-	}()
+	})
 }
 
 // PathExists is a small helper the daemon uses at startup to decide
