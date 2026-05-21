@@ -78,6 +78,9 @@ func builtins() []rules.Rule {
 		miniShaiHuludTokenMonitorPersistence{},
 		miniShaiHuludDroppedPayload{},
 
+		// Dependency supply-chain hardening rules.
+		dependencyMinimumReleaseAgeMissing{},
+
 		// package.json OpenClaw version posture rules.
 		openclawUnboundBootstrapSetupCode{},
 		openclawConfigPatchConsentBypass{},

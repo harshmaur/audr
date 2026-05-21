@@ -26,6 +26,7 @@ const (
 	FormatCursorPermissions     Format = "cursor-permissions"       // ~/.cursor/permissions.json (v0.2.0-alpha.4)
 	FormatPackageJSON           Format = "package-json"             // package.json manifests for agent packages
 	FormatDependencyManifest    Format = "dependency-manifest"      // language manifests/lockfiles for agent package CVEs
+	FormatReleaseAgeConfig      Format = "release-age-config"       // package-manager/dependency-bot release-age cooldown configs
 	FormatMiniShaiHuludArtifact Format = "mini-shai-hulud-artifact" // known local IOC/persistence files
 	FormatUnknown               Format = ""
 )
@@ -445,6 +446,14 @@ func DetectFormat(path string) Format {
 	// Env files.
 	if strings.HasPrefix(base, ".env") {
 		return FormatEnv
+	}
+
+	// Package-manager/dependency-bot release-age cooldown configs.
+	if base == "bunfig.toml" || base == ".npmrc" || base == "pnpm-workspace.yaml" ||
+		base == ".yarnrc.yml" || base == "renovate.json" || base == "renovate.json5" ||
+		(base == "dependabot.yml" && strings.Contains(path, "/.github/")) ||
+		(base == "dependabot.yaml" && strings.Contains(path, "/.github/")) {
+		return FormatReleaseAgeConfig
 	}
 
 	if base == "package.json" {
