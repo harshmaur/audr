@@ -168,6 +168,33 @@ func TestOpenClawPluginAuthOperatorWriteBypass_AllowsFixedVersion(t *testing.T) 
 	}
 }
 
+func TestOpenClawNodeEventToolAccess_FlagsVulnerablePackage(t *testing.T) {
+	doc := parse.Parse("package.json", []byte(`{"name":"openclaw","version":"2026.3.30"}`))
+	findings := (openclawNodeEventToolAccess{}).Apply(doc)
+	if len(findings) != 1 {
+		t.Fatalf("got %d findings, want 1", len(findings))
+	}
+	if findings[0].RuleID != "openclaw-node-event-tool-access" {
+		t.Fatalf("rule id = %q", findings[0].RuleID)
+	}
+}
+
+func TestOpenClawNodeEventToolAccess_FlagsVulnerableDependency(t *testing.T) {
+	doc := parse.Parse("package.json", []byte(`{"optionalDependencies":{"openclaw":"^2026.3.24"}}`))
+	findings := (openclawNodeEventToolAccess{}).Apply(doc)
+	if len(findings) != 1 {
+		t.Fatalf("got %d findings, want 1", len(findings))
+	}
+}
+
+func TestOpenClawNodeEventToolAccess_AllowsFixedVersion(t *testing.T) {
+	doc := parse.Parse("package.json", []byte(`{"name":"openclaw","version":"2026.3.31","dependencies":{"openclaw":"2026.4.1"}}`))
+	findings := (openclawNodeEventToolAccess{}).Apply(doc)
+	if len(findings) != 0 {
+		t.Fatalf("got %d findings, want 0", len(findings))
+	}
+}
+
 func TestOpenClawTeamsWebhookPreauthBodyDos_FlagsVulnerablePackage(t *testing.T) {
 	doc := parse.Parse("package.json", []byte(`{"name":"openclaw","version":"2026.3.30"}`))
 	findings := (openclawTeamsWebhookPreauthBodyDos{}).Apply(doc)

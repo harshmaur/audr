@@ -15,6 +15,7 @@ type openclawConfigPatchConsentBypass struct{}
 type openclawWebsocketUpgradeExhaustion struct{}
 type openclawNodePairApproveScopeBypass struct{}
 type openclawPluginAuthOperatorWriteBypass struct{}
+type openclawNodeEventToolAccess struct{}
 type openclawTeamsWebhookPreauthBodyDos struct{}
 type openclawTrustedProxyScopeClearing struct{}
 type openclawBundledHooksEnvOverride struct{}
@@ -98,6 +99,18 @@ func (openclawPluginAuthOperatorWriteBypass) Taxonomy() finding.Taxonomy {
 	return finding.TaxDetectable
 }
 func (openclawPluginAuthOperatorWriteBypass) Formats() []parse.Format {
+	return []parse.Format{parse.FormatPackageJSON}
+}
+
+func (openclawNodeEventToolAccess) ID() string {
+	return "openclaw-node-event-tool-access"
+}
+func (openclawNodeEventToolAccess) Title() string {
+	return "OpenClaw version is vulnerable to unrestricted node.event tool access"
+}
+func (openclawNodeEventToolAccess) Severity() finding.Severity { return finding.SeverityHigh }
+func (openclawNodeEventToolAccess) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (openclawNodeEventToolAccess) Formats() []parse.Format {
 	return []parse.Format{parse.FormatPackageJSON}
 }
 
@@ -310,6 +323,22 @@ func (openclawPluginAuthOperatorWriteBypass) Apply(doc *parse.Document) []findin
 	for _, deps := range []map[string]string{pkg.Dependencies, pkg.DevDependencies, pkg.OptionalDependencies, pkg.PeerDependencies} {
 		if v, ok := deps["openclaw"]; ok && vulnerableOpenClawPluginAuthVersion(v) {
 			return []finding.Finding{openclawPluginAuthFinding(doc.Path, fmt.Sprintf("openclaw@%s", v))}
+		}
+	}
+	return nil
+}
+
+func (openclawNodeEventToolAccess) Apply(doc *parse.Document) []finding.Finding {
+	if doc.PackageJSON == nil {
+		return nil
+	}
+	pkg := doc.PackageJSON
+	if pkg.Name == "openclaw" && vulnerableOpenClawNodeEventToolAccessVersion(pkg.Version) {
+		return []finding.Finding{openclawNodeEventToolAccessFinding(doc.Path, fmt.Sprintf("openclaw@%s", pkg.Version))}
+	}
+	for _, deps := range []map[string]string{pkg.Dependencies, pkg.DevDependencies, pkg.OptionalDependencies, pkg.PeerDependencies} {
+		if v, ok := deps["openclaw"]; ok && vulnerableOpenClawNodeEventToolAccessVersion(v) {
+			return []finding.Finding{openclawNodeEventToolAccessFinding(doc.Path, fmt.Sprintf("openclaw@%s", v))}
 		}
 	}
 	return nil
@@ -581,6 +610,20 @@ func openclawPluginAuthFinding(path, match string) finding.Finding {
 	})
 }
 
+func openclawNodeEventToolAccessFinding(path, match string) finding.Finding {
+	return finding.New(finding.Args{
+		RuleID:       "openclaw-node-event-tool-access",
+		Severity:     finding.SeverityHigh,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "OpenClaw before 2026.3.31 lets node.event reach unrestricted gateway tools",
+		Description:  "CVE-2026-41378: OpenClaw before 2026.3.31 lets role=node dispatch node.event agent requests with unrestricted gateway-side tool access, bypassing intended node scope boundaries.",
+		Path:         path,
+		Match:        match,
+		SuggestedFix: "Upgrade OpenClaw to 2026.3.31 or later and review node.event requests and gateway-side tool access issued by vulnerable versions.",
+		Tags:         []string{"cve", "openclaw", "package-json", "privilege-escalation"},
+	})
+}
+
 func openclawTeamsWebhookFinding(path, match string) finding.Finding {
 	return finding.New(finding.Args{
 		RuleID:       "openclaw-teams-webhook-preauth-body-dos",
@@ -754,6 +797,10 @@ func vulnerableOpenClawNodePairApproveVersion(raw string) bool {
 }
 
 func vulnerableOpenClawPluginAuthVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 3, 31})
+}
+
+func vulnerableOpenClawNodeEventToolAccessVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 3, 31})
 }
 

@@ -84,6 +84,7 @@ func builtins() []rules.Rule {
 		openclawWebsocketUpgradeExhaustion{},
 		openclawNodePairApproveScopeBypass{},
 		openclawPluginAuthOperatorWriteBypass{},
+		openclawNodeEventToolAccess{},
 		openclawTeamsWebhookPreauthBodyDos{},
 		openclawTrustedProxyScopeClearing{},
 		openclawBundledHooksEnvOverride{},
