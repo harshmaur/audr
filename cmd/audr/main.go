@@ -19,9 +19,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"regexp"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -77,6 +77,7 @@ func newRootCmd() *cobra.Command {
 	cmd.AddCommand(newVerifyCmd())
 	cmd.AddCommand(newSelfAuditCmd())
 	cmd.AddCommand(newDoctorCmd())
+	cmd.AddCommand(newUpdateCmd())
 	cmd.AddCommand(newUpdateScannersCmd())
 	cmd.AddCommand(newDaemonCmd())
 	cmd.AddCommand(newOpenCmd())

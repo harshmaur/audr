@@ -77,6 +77,11 @@ type Options struct {
 	// Now overrides the time source (test injection). Defaults to
 	// time.Now.
 	Now func() time.Time
+
+	// AutoApply, when set, is called after a poll discovers a newer
+	// stable release. It is intentionally injected so this package stays
+	// a checker and does not know how binaries are installed.
+	AutoApply func(context.Context, Available) error
 }
 
 const (
@@ -242,6 +247,11 @@ func (c *Checker) pollOnce(ctx context.Context) error {
 		PublishedAt: rel.PublishedAt,
 	}
 	c.persistResult(avail)
+	if c.opts.AutoApply != nil && IsNewer(c.opts.CurrentVersion, avail.Version) {
+		// Best-effort by design: a failed binary update must never stop
+		// the daemon from scanning or surfacing the dashboard banner.
+		_ = c.opts.AutoApply(ctx, *avail)
+	}
 	return nil
 }
 

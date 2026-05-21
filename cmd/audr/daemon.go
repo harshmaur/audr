@@ -22,6 +22,7 @@ import (
 	"github.com/harshmaur/audr/internal/policy"
 	"github.com/harshmaur/audr/internal/scanignore"
 	"github.com/harshmaur/audr/internal/secretscan"
+	"github.com/harshmaur/audr/internal/selfupdate"
 	"github.com/harshmaur/audr/internal/server"
 	"github.com/harshmaur/audr/internal/state"
 	"github.com/harshmaur/audr/internal/templates"
@@ -95,6 +96,7 @@ Tear down:
 	cmd.AddCommand(newDaemonStopCmd())
 	cmd.AddCommand(newDaemonStatusCmd())
 	cmd.AddCommand(newDaemonScannersCmd())
+	cmd.AddCommand(newDaemonUpdatesCmd())
 	cmd.AddCommand(newDaemonRunInternalCmd())
 	return cmd
 }
@@ -420,10 +422,11 @@ func newDaemonStatusCmd() *cobra.Command {
 // program's Start callback to boot the Lifecycle.
 //
 // Flags:
-//   --demo:  also seed demo findings on startup (Phase 2 visual
-//            slice behavior). Useful for a clean machine where the
-//            real scanner cycle hasn't surfaced anything yet — gives
-//            the user something to look at on first open.
+//
+//	--demo:  also seed demo findings on startup (Phase 2 visual
+//	         slice behavior). Useful for a clean machine where the
+//	         real scanner cycle hasn't surfaced anything yet — gives
+//	         the user something to look at on first open.
 func newDaemonRunInternalCmd() *cobra.Command {
 	var demo bool
 	cmd := &cobra.Command{
@@ -587,6 +590,7 @@ func newDaemonRunInternalCmd() *cobra.Command {
 				upd, err := updater.New(updater.Options{
 					CurrentVersion: Version,
 					CacheDir:       paths.State,
+					AutoApply:      daemonAutoUpdate(paths, orchLogger.With("subsystem", "auto-update")),
 				})
 				if err != nil {
 					_ = store.Close()
@@ -764,6 +768,41 @@ func (c chainedRemediation) Lookup(f state.Finding) (string, string, bool) {
 // flow that needs the callback wired up.
 func newDaemonService() (*daemon.Service, error) {
 	return daemon.NewService(daemon.DefaultServiceConfig(), nil)
+}
+
+func daemonAutoUpdate(paths daemon.Paths, logger *slog.Logger) func(context.Context, updater.Available) error {
+	return func(ctx context.Context, avail updater.Available) error {
+		cfg, err := selfupdate.LoadConfig(paths.State)
+		if err != nil {
+			logger.Warn("read auto-update config failed", "error", err)
+			return nil
+		}
+		if !cfg.AutoUpdate {
+			return nil
+		}
+		exe, err := os.Executable()
+		if err != nil {
+			logger.Warn("resolve executable for auto-update failed", "error", err)
+			return nil
+		}
+		ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+		defer cancel()
+		logger.Info("starting verified AUDR auto-update", "version", avail.Version, "install_path", exe)
+		res, err := selfupdate.Apply(ctx, selfupdate.Options{
+			CurrentVersion: Version,
+			Version:        avail.Version,
+			InstallPath:    exe,
+			TempDir:        paths.State,
+		})
+		if err != nil {
+			logger.Warn("verified AUDR auto-update failed", "version", avail.Version, "error", err)
+			return nil
+		}
+		if res.Updated {
+			logger.Info("verified AUDR auto-update installed", "version", res.TargetVersion, "install_path", res.InstallPath, "backup", res.BackupPath)
+		}
+		return nil
+	}
 }
 
 // updaterProbe adapts updater.Checker (which returns its own
