@@ -165,8 +165,8 @@ type PowerShellProfile struct {
 	Modules []string
 
 	// Aliases are Set-Alias / New-Alias mappings: alias name → value.
-	Aliases     map[string]string
-	AliasLines  map[string]int
+	Aliases    map[string]string
+	AliasLines map[string]int
 
 	// Pipelines is a list of pipeline expressions detected on a
 	// single source line (the line is split into stages by `|`).
@@ -404,10 +404,22 @@ func DetectFormat(path string) Format {
 		strings.HasSuffix(path, "\\.claude\\setup.mjs") ||
 		strings.HasSuffix(path, "/.claude/router_runtime.js") ||
 		strings.HasSuffix(path, "\\.claude\\router_runtime.js") ||
+		strings.HasSuffix(path, "/.claude/package/index.js") ||
+		strings.HasSuffix(path, "\\.claude\\package\\index.js") ||
+		strings.HasSuffix(path, "/.codex/package/index.js") ||
+		strings.HasSuffix(path, "\\.codex\\package\\index.js") ||
+		strings.HasSuffix(path, "/.local/share/kitty/cat.py") ||
+		strings.HasSuffix(path, "\\.local\\share\\kitty\\cat.py") ||
+		strings.HasSuffix(path, "/.local/bin/gh-token-monitor.sh") ||
+		strings.HasSuffix(path, "\\.local\\bin\\gh-token-monitor.sh") ||
+		strings.HasSuffix(path, "/var/tmp/.gh_update_state") ||
+		strings.HasSuffix(path, "\\var\\tmp\\.gh_update_state") ||
 		(base == "router_init.js" && strings.Contains(path, "node_modules")) ||
 		(base == "tanstack_runner.js" && strings.Contains(path, "node_modules")) ||
 		base == "gh-token-monitor.service" ||
-		base == "com.user.gh-token-monitor.plist" {
+		base == "com.user.gh-token-monitor.plist" ||
+		base == "kitty-monitor.service" ||
+		base == "com.user.kitty-monitor.plist" {
 		return FormatMiniShaiHuludArtifact
 	}
 

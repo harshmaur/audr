@@ -11,6 +11,17 @@ import (
 
 const miniShaiHuludCommit = "79ac49eedf774dd4b0cfa308722bc463cfe5885c"
 
+var miniShaiHuludOptionalDependencies = map[string][]string{
+	"@tanstack/setup": {
+		"github:tanstack/router#79ac49eedf774dd4b0cfa308722bc463cfe5885c",
+	},
+	"@antv/setup": {
+		"github:antvis/g2#1916faa365f2788b6e193514872d51a242876569",
+		"github:antvis/g2#7cb42f57561c",
+		"github:antvis/g2#dc3d62a2181b",
+	},
+}
+
 // --- mini-shai-hulud-malicious-optional-dependency -------------------------
 
 type miniShaiHuludMaliciousOptionalDependency struct{}
@@ -35,26 +46,31 @@ func (miniShaiHuludMaliciousOptionalDependency) Apply(doc *parse.Document) []fin
 	if doc.PackageJSON == nil {
 		return nil
 	}
-	version, ok := doc.PackageJSON.OptionalDependencies["@tanstack/setup"]
-	if !ok {
-		return nil
+	for depName, indicators := range miniShaiHuludOptionalDependencies {
+		version, ok := doc.PackageJSON.OptionalDependencies[depName]
+		if !ok {
+			continue
+		}
+		lower := strings.ToLower(version)
+		for _, indicator := range indicators {
+			if !strings.Contains(lower, indicator) {
+				continue
+			}
+			return []finding.Finding{finding.New(finding.Args{
+				RuleID:       "mini-shai-hulud-malicious-optional-dependency",
+				Severity:     finding.SeverityCritical,
+				Taxonomy:     finding.TaxDetectable,
+				Title:        "Mini Shai-Hulud malicious optional dependency present",
+				Description:  "This package.json contains a Mini Shai-Hulud optionalDependency pointing at an attacker-staged GitHub commit. Installing this package can execute the worm payload.",
+				Path:         doc.Path,
+				Line:         findKeyLineRaw(doc.Raw, depName),
+				Match:        depName + " -> " + version,
+				SuggestedFix: "Remove the dependency, pin affected packages to known-clean versions, delete node_modules, reinstall from a clean lockfile, and rotate secrets from any environment where install ran.",
+				Tags:         []string{"mini-shai-hulud", "npm", "supply-chain", "malware"},
+			})}
+		}
 	}
-	lower := strings.ToLower(version)
-	if !strings.Contains(lower, "github:tanstack/router") || !strings.Contains(lower, miniShaiHuludCommit) {
-		return nil
-	}
-	return []finding.Finding{finding.New(finding.Args{
-		RuleID:       "mini-shai-hulud-malicious-optional-dependency",
-		Severity:     finding.SeverityCritical,
-		Taxonomy:     finding.TaxDetectable,
-		Title:        "Mini Shai-Hulud malicious optional dependency present",
-		Description:  "This package.json contains the Mini Shai-Hulud optionalDependency on @tanstack/setup pointing at the attacker-staged TanStack router commit. Installing this package can execute the worm payload.",
-		Path:         doc.Path,
-		Line:         findKeyLineRaw(doc.Raw, "@tanstack/setup"),
-		Match:        "@tanstack/setup -> github:tanstack/router#" + miniShaiHuludCommit,
-		SuggestedFix: "Remove the dependency, pin affected packages to known-clean versions, delete node_modules, reinstall from a clean lockfile, and rotate secrets from any environment where install ran.",
-		Tags:         []string{"mini-shai-hulud", "npm", "supply-chain", "malware"},
-	})}
+	return nil
 }
 
 // --- mini-shai-hulud-claude-persistence ------------------------------------
@@ -150,21 +166,27 @@ func (miniShaiHuludTokenMonitorPersistence) Formats() []parse.Format {
 func (miniShaiHuludTokenMonitorPersistence) Apply(doc *parse.Document) []finding.Finding {
 	base := filepath.Base(doc.Path)
 	raw := strings.ToLower(string(doc.Raw))
-	if base != "gh-token-monitor.service" && base != "com.user.gh-token-monitor.plist" && !strings.Contains(raw, "gh-token-monitor") {
+	path := filepath.ToSlash(doc.Path)
+	isTokenMonitor := base == "gh-token-monitor.service" || base == "com.user.gh-token-monitor.plist" || strings.Contains(raw, "gh-token-monitor") || strings.HasSuffix(path, "/.local/bin/gh-token-monitor.sh")
+	isKittyMonitor := base == "kitty-monitor.service" || base == "com.user.kitty-monitor.plist" || strings.Contains(raw, "kitty-monitor") || strings.Contains(raw, ".local/share/kitty/cat.py")
+	if !isTokenMonitor && !isKittyMonitor {
 		return nil
 	}
-	if !strings.Contains(raw, "gh-token-monitor") {
-		return nil
+	match := "gh-token-monitor"
+	lineNeedle := "gh-token-monitor"
+	if isKittyMonitor {
+		match = "kitty-monitor"
+		lineNeedle = "kitty"
 	}
 	return []finding.Finding{finding.New(finding.Args{
 		RuleID:       "mini-shai-hulud-token-monitor-persistence",
 		Severity:     finding.SeverityCritical,
 		Taxonomy:     finding.TaxDetectable,
-		Title:        "Mini Shai-Hulud gh-token-monitor persistence service",
-		Description:  "This service/LaunchAgent matches the Mini Shai-Hulud gh-token-monitor persistence artifact used to monitor and re-exfiltrate GitHub tokens.",
+		Title:        "Mini Shai-Hulud token monitor persistence service",
+		Description:  "This service/LaunchAgent matches Mini Shai-Hulud token-monitor persistence artifacts used to monitor and re-exfiltrate GitHub tokens.",
 		Path:         doc.Path,
-		Line:         findLineContaining(doc.Raw, "gh-token-monitor"),
-		Match:        "gh-token-monitor",
+		Line:         findLineContaining(doc.Raw, lineNeedle),
+		Match:        match,
 		SuggestedFix: "Stop and disable the service/LaunchAgent, remove the monitor files, isolate the machine, and rotate GitHub/npm/cloud credentials after containment.",
 		Tags:         []string{"mini-shai-hulud", "persistence", "github-token", "malware"},
 	})}
@@ -190,6 +212,11 @@ func (miniShaiHuludDroppedPayload) Apply(doc *parse.Document) []finding.Finding 
 	known := strings.HasSuffix(path, "/.claude/setup.mjs") ||
 		strings.HasSuffix(path, "/.vscode/setup.mjs") ||
 		strings.HasSuffix(path, "/.claude/router_runtime.js") ||
+		strings.HasSuffix(path, "/.claude/package/index.js") ||
+		strings.HasSuffix(path, "/.codex/package/index.js") ||
+		strings.HasSuffix(path, "/.local/share/kitty/cat.py") ||
+		strings.HasSuffix(path, "/.local/bin/gh-token-monitor.sh") ||
+		strings.HasSuffix(path, "/var/tmp/.gh_update_state") ||
 		(strings.Contains(path, "/node_modules/") && (base == "router_init.js" || base == "tanstack_runner.js"))
 	if !known {
 		return nil

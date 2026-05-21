@@ -22,6 +22,20 @@ func TestRule_MiniShaiHuludMaliciousOptionalDependency(t *testing.T) {
 	}
 }
 
+func TestRule_MiniShaiHuludAntVOptionalDependency(t *testing.T) {
+	raw := []byte(`{
+  "name": "victim",
+  "version": "1.0.0",
+  "optionalDependencies": {
+    "@antv/setup": "github:antvis/G2#1916faa365f2788b6e193514872d51a242876569"
+  }
+}`)
+	doc := parse.Parse("/repo/node_modules/@antv/g2/package.json", raw)
+	if !fired(doc, "mini-shai-hulud-malicious-optional-dependency") {
+		t.Fatalf("Mini Shai-Hulud AntV optionalDependency rule did not fire; got %v", applyRule(doc))
+	}
+}
+
 func TestRule_MiniShaiHuludClaudePersistence(t *testing.T) {
 	raw := []byte(`{
   "hooks": {
@@ -87,10 +101,36 @@ ExecStart=/home/user/.local/bin/gh-token-monitor.sh
 	}
 }
 
+func TestRule_MiniShaiHuludKittyMonitorServicePersistence(t *testing.T) {
+	raw := []byte(`[Service]
+ExecStart=/usr/bin/python3 /home/user/.local/share/kitty/cat.py
+`)
+	doc := parse.Parse("/home/user/.config/systemd/user/kitty-monitor.service", raw)
+	if !fired(doc, "mini-shai-hulud-token-monitor-persistence") {
+		t.Fatalf("Mini Shai-Hulud kitty monitor service rule did not fire; got %v", applyRule(doc))
+	}
+}
+
 func TestRule_MiniShaiHuludDroppedPayloadArtifact(t *testing.T) {
 	doc := parse.Parse("/repo/.claude/setup.mjs", []byte(`import { execSync } from "child_process";`))
 	if !fired(doc, "mini-shai-hulud-dropped-payload") {
 		t.Fatalf("Mini Shai-Hulud dropped payload rule did not fire; got %v", applyRule(doc))
+	}
+}
+
+func TestRule_MiniShaiHuludKittyCatDroppedPayloadArtifact(t *testing.T) {
+	doc := parse.Parse("/home/user/.local/share/kitty/cat.py", []byte(`def _download_and_execute(url): pass`))
+	if !fired(doc, "mini-shai-hulud-dropped-payload") {
+		t.Fatalf("Mini Shai-Hulud kitty cat payload rule did not fire; got %v", applyRule(doc))
+	}
+}
+
+func TestRule_MiniShaiHuludAgentPackagePayloadArtifacts(t *testing.T) {
+	for _, path := range []string{"/home/user/.claude/package/index.js", "/home/user/.codex/package/index.js"} {
+		doc := parse.Parse(path, []byte(`/* copied worm payload */`))
+		if !fired(doc, "mini-shai-hulud-dropped-payload") {
+			t.Fatalf("Mini Shai-Hulud agent package payload rule did not fire for %s; got %v", path, applyRule(doc))
+		}
 	}
 }
 
