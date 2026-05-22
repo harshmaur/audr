@@ -57,6 +57,7 @@ func builtins() []rules.Rule {
 		// GitHub Actions rules.
 		ghaWriteAllPermissions{},
 		ghaSecretsInAgentStep{},
+		ghaBase64SecretExfilWorkflow{},
 		miniShaiHuludWorkflowSecretExfil{},
 
 		// Shell rc rules.

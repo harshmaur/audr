@@ -14,11 +14,15 @@ import (
 
 type ghaWriteAllPermissions struct{}
 
-func (ghaWriteAllPermissions) ID() string                 { return "gha-write-all-permissions" }
-func (ghaWriteAllPermissions) Title() string              { return "GitHub Actions job grants write-all permissions" }
+func (ghaWriteAllPermissions) ID() string { return "gha-write-all-permissions" }
+func (ghaWriteAllPermissions) Title() string {
+	return "GitHub Actions job grants write-all permissions"
+}
 func (ghaWriteAllPermissions) Severity() finding.Severity { return finding.SeverityHigh }
 func (ghaWriteAllPermissions) Taxonomy() finding.Taxonomy { return finding.TaxEnforced }
-func (ghaWriteAllPermissions) Formats() []parse.Format    { return []parse.Format{parse.FormatGHAWorkflow} }
+func (ghaWriteAllPermissions) Formats() []parse.Format {
+	return []parse.Format{parse.FormatGHAWorkflow}
+}
 
 func (ghaWriteAllPermissions) Apply(doc *parse.Document) []finding.Finding {
 	if doc.Workflow == nil {
@@ -105,4 +109,83 @@ func (ghaSecretsInAgentStep) Apply(doc *parse.Document) []finding.Finding {
 		}
 	}
 	return out
+}
+
+// --- gha-base64-secret-exfil-workflow --------------------------------------
+
+type ghaBase64SecretExfilWorkflow struct{}
+
+func (ghaBase64SecretExfilWorkflow) ID() string {
+	return "gha-base64-secret-exfil-workflow"
+}
+func (ghaBase64SecretExfilWorkflow) Title() string {
+	return "GitHub Actions workflow decodes and runs a secret-exfiltration payload"
+}
+func (ghaBase64SecretExfilWorkflow) Severity() finding.Severity { return finding.SeverityCritical }
+func (ghaBase64SecretExfilWorkflow) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (ghaBase64SecretExfilWorkflow) Formats() []parse.Format {
+	return []parse.Format{parse.FormatGHAWorkflow}
+}
+
+var ghaBase64DecodeExecutePattern = regexp.MustCompile(`(?is)(base64\s+(?:-d|--decode)[^\n|;]*\|\s*(?:bash|sh)\b|echo\s+['\"][a-z0-9+/=]{80,}['\"]\s*\|\s*base64\s+(?:-d|--decode)\s*\|\s*(?:bash|sh)\b)`)
+
+func (ghaBase64SecretExfilWorkflow) Apply(doc *parse.Document) []finding.Finding {
+	if doc.Workflow == nil {
+		return nil
+	}
+	raw := string(doc.Raw)
+	lower := strings.ToLower(raw)
+	if !ghaBase64DecodeExecutePattern.MatchString(raw) {
+		return nil
+	}
+
+	exfilSignals := 0
+	for _, needle := range []string{
+		"216.126.225.129:8443",
+		"actions_id_token_request_url",
+		"actions_id_token_request_token",
+		"github_token",
+		"/proc/1/environ",
+		"/proc/*/environ",
+		"aws_access_key_id",
+		"aws_secret_access_key",
+		"gcloud auth print-access-token",
+		"169.254.169.254",
+		"metadata.google.internal",
+		".docker/config.json",
+		".npmrc",
+		".netrc",
+		"id_rsa",
+		"kube/config",
+		"terraform.d/credentials",
+		"credentials.json",
+		"service-account.json",
+		"curl -x post",
+		"curl -xpost",
+		"curl -d",
+		"curl --data",
+		"curl --request post",
+	} {
+		if strings.Contains(lower, needle) {
+			exfilSignals++
+		}
+	}
+
+	campaignShape := strings.EqualFold(doc.Workflow.Name, "SysDiag") || strings.EqualFold(doc.Workflow.Name, "Optimize-Build") || strings.Contains(lower, "name: sysdiag") || strings.Contains(lower, "name: optimize-build") || strings.Contains(lower, "workflow_dispatch") || strings.Contains(lower, "pull_request_target")
+	if !(strings.Contains(lower, "216.126.225.129:8443") || exfilSignals >= 2 || campaignShape && exfilSignals >= 1) {
+		return nil
+	}
+
+	return []finding.Finding{finding.New(finding.Args{
+		RuleID:       "gha-base64-secret-exfil-workflow",
+		Severity:     finding.SeverityCritical,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "Workflow decodes and executes a CI secret exfiltration payload",
+		Description:  "This GitHub Actions workflow decodes a base64 shell payload and includes CI/cloud credential exfiltration signals. This matches the Megalodon mass repository backdooring pattern and similar workflow malware.",
+		Path:         doc.Path,
+		Line:         findLineContaining(doc.Raw, "base64"),
+		Match:        "base64 decode-and-execute workflow with CI/cloud secret exfiltration signals",
+		SuggestedFix: "Remove the workflow or malicious step, inspect recent Actions runs, rotate GitHub/cloud/registry/SSH credentials exposed to CI, audit commit provenance, and require review for workflow changes.",
+		Tags:         []string{"gha", "workflow", "base64", "secrets", "exfiltration", "malware", "megalodon"},
+	})}
 }

