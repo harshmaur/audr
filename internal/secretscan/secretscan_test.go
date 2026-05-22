@@ -311,12 +311,12 @@ func TestDefaultJobsIsAtLeastOne(t *testing.T) {
 	}
 }
 
-// TestDefaultDaemonJobsIsConservative pins the daemon's quiet
-// validation cap. Bumping this back up silently regresses the
-// "background scan ate my network connections" failure mode.
-func TestDefaultDaemonJobsIsConservative(t *testing.T) {
-	if got := DefaultDaemonJobs(); got < 1 || got > 3 {
-		t.Errorf("DefaultDaemonJobs() = %d, want a small (1-3) value — daemon must not flood validation endpoints", got)
+// TestDefaultDaemonJobsIsOne pins the daemon's quiet validation cap.
+// Bumping this back up silently regresses the "background scan ate my
+// CPU/network connections" failure mode.
+func TestDefaultDaemonJobsIsOne(t *testing.T) {
+	if got := DefaultDaemonJobs(); got != 1 {
+		t.Errorf("DefaultDaemonJobs() = %d, want 1 — daemon Betterleaks must stay single-worker", got)
 	}
 }
 

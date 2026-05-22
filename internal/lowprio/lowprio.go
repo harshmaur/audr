@@ -7,7 +7,8 @@
 //	"First-run is a deep sweep that surfaces every pre-existing issue,
 //	runs for hours if needed, but never hogs the laptop (nice -n 19
 //	+ ionice -c idle on Linux/macOS, BELOW_NORMAL on Windows, plus
-//	GOMAXPROCS=1 for OSV-Scanner shells)."
+//	GOMAXPROCS=1 for Go-based sidecar scanners such as Betterleaks and
+//	OSV-Scanner)."
 //
 // Observed in the wild 2026-05-14: the legacy secret scanner at 80% CPU + OSV-Scanner
 // at 56% CPU during a first-run scan against $HOME. The user couldn't
@@ -33,6 +34,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 )
 
@@ -59,6 +61,7 @@ type Runner struct{}
 // not "did the priority adjustment succeed?".
 func (Runner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = append(os.Environ(), "GOMAXPROCS=1")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

@@ -27,6 +27,24 @@ func TestRunnerCapturesStdout(t *testing.T) {
 	}
 }
 
+// TestRunnerCapsGoSchedulerCPU verifies daemon sidecars launched via
+// lowprio.Runner inherit GOMAXPROCS=1. Betterleaks is Go-based, so
+// this caps its runtime scheduler to one CPU during daemon scans even
+// if its own file walk would otherwise fan out across cores.
+func TestRunnerCapsGoSchedulerCPU(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix-shell test; Windows would need a different invocation")
+	}
+	out, err := Runner{}.Run(context.Background(), "/bin/sh", "-c", "printf %s \"$GOMAXPROCS\"")
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	got := strings.TrimSpace(string(out))
+	if got != "1" {
+		t.Errorf("GOMAXPROCS = %q, want 1", got)
+	}
+}
+
 // TestRunnerReportsNonZeroExit covers the failure path: a non-zero
 // child exit returns an error with the stderr text folded in.
 func TestRunnerReportsNonZeroExit(t *testing.T) {

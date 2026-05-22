@@ -92,18 +92,18 @@ func DefaultJobs() int {
 // DefaultDaemonJobs returns the Betterleaks --validation-workers
 // value audr's daemon uses for its periodic background scan.
 //
-// Conservative (2) because the daemon runs continuously while the
+// Conservative (1) because the daemon runs continuously while the
 // user is doing real work. Validation hits provider APIs over the
 // network, so the bottleneck isn't local CPU — it's bursty outbound
-// connections. 2 concurrent HTTP roundtrips keeps the connection
-// pool small and the daemon's network footprint quiet.
+// connections. 1 concurrent HTTP roundtrip keeps the connection pool
+// tiny and the daemon's network footprint quiet.
 //
 // Trade: first-time daemon scans with many findings to validate take
 // longer than the CLI default. v1 spec accepts this: "Hours
 // acceptable; resource hogging is not." Lowprio plus this cap is the
 // daemon's defense-in-depth.
 func DefaultDaemonJobs() int {
-	return 2
+	return 1
 }
 
 type Status struct {
