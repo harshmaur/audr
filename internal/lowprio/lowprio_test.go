@@ -73,7 +73,7 @@ func TestRunnerActuallyDropsPriority(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows uses priority class, not numeric nice — see TestRunnerWindowsLowPriority")
 	}
-	out, err := Runner{}.Run(context.Background(), "/bin/sh", "-c", "ps -p $$ -o nice= 2>/dev/null")
+	out, err := Runner{}.Run(context.Background(), "/bin/sh", "-c", "sleep 0.05; ps -p $$ -o nice= 2>/dev/null")
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
