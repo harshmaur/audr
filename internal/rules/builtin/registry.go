@@ -74,6 +74,7 @@ func builtins() []rules.Rule {
 		mlflowAssistantOriginBypass{},
 		mcpCalculateServerEvalRCE{},
 		lumiverseMCPArgsRCE{},
+		gitlabMCPServerUnauthHTTP{},
 		miniShaiHuludMaliciousOptionalDependency{},
 		miniShaiHuludClaudePersistence{},
 		miniShaiHuludVSCodePersistence{},
