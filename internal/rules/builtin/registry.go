@@ -80,6 +80,7 @@ func builtins() []rules.Rule {
 		miniShaiHuludVSCodePersistence{},
 		miniShaiHuludTokenMonitorPersistence{},
 		miniShaiHuludDroppedPayload{},
+		miniShaiHuludStage6GitHubC2IOC{},
 
 		// Dependency supply-chain hardening rules.
 		dependencyMinimumReleaseAgeMissing{},

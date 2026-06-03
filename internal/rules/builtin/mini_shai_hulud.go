@@ -235,6 +235,64 @@ func (miniShaiHuludDroppedPayload) Apply(doc *parse.Document) []finding.Finding 
 	})}
 }
 
+// --- mini-shai-hulud-stage6-github-c2-ioc ----------------------------------
+
+type miniShaiHuludStage6GitHubC2IOC struct{}
+
+func (miniShaiHuludStage6GitHubC2IOC) ID() string {
+	return "mini-shai-hulud-stage6-github-c2-ioc"
+}
+func (miniShaiHuludStage6GitHubC2IOC) Title() string {
+	return "Mini Shai-Hulud Stage 6 GitHub C2 indicator present"
+}
+func (miniShaiHuludStage6GitHubC2IOC) Severity() finding.Severity {
+	return finding.SeverityCritical
+}
+func (miniShaiHuludStage6GitHubC2IOC) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (miniShaiHuludStage6GitHubC2IOC) Formats() []parse.Format {
+	return []parse.Format{parse.FormatMiniShaiHuludArtifact}
+}
+
+var miniShaiHuludStage6Indicators = []struct {
+	needle string
+	label  string
+}{
+	{"miasma : the spreading blight", "Miasma : The Spreading Blight"},
+	{"firedalazer", "firedalazer"},
+	{"ifyouinvalidatethistokenitwillnukethecomputeroftheowner", "IfYouInvalidateThisTokenItWillNukeTheComputerOfTheOwner"},
+	{"736e8d618f6526f1cc3fd8482e186d00", "Stage 6 key fingerprint"},
+	{"ffeace0c73b598742db65a5f", "Stage 6 IV fingerprint"},
+	{"2019957c8162ad85750b0d055a4202cb", "Stage 6 key fingerprint"},
+	{"825c47fee7ed317d3b9f5fa3d7d1bff1", "Stage 6 key fingerprint"},
+	{"9c7667c69376ee3490066e46", "Stage 6 IV fingerprint"},
+	{"c9986b28ef80b834467209cc8217fa73", "Stage 6 key fingerprint"},
+}
+
+func (miniShaiHuludStage6GitHubC2IOC) Apply(doc *parse.Document) []finding.Finding {
+	if doc.Format != parse.FormatMiniShaiHuludArtifact {
+		return nil
+	}
+	lower := strings.ToLower(string(doc.Raw))
+	for _, indicator := range miniShaiHuludStage6Indicators {
+		if !strings.Contains(lower, indicator.needle) {
+			continue
+		}
+		return []finding.Finding{finding.New(finding.Args{
+			RuleID:       "mini-shai-hulud-stage6-github-c2-ioc",
+			Severity:     finding.SeverityCritical,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "Mini Shai-Hulud Stage 6 GitHub C2 indicator present",
+			Description:  "This known Mini Shai-Hulud artifact contains a Stage 6 indicator tied to the GitHub-as-C2 firedalazer/Miasma campaign variant. This suggests a dynamically updated worm payload may have run or been staged locally.",
+			Path:         doc.Path,
+			Line:         findLineContaining(doc.Raw, indicator.needle),
+			Match:        indicator.label,
+			SuggestedFix: "Isolate the machine, preserve evidence, remove the payload after containment, audit GitHub/npm/cloud token activity, inspect affected GitHub repositories for firedalazer/Miasma commits, reinstall dependencies from clean lockfiles, and rotate exposed credentials.",
+			Tags:         []string{"mini-shai-hulud", "stage6", "github-c2", "firedalazer", "malware"},
+		})}
+	}
+	return nil
+}
+
 // --- mini-shai-hulud-workflow-secret-exfil ---------------------------------
 
 type miniShaiHuludWorkflowSecretExfil struct{}

