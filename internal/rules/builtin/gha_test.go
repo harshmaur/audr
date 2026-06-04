@@ -103,3 +103,51 @@ jobs:
 		t.Fatalf("did not expect benign base64 decode workflow to fire; rules fired: %v", applyRule(doc))
 	}
 }
+
+func TestRule_GHAClaudeIssueAgentInjection(t *testing.T) {
+	yaml := `name: Issue Triage
+on:
+  issues:
+    types: [opened]
+permissions:
+  issues: write
+  contents: read
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: claude triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          allowed_non_write_users: ${{ github.event.issue.user.login }}
+          prompt: |
+            Triage this external issue:
+            ${{ github.event.issue.title }}
+            ${{ github.event.issue.body }}
+`
+	doc := parse.Parse("/repo/.github/workflows/issue-triage.yml", []byte(yaml))
+	if !fired(doc, "gha-claude-issue-agent-injection") {
+		t.Fatalf("expected Claude issue injection rule to fire; rules fired: %v", applyRule(doc))
+	}
+}
+
+func TestRule_GHAClaudeIssueAgentInjection_BenignPullRequestReviewDoesNotFire(t *testing.T) {
+	yaml := `name: Claude PR Review
+on: [pull_request]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: claude review
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: Review the checked out diff.
+`
+	doc := parse.Parse("/repo/.github/workflows/pr-review.yml", []byte(yaml))
+	if fired(doc, "gha-claude-issue-agent-injection") {
+		t.Fatalf("did not expect PR review workflow to fire; rules fired: %v", applyRule(doc))
+	}
+}

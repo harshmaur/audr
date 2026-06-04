@@ -189,3 +189,53 @@ func (ghaBase64SecretExfilWorkflow) Apply(doc *parse.Document) []finding.Finding
 		Tags:         []string{"gha", "workflow", "base64", "secrets", "exfiltration", "malware", "megalodon"},
 	})}
 }
+
+// --- gha-claude-issue-agent-injection --------------------------------------
+
+type ghaClaudeIssueAgentInjection struct{}
+
+func (ghaClaudeIssueAgentInjection) ID() string { return "gha-claude-issue-agent-injection" }
+func (ghaClaudeIssueAgentInjection) Title() string {
+	return "Issue-triggered Claude workflow embeds untrusted issue content"
+}
+func (ghaClaudeIssueAgentInjection) Severity() finding.Severity { return finding.SeverityHigh }
+func (ghaClaudeIssueAgentInjection) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (ghaClaudeIssueAgentInjection) Formats() []parse.Format {
+	return []parse.Format{parse.FormatGHAWorkflow}
+}
+
+func (ghaClaudeIssueAgentInjection) Apply(doc *parse.Document) []finding.Finding {
+	if doc.Workflow == nil {
+		return nil
+	}
+	raw := string(doc.Raw)
+	lower := strings.ToLower(raw)
+	if !(strings.Contains(lower, "anthropics/claude-code-action") || strings.Contains(lower, "anthropic-ai/claude-code-action")) {
+		return nil
+	}
+	if !(strings.Contains(lower, "github.event.issue.title") || strings.Contains(lower, "github.event.issue.body")) {
+		return nil
+	}
+	if !(strings.Contains(lower, "issues:") || strings.Contains(lower, "issue_comment")) {
+		return nil
+	}
+
+	untrustedIssueTrigger := regexp.MustCompile(`(?is)on\s*:\s*(?:\n|.*)(issues|issue_comment)`).MatchString(raw)
+	broadIssueActorAllowance := strings.Contains(lower, "allowed_non_write_users") && strings.Contains(lower, "github.event.issue.user.login")
+	if !(untrustedIssueTrigger || broadIssueActorAllowance) {
+		return nil
+	}
+
+	return []finding.Finding{finding.New(finding.Args{
+		RuleID:       "gha-claude-issue-agent-injection",
+		Severity:     finding.SeverityHigh,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "Claude issue-triage workflow trusts untrusted issue content",
+		Description:  "This GitHub Actions workflow runs Claude Code on issue-controlled title/body content and appears reachable from issue events or the issue author. This matches the CVE-2026-44246 agentic workflow injection pattern where an external issue can steer a command-capable agent.",
+		Path:         doc.Path,
+		Line:         findLineContaining(doc.Raw, "claude-code-action"),
+		Match:        "issue-triggered Claude Code workflow with issue title/body prompt input",
+		SuggestedFix: "Do not run command-capable agents directly on untrusted issue text. Require maintainer approval, restrict allowed_non_write_users, avoid embedding raw issue title/body in prompts, and minimize GitHub token permissions.",
+		Tags:         []string{"gha", "claude", "agentic-workflow", "prompt-injection", "cve", "CVE-2026-44246"},
+	})}
+}
