@@ -76,6 +76,7 @@ func builtins() []rules.Rule {
 		mcpCalculateServerEvalRCE{},
 		lumiverseMCPArgsRCE{},
 		gitlabMCPServerUnauthHTTP{},
+		codeRunnerMCPServerUnauthHTTP{},
 		miniShaiHuludMaliciousOptionalDependency{},
 		miniShaiHuludClaudePersistence{},
 		miniShaiHuludVSCodePersistence{},
