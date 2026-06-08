@@ -78,6 +78,7 @@ func builtins() []rules.Rule {
 		gitlabMCPServerUnauthHTTP{},
 		codeRunnerMCPServerUnauthHTTP{},
 		claudeHUDComspecCommandInjection{},
+		claudeHUDOSC8TerminalInjection{},
 		miniShaiHuludMaliciousOptionalDependency{},
 		miniShaiHuludClaudePersistence{},
 		miniShaiHuludVSCodePersistence{},
