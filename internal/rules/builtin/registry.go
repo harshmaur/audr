@@ -72,6 +72,7 @@ func builtins() []rules.Rule {
 
 		// Dependency CVE coverage is delegated to external OSV-Scanner unless
 		// OSV lacks coverage for a locally auditable agent/MCP package surface.
+		microsoftAPMPluginComponentTraversal{},
 		mlflowAssistantOriginBypass{},
 		mcpCalculateServerEvalRCE{},
 		lumiverseMCPArgsRCE{},

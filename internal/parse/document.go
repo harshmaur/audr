@@ -27,6 +27,7 @@ const (
 	FormatPackageJSON           Format = "package-json"             // package.json manifests for agent packages
 	FormatDependencyManifest    Format = "dependency-manifest"      // language manifests/lockfiles for agent package CVEs
 	FormatReleaseAgeConfig      Format = "release-age-config"       // package-manager/dependency-bot release-age cooldown configs
+	FormatAPMPluginManifest     Format = "apm-plugin-manifest"      // Microsoft APM plugin.json component manifests
 	FormatMiniShaiHuludArtifact Format = "mini-shai-hulud-artifact" // known local IOC/persistence files
 	FormatUnknown               Format = ""
 )
@@ -458,6 +459,9 @@ func DetectFormat(path string) Format {
 
 	if base == "package.json" {
 		return FormatPackageJSON
+	}
+	if base == "plugin.json" {
+		return FormatAPMPluginManifest
 	}
 
 	switch base {
