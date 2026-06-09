@@ -226,7 +226,9 @@ func (mcpDynamicConfigInjection) ID() string                 { return "mcp-dynam
 func (mcpDynamicConfigInjection) Title() string              { return "MCP config fetched from URL at runtime" }
 func (mcpDynamicConfigInjection) Severity() finding.Severity { return finding.SeverityHigh }
 func (mcpDynamicConfigInjection) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
-func (mcpDynamicConfigInjection) Formats() []parse.Format    { return []parse.Format{parse.FormatMCPConfig} }
+func (mcpDynamicConfigInjection) Formats() []parse.Format {
+	return []parse.Format{parse.FormatMCPConfig}
+}
 func (mcpDynamicConfigInjection) Apply(doc *parse.Document) []finding.Finding {
 	if doc.MCPConfig == nil {
 		return nil
@@ -320,10 +322,10 @@ func (mcpUnauthRemoteURL) Apply(doc *parse.Document) []finding.Finding {
 			continue
 		}
 		out = append(out, finding.New(finding.Args{
-			RuleID:       "mcp-unauth-remote-url",
-			Severity:     finding.SeverityHigh,
-			Taxonomy:     finding.TaxDetectable,
-			Title:        "MCP server points at remote URL without auth headers",
+			RuleID:   "mcp-unauth-remote-url",
+			Severity: finding.SeverityHigh,
+			Taxonomy: finding.TaxDetectable,
+			Title:    "MCP server points at remote URL without auth headers",
 			Description: fmt.Sprintf(
 				"Server %q (in %s) connects to %s with no Authorization, X-API-Key, or other auth-shaped header. Any party who controls the upstream service or sits on-path between the agent and the URL can act as the server, returning attacker-controlled tool definitions and tool outputs.",
 				s.Name, s.Source, s.URL,
@@ -336,4 +338,61 @@ func (mcpUnauthRemoteURL) Apply(doc *parse.Document) []finding.Finding {
 		}))
 	}
 	return out
+}
+
+// --- wireshark-mcp-export-objects-unbounded --------------------------------
+
+type wiresharkMCPExportObjectsUnbounded struct{}
+
+func (wiresharkMCPExportObjectsUnbounded) ID() string {
+	return "wireshark-mcp-export-objects-unbounded"
+}
+func (wiresharkMCPExportObjectsUnbounded) Title() string {
+	return "Wireshark MCP server can export objects outside an allowlisted directory"
+}
+func (wiresharkMCPExportObjectsUnbounded) Severity() finding.Severity { return finding.SeverityMedium }
+func (wiresharkMCPExportObjectsUnbounded) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (wiresharkMCPExportObjectsUnbounded) Formats() []parse.Format    { return parse.AllMCPFormats() }
+
+func (wiresharkMCPExportObjectsUnbounded) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeWiresharkMCPServer(s) {
+			continue
+		}
+		if hasWiresharkMCPAllowedDirs(s) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "wireshark-mcp-export-objects-unbounded",
+			Severity:     finding.SeverityMedium,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "Wireshark MCP server lacks WIRESHARK_MCP_ALLOWED_DIRS",
+			Description:  fmt.Sprintf("CVE-2026-43901: server %q launches wireshark-mcp without WIRESHARK_MCP_ALLOWED_DIRS. wireshark-mcp 1.1.5 and earlier allowed the wireshark_export_objects tool to pass an attacker-controlled destination directory to tshark --export-objects when no allowlist was configured.", s.Name),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s %s", s.Command, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade wireshark-mcp beyond 1.1.5 and set WIRESHARK_MCP_ALLOWED_DIRS to the smallest export directory set required by your workflow, or remove the server from agent-accessible MCP configs.",
+			Tags:         []string{"cve", "wireshark-mcp", "mcp", "arbitrary-file-write", "export-objects"},
+		}))
+	}
+	return out
+}
+
+func looksLikeWiresharkMCPServer(s parse.NormalizedMCPServer) bool {
+	joined := strings.ToLower(s.Name + " " + s.Command + " " + strings.Join(s.Args, " "))
+	return strings.Contains(joined, "wireshark-mcp") || strings.Contains(joined, "wireshark_mcp")
+}
+
+func hasWiresharkMCPAllowedDirs(s parse.NormalizedMCPServer) bool {
+	for k, v := range s.Env {
+		if strings.EqualFold(k, "WIRESHARK_MCP_ALLOWED_DIRS") && strings.TrimSpace(v) != "" {
+			return true
+		}
+	}
+	return false
 }

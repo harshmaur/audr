@@ -334,3 +334,53 @@ func TestRule_MCPUnauthRemoteURL(t *testing.T) {
 		})
 	}
 }
+
+// --- wireshark-mcp-export-objects-unbounded --------------------------------
+
+func TestRule_WiresharkMCPExportObjectsUnbounded(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "Cursor uvx wireshark-mcp without allowed dirs fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"wireshark":{"command":"uvx","args":["wireshark-mcp"]}}}`,
+			want: true,
+		},
+		{
+			name: "allowlisted export dirs suppresses finding",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"wireshark":{"command":"uvx","args":["wireshark-mcp"],"env":{"WIRESHARK_MCP_ALLOWED_DIRS":"/tmp/pcap-exports"}}}}`,
+			want: false,
+		},
+		{
+			name: "Codex python module form fires",
+			path: "/test/.codex/config.toml",
+			body: `[mcp_servers.wireshark]` + "\n" + `command = "python"` + "\n" + `args = ["-m", "wireshark_mcp"]`,
+			want: true,
+		},
+		{
+			name: "disabled Windsurf server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"wireshark":{"command":"uvx","args":["wireshark-mcp"],"disabled":true}}}`,
+			want: false,
+		},
+		{
+			name: "unrelated MCP server does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"filesystem":{"command":"npx","args":["@modelcontextprotocol/server-filesystem@1.0.0"]}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "wireshark-mcp-export-objects-unbounded"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}

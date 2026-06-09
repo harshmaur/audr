@@ -34,6 +34,7 @@ func builtins() []rules.Rule {
 		mcpPlaintextAPIKey{},
 		mcpDynamicConfigInjection{},
 		mcpUnauthRemoteURL{},
+		wiresharkMCPExportObjectsUnbounded{},
 
 		// Claude Code rules.
 		claudeHookShellRCE{},
