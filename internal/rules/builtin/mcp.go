@@ -396,3 +396,63 @@ func hasWiresharkMCPAllowedDirs(s parse.NormalizedMCPServer) bool {
 	}
 	return false
 }
+
+// --- nocturne-memory-missing-api-token -------------------------------------
+
+type nocturneMemoryMissingAPIToken struct{}
+
+func (nocturneMemoryMissingAPIToken) ID() string {
+	return "nocturne-memory-missing-api-token"
+}
+func (nocturneMemoryMissingAPIToken) Title() string {
+	return "Nocturne Memory MCP server is missing API_TOKEN"
+}
+func (nocturneMemoryMissingAPIToken) Severity() finding.Severity { return finding.SeverityHigh }
+func (nocturneMemoryMissingAPIToken) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (nocturneMemoryMissingAPIToken) Formats() []parse.Format    { return parse.AllMCPFormats() }
+
+func (nocturneMemoryMissingAPIToken) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeNocturneMemoryServer(s) || hasNocturneMemoryAPIToken(s) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "nocturne-memory-missing-api-token",
+			Severity:     finding.SeverityHigh,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "Nocturne Memory MCP server lacks API_TOKEN",
+			Description:  fmt.Sprintf("CVE-2026-44830: server %q launches Nocturne Memory without a non-empty API_TOKEN. Nocturne Memory before 2.4.1 bypassed bearer-token authentication when API_TOKEN was unset or empty, and common Docker/MCP setups could expose the memory API on LAN-reachable hosts.", s.Name),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s %s", s.Command, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade Nocturne Memory to 2.4.1 or later and set a strong API_TOKEN for the MCP/server process; avoid binding the memory API to 0.0.0.0 unless it is protected by network controls.",
+			Tags:         []string{"cve", "nocturne-memory", "mcp", "missing-auth", "prompt-injection"},
+		}))
+	}
+	return out
+}
+
+func looksLikeNocturneMemoryServer(s parse.NormalizedMCPServer) bool {
+	joined := strings.ToLower(s.Name + " " + s.Command + " " + strings.Join(s.Args, " "))
+	needles := []string{"nocturne-memory", "nocturne_memory", "nocturne memory"}
+	for _, needle := range needles {
+		if strings.Contains(joined, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasNocturneMemoryAPIToken(s parse.NormalizedMCPServer) bool {
+	for k, v := range s.Env {
+		if strings.EqualFold(k, "API_TOKEN") && strings.TrimSpace(v) != "" {
+			return true
+		}
+	}
+	return false
+}

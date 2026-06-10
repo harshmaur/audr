@@ -384,3 +384,59 @@ func TestRule_WiresharkMCPExportObjectsUnbounded(t *testing.T) {
 		})
 	}
 }
+
+// --- nocturne-memory-missing-api-token -------------------------------------
+
+func TestRule_NocturneMemoryMissingAPIToken(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "Cursor npx nocturne-memory without API_TOKEN fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"memory":{"command":"npx","args":["nocturne-memory@2.4.0"]}}}`,
+			want: true,
+		},
+		{
+			name: "empty API_TOKEN still fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"memory":{"command":"npx","args":["nocturne-memory@2.4.0"],"env":{"API_TOKEN":""}}}}`,
+			want: true,
+		},
+		{
+			name: "non-empty API_TOKEN suppresses finding",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"memory":{"command":"npx","args":["nocturne-memory@2.4.0"],"env":{"API_TOKEN":"set-from-secret-manager"}}}}`,
+			want: false,
+		},
+		{
+			name: "Codex python module form fires",
+			path: "/test/.codex/config.toml",
+			body: `[mcp_servers.nocturne]` + "\n" + `command = "python"` + "\n" + `args = ["-m", "nocturne_memory"]`,
+			want: true,
+		},
+		{
+			name: "disabled Windsurf server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"nocturne":{"command":"npx","args":["nocturne-memory"],"disabled":true}}}`,
+			want: false,
+		},
+		{
+			name: "unrelated memory server does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"memory":{"command":"npx","args":["@modelcontextprotocol/server-memory@1.0.0"]}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "nocturne-memory-missing-api-token"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}

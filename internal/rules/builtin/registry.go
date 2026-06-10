@@ -35,6 +35,7 @@ func builtins() []rules.Rule {
 		mcpDynamicConfigInjection{},
 		mcpUnauthRemoteURL{},
 		wiresharkMCPExportObjectsUnbounded{},
+		nocturneMemoryMissingAPIToken{},
 
 		// Claude Code rules.
 		claudeHookShellRCE{},
