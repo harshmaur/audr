@@ -80,6 +80,7 @@ func builtins() []rules.Rule {
 		lumiverseMCPArgsRCE{},
 		gitlabMCPServerUnauthHTTP{},
 		codeRunnerMCPServerUnauthHTTP{},
+		libreChatMCPEnvSecretLeak{},
 		claudeHUDComspecCommandInjection{},
 		claudeHUDOSC8TerminalInjection{},
 		miniShaiHuludMaliciousOptionalDependency{},
