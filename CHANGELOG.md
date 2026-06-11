@@ -3,6 +3,11 @@
 All notable changes to Audr.
 Format follows [Keep a Changelog](https://keepachangelog.com/), versioning is `MAJOR.MINOR.PATCH`.
 
+## [0.14.22] - 2026-06-11 — MCP package CVE coverage
+
+### Added
+- Added native dependency-manifest posture rules for `xhs-mcp` media_paths SSRF, `directus-mcp` fileUrl SSRF, CloudBase-MCP openUrl SSRF, and LibreChat MCP admin-managed secret disclosure.
+
 ## [0.14.21] - 2026-06-11 — OpenClaw CVE backlog coverage
 
 ### Added
