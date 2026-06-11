@@ -169,6 +169,13 @@ func parseCargoTOML(raw []byte) (*DependencyManifest, error) {
 		return nil, fmt.Errorf("Cargo.toml parse: %w", err)
 	}
 	m := &DependencyManifest{Ecosystem: "cargo"}
+	if pkg, ok := top["package"].(map[string]any); ok {
+		name, nameOK := pkg["name"].(string)
+		version, versionOK := pkg["version"].(string)
+		if nameOK && versionOK && name != "" && version != "" {
+			m.Dependencies = append(m.Dependencies, Dependency{Name: strings.ToLower(name), Version: version, Scope: "package", Line: findDependencyLine(raw, name)})
+		}
+	}
 	for _, scope := range []string{"dependencies", "dev-dependencies", "build-dependencies"} {
 		if deps, ok := top[scope].(map[string]any); ok {
 			for name, value := range deps {

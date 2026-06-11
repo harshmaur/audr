@@ -78,7 +78,7 @@ func TestParseGoModCargoGemfileComposer(t *testing.T) {
 		version string
 	}{
 		{"go.mod", "module x\nrequire github.com/modelcontextprotocol/go-sdk v0.1.0\n", "github.com/modelcontextprotocol/go-sdk", "v0.1.0"},
-		{"Cargo.toml", "[dependencies]\nmcp-client = \"0.2.0\"\n", "mcp-client", "0.2.0"},
+		{"Cargo.toml", "[package]\nname = \"plugin-shell\"\nversion = \"0.1.0\"\n[dependencies]\nmcp-client = \"0.2.0\"\n", "plugin-shell", "0.1.0"},
 		{"Gemfile", "gem \"mcp_agent\", \"1.0.0\"\n", "mcp_agent", "1.0.0"},
 		{"composer.json", `{"require":{"vendor/mcp-agent":"1.0.0"}}`, "vendor/mcp-agent", "1.0.0"},
 	}

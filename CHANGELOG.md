@@ -3,6 +3,12 @@
 All notable changes to Audr.
 Format follows [Keep a Changelog](https://keepachangelog.com/), versioning is `MAJOR.MINOR.PATCH`.
 
+## [0.14.24] - 2026-06-11 — Final CVE backlog coverage
+
+### Added
+- Added native rules for AnythingLLM filesystem `rg` option injection, mcpilot `serverBaseUrl` SSRF, JunoClaw plugin-shell command execution weaknesses, hermes-agent Skills Guard hardening posture, LibreChat API key IDOR posture, and aider-mcp GitHub-source MCP config exposure.
+- Parsed Cargo `[package]` name/version so Rust source-tree packages such as JunoClaw plugin-shell can be matched by native CVE rules.
+
 ## [0.14.23] - 2026-06-11 — MCP investigation backlog coverage
 
 ### Added
