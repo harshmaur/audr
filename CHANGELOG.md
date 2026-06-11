@@ -3,6 +3,11 @@
 All notable changes to Audr.
 Format follows [Keep a Changelog](https://keepachangelog.com/), versioning is `MAJOR.MINOR.PATCH`.
 
+## [0.14.21] - 2026-06-11 — OpenClaw CVE backlog coverage
+
+### Added
+- Added native package-version posture rules for eleven OpenClaw agent-control CVEs: Matrix DM pairing authorization bypass, BlueBubbles webhook authorization bypass, ACP attachment path traversal, jq environment disclosure, local media root self-whitelisting, device-pair bootstrap scope bypass, Slack plugin approval gate bypass, QQBot admin policy bypass, QQBot approval button approver bypass, browser tab SSRF policy reuse, and Gateway `chat.send` scope bypass.
+
 ## [0.14.1] - 2026-05-20 — Scanner-install plumbing fixes
 
 Cleanup pass on the install / update-scanners flow surfaced by users.

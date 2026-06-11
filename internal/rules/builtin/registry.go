@@ -111,5 +111,16 @@ func builtins() []rules.Rule {
 		openclawSandboxCDPRelayPublicBind{},
 		openclawAsyncExecCompletionOwnerDowngrade{},
 		openclawDeviceTokenRoleMinting{},
+		openclawMatrixDMPairingAuthBypass{},
+		openclawBlueBubblesWebhookAuthBypass{},
+		openclawACPAttachmentPathTraversal{},
+		openclawJQEnvDisclosure{},
+		openclawLocalMediaRootSelfWhitelist{},
+		openclawDevicePairBootstrapScopeBypass{},
+		openclawSlackPluginApprovalGateBypass{},
+		openclawQQBotAdminPolicyBypass{},
+		openclawQQBotApprovalButtonBypass{},
+		openclawBrowserTabSSRFReuse{},
+		openclawGatewayChatSendScopeBypass{},
 	}
 }
