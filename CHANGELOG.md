@@ -3,6 +3,12 @@
 All notable changes to Audr.
 Format follows [Keep a Changelog](https://keepachangelog.com/), versioning is `MAJOR.MINOR.PATCH`.
 
+## [0.14.23] - 2026-06-11 — MCP investigation backlog coverage
+
+### Added
+- Added native posture rules for mcp-chat-studio base_url SSRF, mcp-url-downloader URL validation SSRF, aider-mcp-server editable-files command injection, mcp-data-vis web-scraper SSRF, and cline-mcp-memory-bank initialize path traversal.
+- Parsed `project.name`/`project.version` and Poetry package name/version from `pyproject.toml` so local Python package source trees can be matched by native package CVE rules.
+
 ## [0.14.22] - 2026-06-11 — MCP package CVE coverage
 
 ### Added

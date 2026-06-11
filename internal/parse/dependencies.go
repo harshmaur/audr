@@ -77,11 +77,15 @@ func parseRequirementsTXT(raw []byte) *DependencyManifest {
 func parsePyprojectTOML(raw []byte) (*DependencyManifest, error) {
 	var top struct {
 		Project struct {
+			Name                 string              `toml:"name"`
+			Version              string              `toml:"version"`
 			Dependencies         []string            `toml:"dependencies"`
 			OptionalDependencies map[string][]string `toml:"optional-dependencies"`
 		} `toml:"project"`
 		Tool struct {
 			Poetry struct {
+				Name            string         `toml:"name"`
+				Version         string         `toml:"version"`
 				Dependencies    map[string]any `toml:"dependencies"`
 				DevDependencies map[string]any `toml:"dev-dependencies"`
 				Group           map[string]struct {
@@ -94,6 +98,11 @@ func parsePyprojectTOML(raw []byte) (*DependencyManifest, error) {
 		return nil, fmt.Errorf("pyproject.toml parse: %w", err)
 	}
 	m := &DependencyManifest{Ecosystem: "pypi"}
+	if top.Project.Name != "" && top.Project.Version != "" {
+		m.Dependencies = append(m.Dependencies, Dependency{Name: normalizePythonName(top.Project.Name), Version: top.Project.Version, Scope: "project", Line: findDependencyLine(raw, top.Project.Name)})
+	} else if top.Tool.Poetry.Name != "" && top.Tool.Poetry.Version != "" {
+		m.Dependencies = append(m.Dependencies, Dependency{Name: normalizePythonName(top.Tool.Poetry.Name), Version: top.Tool.Poetry.Version, Scope: "tool.poetry", Line: findDependencyLine(raw, top.Tool.Poetry.Name)})
+	}
 	for _, dep := range top.Project.Dependencies {
 		name, version := parsePythonRequirement(dep)
 		if name != "" {

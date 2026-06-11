@@ -53,6 +53,8 @@ func TestParseRequirementsTXT(t *testing.T) {
 
 func TestParsePyprojectTOML(t *testing.T) {
 	doc := Parse("pyproject.toml", []byte(`[project]
+name = "mcp-url-downloader"
+version = "0.1.0"
 dependencies = ["praisonaiagents==1.6.8"]
 [project.optional-dependencies]
 mcp = ["praisonai==4.6.8"]
@@ -63,7 +65,7 @@ praisonai = "4.6.8"
 	if doc.ParseError != nil {
 		t.Fatalf("ParseError = %v", doc.ParseError)
 	}
-	if !hasDependency(doc.DependencyManifest, "praisonaiagents", "==1.6.8") || !hasDependency(doc.DependencyManifest, "praisonai", "4.6.8") {
+	if !hasDependency(doc.DependencyManifest, "praisonaiagents", "==1.6.8") || !hasDependency(doc.DependencyManifest, "praisonai", "4.6.8") || !hasDependency(doc.DependencyManifest, "mcp-url-downloader", "0.1.0") {
 		t.Fatalf("pyproject deps not parsed: %#v", doc.DependencyManifest.Dependencies)
 	}
 }
