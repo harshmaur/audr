@@ -28,6 +28,7 @@ const (
 	FormatDependencyManifest    Format = "dependency-manifest"      // language manifests/lockfiles for agent package CVEs
 	FormatReleaseAgeConfig      Format = "release-age-config"       // package-manager/dependency-bot release-age cooldown configs
 	FormatAPMPluginManifest     Format = "apm-plugin-manifest"      // Microsoft APM plugin.json component manifests
+	FormatGitConfig             Format = "git-config"               // bare/nested git config files with executable hooks/helpers
 	FormatMiniShaiHuludArtifact Format = "mini-shai-hulud-artifact" // known local IOC/persistence files
 	FormatUnknown               Format = ""
 )
@@ -463,6 +464,9 @@ func DetectFormat(path string) Format {
 	if base == "plugin.json" {
 		return FormatAPMPluginManifest
 	}
+	if isGitConfigPath(normalized, base, dir) {
+		return FormatGitConfig
+	}
 
 	switch base {
 	case "requirements.txt", "pyproject.toml", "go.mod", "Cargo.toml", "Gemfile", "composer.json":
@@ -470,4 +474,17 @@ func DetectFormat(path string) Format {
 	}
 
 	return FormatUnknown
+}
+
+func isGitConfigPath(path, base, dir string) bool {
+	if base != "config" {
+		return false
+	}
+	if strings.HasSuffix(path, "/.git/config") || strings.Contains(path, "/.git/modules/") {
+		return true
+	}
+	if strings.HasSuffix(dir, ".git") {
+		return true
+	}
+	return false
 }

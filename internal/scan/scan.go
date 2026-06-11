@@ -539,6 +539,9 @@ func walkRoot(ctx context.Context, root string, skipSet map[string]bool, out cha
 				if base == "node_modules" {
 					walkMiniShaiHuludNodeModules(ctx, path, out, logger)
 				}
+				if base == ".git" {
+					enqueueSkippedGitConfig(ctx, path, out, logger)
+				}
 				return fs.SkipDir
 			}
 			if scanignore.LooksLikeGoStdlibSrcRoot(path) {
@@ -605,6 +608,21 @@ func walkMiniShaiHuludNodeModules(ctx context.Context, root string, out chan<- s
 		}
 		return nil
 	})
+}
+
+func enqueueSkippedGitConfig(ctx context.Context, gitDir string, out chan<- string, logger *slog.Logger) {
+	configPath := filepath.Join(gitDir, "config")
+	info, err := os.Lstat(configPath)
+	if err != nil || !info.Mode().IsRegular() {
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			logger.Debug("git-config-ioc-stat-error", "path", configPath, "err", err)
+		}
+		return
+	}
+	select {
+	case out <- configPath:
+	case <-ctx.Done():
+	}
 }
 
 // shouldSkipFile is a fast-path filter based on extension/basename to avoid

@@ -106,6 +106,9 @@ func builtins() []rules.Rule {
 		miniShaiHuludDroppedPayload{},
 		miniShaiHuludStage6GitHubC2IOC{},
 
+		// Git config rules for nested bare repositories and executable helpers.
+		copilotCLINestedGitConfigExec{},
+
 		// Dependency supply-chain hardening rules.
 		dependencyMinimumReleaseAgeMissing{},
 
