@@ -496,3 +496,53 @@ func TestRule_MCPServerKubernetesToolFilterBypass(t *testing.T) {
 		})
 	}
 }
+
+// --- mcp-server-kubernetes-kubectl-flag-token-exfil ------------------------
+
+func TestRule_MCPServerKubernetesKubectlFlagTokenExfil(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "vulnerable server with KUBECONFIG env fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"kubernetes":{"command":"npx","args":["mcp-server-kubernetes@3.6.9"],"env":{"KUBECONFIG":"/home/user/.kube/config"}}}}`,
+			want: true,
+		},
+		{
+			name: "vulnerable server with kubeconfig arg fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"kubernetes":{"command":"npx","args":["mcp-server-kubernetes@3.6.2","--kubeconfig","/home/user/.kube/admin.conf"]}}}`,
+			want: true,
+		},
+		{
+			name: "fixed version does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"kubernetes":{"command":"npx","args":["mcp-server-kubernetes@3.7.0"],"env":{"KUBECONFIG":"/home/user/.kube/config"}}}}`,
+			want: false,
+		},
+		{
+			name: "vulnerable version without kubeconfig posture does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"kubernetes":{"command":"npx","args":["mcp-server-kubernetes@3.6.9"]}}}`,
+			want: false,
+		},
+		{
+			name: "disabled Windsurf server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"kubernetes":{"command":"npx","args":["mcp-server-kubernetes@3.6.9"],"env":{"KUBECONFIG":"/home/user/.kube/config"},"disabled":true}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "mcp-server-kubernetes-kubectl-flag-token-exfil"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}

@@ -37,6 +37,7 @@ func builtins() []rules.Rule {
 		wiresharkMCPExportObjectsUnbounded{},
 		nocturneMemoryMissingAPIToken{},
 		mcpServerKubernetesToolFilterBypass{},
+		mcpServerKubernetesKubectlFlagTokenExfil{},
 
 		// Claude Code rules.
 		claudeHookShellRCE{},

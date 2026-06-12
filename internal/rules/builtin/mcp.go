@@ -523,3 +523,103 @@ func mcpServerKubernetesAccessControlEnv(s parse.NormalizedMCPServer) (string, s
 	}
 	return "", "", false
 }
+
+// --- mcp-server-kubernetes-kubectl-flag-token-exfil ------------------------
+
+type mcpServerKubernetesKubectlFlagTokenExfil struct{}
+
+func (mcpServerKubernetesKubectlFlagTokenExfil) ID() string {
+	return "mcp-server-kubernetes-kubectl-flag-token-exfil"
+}
+func (mcpServerKubernetesKubectlFlagTokenExfil) Title() string {
+	return "MCP Server Kubernetes can pass unsafe kubectl flags"
+}
+func (mcpServerKubernetesKubectlFlagTokenExfil) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (mcpServerKubernetesKubectlFlagTokenExfil) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (mcpServerKubernetesKubectlFlagTokenExfil) Formats() []parse.Format {
+	return parse.AllMCPFormats()
+}
+
+func (mcpServerKubernetesKubectlFlagTokenExfil) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeMCPServerKubernetes(s) {
+			continue
+		}
+		pkg, version, ok := mcpServerKubernetesPackageSpec(s)
+		if !ok || !vulnerableVersionBefore(version, []int{3, 7, 0}) {
+			continue
+		}
+		if !mcpServerKubernetesUsesKubeconfig(s) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "mcp-server-kubernetes-kubectl-flag-token-exfil",
+			Severity:     finding.SeverityHigh,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "MCP Server Kubernetes before 3.7.0 can exfiltrate kubeconfig tokens through kubectl flags",
+			Description:  fmt.Sprintf("CVE-2026-47250: server %q invokes %s before 3.7.0 with a local kubeconfig posture. A prompt-injected agent can call kubectl_generic with attacker-controlled --server and --insecure-skip-tls-verify flags, causing kubectl to send the operator's bearer token to an attacker-controlled endpoint.", s.Name, pkg),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s@%s args=%q", pkg, version, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade mcp-server-kubernetes to 3.7.0 or later. Until upgraded, remove the MCP server from agent configs or run it only with tightly scoped Kubernetes credentials that cannot read sensitive logs or access privileged cluster resources.",
+			Tags:         []string{"cve", "mcp-server-kubernetes", "mcp", "kubernetes", "token-exfiltration", "argument-injection"},
+		}))
+	}
+	return out
+}
+
+func mcpServerKubernetesPackageSpec(s parse.NormalizedMCPServer) (pkg string, version string, ok bool) {
+	candidates := append([]string{s.Command}, s.Args...)
+	for _, raw := range candidates {
+		name, ver, matched := splitMCPServerKubernetesPackageSpec(raw)
+		if matched {
+			return name, ver, true
+		}
+	}
+	return "", "", false
+}
+
+func splitMCPServerKubernetesPackageSpec(raw string) (pkg string, version string, ok bool) {
+	s := strings.TrimSpace(strings.Trim(raw, "'\""))
+	for strings.HasPrefix(s, "npm:") {
+		s = strings.TrimPrefix(s, "npm:")
+	}
+	name := s
+	ver := ""
+	if i := strings.LastIndex(s, "@"); i > 0 {
+		name = s[:i]
+		ver = s[i+1:]
+	}
+	normalized := strings.ToLower(strings.ReplaceAll(name, "_", "-"))
+	if normalized == "mcp-server-kubernetes" {
+		return normalized, ver, true
+	}
+	return "", "", false
+}
+
+func mcpServerKubernetesUsesKubeconfig(s parse.NormalizedMCPServer) bool {
+	for k, v := range s.Env {
+		if strings.EqualFold(k, "KUBECONFIG") && strings.TrimSpace(v) != "" {
+			return true
+		}
+	}
+	for i, arg := range s.Args {
+		la := strings.ToLower(strings.TrimSpace(arg))
+		if strings.HasPrefix(la, "--kubeconfig=") && strings.TrimSpace(strings.TrimPrefix(arg, "--kubeconfig=")) != "" {
+			return true
+		}
+		if la == "--kubeconfig" && i+1 < len(s.Args) && strings.TrimSpace(s.Args[i+1]) != "" {
+			return true
+		}
+	}
+	return false
+}
