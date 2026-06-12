@@ -36,6 +36,7 @@ func builtins() []rules.Rule {
 		mcpUnauthRemoteURL{},
 		wiresharkMCPExportObjectsUnbounded{},
 		nocturneMemoryMissingAPIToken{},
+		mcpServerKubernetesToolFilterBypass{},
 
 		// Claude Code rules.
 		claudeHookShellRCE{},

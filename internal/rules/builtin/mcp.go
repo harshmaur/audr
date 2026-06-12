@@ -456,3 +456,70 @@ func hasNocturneMemoryAPIToken(s parse.NormalizedMCPServer) bool {
 	}
 	return false
 }
+
+// --- mcp-server-kubernetes-tool-filter-bypass ------------------------------
+
+type mcpServerKubernetesToolFilterBypass struct{}
+
+func (mcpServerKubernetesToolFilterBypass) ID() string {
+	return "mcp-server-kubernetes-tool-filter-bypass"
+}
+func (mcpServerKubernetesToolFilterBypass) Title() string {
+	return "MCP Server Kubernetes relies on bypassable tool filters"
+}
+func (mcpServerKubernetesToolFilterBypass) Severity() finding.Severity { return finding.SeverityHigh }
+func (mcpServerKubernetesToolFilterBypass) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (mcpServerKubernetesToolFilterBypass) Formats() []parse.Format    { return parse.AllMCPFormats() }
+
+func (mcpServerKubernetesToolFilterBypass) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeMCPServerKubernetes(s) {
+			continue
+		}
+		control, value, ok := mcpServerKubernetesAccessControlEnv(s)
+		if !ok {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "mcp-server-kubernetes-tool-filter-bypass",
+			Severity:     finding.SeverityHigh,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "MCP Server Kubernetes tool filter can be bypassed",
+			Description:  fmt.Sprintf("CVE-2026-46519: server %q launches mcp-server-kubernetes with %s set. Versions before 3.6.0 enforced ALLOW_ONLY_READONLY_TOOLS, ALLOW_ONLY_NON_DESTRUCTIVE_TOOLS, and ALLOWED_TOOLS only in tools/list, so clients that knew a tool name could still invoke restricted tools directly through tools/call.", s.Name, control),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s=%s", control, value),
+			SuggestedFix: "Upgrade mcp-server-kubernetes to 3.6.0 or later before relying on these tool restriction environment variables; also constrain Kubernetes RBAC for the kubeconfig used by the MCP server.",
+			Tags:         []string{"cve", "mcp-server-kubernetes", "mcp", "kubernetes", "authorization-bypass"},
+		}))
+	}
+	return out
+}
+
+func looksLikeMCPServerKubernetes(s parse.NormalizedMCPServer) bool {
+	joined := strings.ToLower(s.Name + " " + s.Command + " " + strings.Join(s.Args, " "))
+	needles := []string{"mcp-server-kubernetes", "mcp_server_kubernetes", "mcp server kubernetes"}
+	for _, needle := range needles {
+		if strings.Contains(joined, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func mcpServerKubernetesAccessControlEnv(s parse.NormalizedMCPServer) (string, string, bool) {
+	controls := []string{"ALLOW_ONLY_READONLY_TOOLS", "ALLOW_ONLY_NON_DESTRUCTIVE_TOOLS", "ALLOWED_TOOLS"}
+	for _, control := range controls {
+		for k, v := range s.Env {
+			if strings.EqualFold(k, control) && strings.TrimSpace(v) != "" {
+				return k, v, true
+			}
+		}
+	}
+	return "", "", false
+}

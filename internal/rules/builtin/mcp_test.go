@@ -440,3 +440,59 @@ func TestRule_NocturneMemoryMissingAPIToken(t *testing.T) {
 		})
 	}
 }
+
+// --- mcp-server-kubernetes-tool-filter-bypass ------------------------------
+
+func TestRule_MCPServerKubernetesToolFilterBypass(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "Cursor npx mcp-server-kubernetes readonly filter fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"kubernetes":{"command":"npx","args":["mcp-server-kubernetes@3.5.9"],"env":{"ALLOW_ONLY_READONLY_TOOLS":"true"}}}}`,
+			want: true,
+		},
+		{
+			name: "ALLOWED_TOOLS filter fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"kubernetes":{"command":"npx","args":["mcp-server-kubernetes"],"env":{"ALLOWED_TOOLS":"pods_list,pods_get"}}}}`,
+			want: true,
+		},
+		{
+			name: "Kubernetes server without access-control env does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"kubernetes":{"command":"npx","args":["mcp-server-kubernetes@3.6.0"]}}}`,
+			want: false,
+		},
+		{
+			name: "empty access-control env does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"kubernetes":{"command":"npx","args":["mcp-server-kubernetes@3.5.9"],"env":{"ALLOW_ONLY_NON_DESTRUCTIVE_TOOLS":""}}}}`,
+			want: false,
+		},
+		{
+			name: "disabled Windsurf server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"kubernetes":{"command":"npx","args":["mcp-server-kubernetes@3.5.9"],"env":{"ALLOW_ONLY_READONLY_TOOLS":"true"},"disabled":true}}}`,
+			want: false,
+		},
+		{
+			name: "unrelated Kubernetes MCP package does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"kubernetes":{"command":"npx","args":["@modelcontextprotocol/server-kubernetes"],"env":{"ALLOW_ONLY_READONLY_TOOLS":"true"}}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "mcp-server-kubernetes-tool-filter-bypass"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}
