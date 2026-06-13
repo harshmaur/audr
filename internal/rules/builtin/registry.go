@@ -144,5 +144,6 @@ func builtins() []rules.Rule {
 		openclawBrowserTabSSRFReuse{},
 		openclawGatewayChatSendScopeBypass{},
 		openclawNodePairingReconnectScopeConfusion{},
+		openclawShellOptionRevalidationBypass{},
 	}
 }

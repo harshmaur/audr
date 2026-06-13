@@ -19,6 +19,7 @@ type openclawQQBotApprovalButtonBypass struct{}
 type openclawBrowserTabSSRFReuse struct{}
 type openclawGatewayChatSendScopeBypass struct{}
 type openclawNodePairingReconnectScopeConfusion struct{}
+type openclawShellOptionRevalidationBypass struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -204,6 +205,25 @@ func (openclawNodePairingReconnectScopeConfusion) Apply(doc *parse.Document) []f
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawNodePairingReconnectScopeConfusionVersion, openclawNodePairingReconnectScopeConfusionFinding)
 }
 
+func (openclawShellOptionRevalidationBypass) ID() string {
+	return "openclaw-shell-option-revalidation-bypass"
+}
+func (openclawShellOptionRevalidationBypass) Title() string {
+	return "OpenClaw version is vulnerable to shell option revalidation bypass"
+}
+func (openclawShellOptionRevalidationBypass) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawShellOptionRevalidationBypass) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawShellOptionRevalidationBypass) Formats() []parse.Format {
+	return []parse.Format{parse.FormatPackageJSON}
+}
+func (openclawShellOptionRevalidationBypass) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawShellOptionRevalidationBypassVersion, openclawShellOptionRevalidationBypassFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
 	if doc.PackageJSON == nil {
 		return nil
@@ -256,6 +276,9 @@ func vulnerableOpenClawGatewayChatSendScopeBypassVersion(raw string) bool {
 func vulnerableOpenClawNodePairingReconnectScopeConfusionVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 27})
 }
+func vulnerableOpenClawShellOptionRevalidationBypassVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 12})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -292,6 +315,9 @@ func openclawGatewayChatSendScopeBypassFinding(path, match string) finding.Findi
 }
 func openclawNodePairingReconnectScopeConfusionFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-node-pairing-reconnect-scope-confusion", finding.SeverityCritical, "OpenClaw before 2026.5.27 is vulnerable to node pairing reconnection scope confusion", "CVE-2026-53838: OpenClaw before 2026.5.27 can let paired nodes confuse approval scope decisions during reconnection, restoring or presenting broader node authority than intended.", "Upgrade OpenClaw to 2026.5.27 or later and review paired-node approvals and reconnection activity on affected deployments.", []string{"cve", "openclaw", "package-json", "node-pairing", "scope-confusion"})
+}
+func openclawShellOptionRevalidationBypassFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-shell-option-revalidation-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.12 is vulnerable to shell option revalidation bypass", "CVE-2026-53806: OpenClaw before 2026.5.12 can let combined POSIX shell flags bypass exec revalidation checks, allowing inline shell content to evade intended allowlist validation when the affected feature is enabled.", "Upgrade OpenClaw to 2026.5.12 or later and review exec allowlist decisions made on affected deployments.", []string{"cve", "openclaw", "package-json", "shell", "command-execution", "allowlist-bypass"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {

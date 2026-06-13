@@ -29,6 +29,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"node pairing reconnect", "openclaw-node-pairing-reconnect-scope-confusion", "2026.5.26", "2026.5.27", func(d *parse.Document) []finding.Finding {
 			return (openclawNodePairingReconnectScopeConfusion{}).Apply(d)
 		}},
+		{"shell option revalidation", "openclaw-shell-option-revalidation-bypass", "2026.5.11", "2026.5.12", func(d *parse.Document) []finding.Finding {
+			return (openclawShellOptionRevalidationBypass{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {
