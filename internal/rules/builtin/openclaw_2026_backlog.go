@@ -18,6 +18,7 @@ type openclawQQBotAdminPolicyBypass struct{}
 type openclawQQBotApprovalButtonBypass struct{}
 type openclawBrowserTabSSRFReuse struct{}
 type openclawGatewayChatSendScopeBypass struct{}
+type openclawNodePairingReconnectScopeConfusion struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -184,6 +185,25 @@ func (openclawGatewayChatSendScopeBypass) Apply(doc *parse.Document) []finding.F
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawGatewayChatSendScopeBypassVersion, openclawGatewayChatSendScopeBypassFinding)
 }
 
+func (openclawNodePairingReconnectScopeConfusion) ID() string {
+	return "openclaw-node-pairing-reconnect-scope-confusion"
+}
+func (openclawNodePairingReconnectScopeConfusion) Title() string {
+	return "OpenClaw version is vulnerable to node pairing reconnection scope confusion"
+}
+func (openclawNodePairingReconnectScopeConfusion) Severity() finding.Severity {
+	return finding.SeverityCritical
+}
+func (openclawNodePairingReconnectScopeConfusion) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawNodePairingReconnectScopeConfusion) Formats() []parse.Format {
+	return []parse.Format{parse.FormatPackageJSON}
+}
+func (openclawNodePairingReconnectScopeConfusion) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawNodePairingReconnectScopeConfusionVersion, openclawNodePairingReconnectScopeConfusionFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
 	if doc.PackageJSON == nil {
 		return nil
@@ -233,6 +253,9 @@ func vulnerableOpenClawBrowserTabSSRFReuseVersion(raw string) bool {
 func vulnerableOpenClawGatewayChatSendScopeBypassVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
 }
+func vulnerableOpenClawNodePairingReconnectScopeConfusionVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 27})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -266,6 +289,9 @@ func openclawBrowserTabSSRFReuseFinding(path, match string) finding.Finding {
 }
 func openclawGatewayChatSendScopeBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-gateway-chat-send-scope-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.18 bypasses Gateway chat.send scopes", "CVE-2026-35674: OpenClaw before 2026.5.18 lets scoped Gateway chat.send clients execute privileged commands and mutate plugin, config, MCP, allowlist, or ACP state.", "Upgrade OpenClaw to 2026.5.18 or later and review privileged state mutations performed through Gateway chat.send on affected deployments.", []string{"cve", "openclaw", "package-json", "gateway", "scope-bypass"})
+}
+func openclawNodePairingReconnectScopeConfusionFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-node-pairing-reconnect-scope-confusion", finding.SeverityCritical, "OpenClaw before 2026.5.27 is vulnerable to node pairing reconnection scope confusion", "CVE-2026-53838: OpenClaw before 2026.5.27 can let paired nodes confuse approval scope decisions during reconnection, restoring or presenting broader node authority than intended.", "Upgrade OpenClaw to 2026.5.27 or later and review paired-node approvals and reconnection activity on affected deployments.", []string{"cve", "openclaw", "package-json", "node-pairing", "scope-confusion"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {
