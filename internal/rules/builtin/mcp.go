@@ -623,3 +623,114 @@ func mcpServerKubernetesUsesKubeconfig(s parse.NormalizedMCPServer) bool {
 	}
 	return false
 }
+
+// --- googleapis-mcp-toolbox-wildcard-origin-host ---------------------------
+
+type googleapisMCPToolboxWildcardOriginHost struct{}
+
+func (googleapisMCPToolboxWildcardOriginHost) ID() string {
+	return "googleapis-mcp-toolbox-wildcard-origin-host"
+}
+func (googleapisMCPToolboxWildcardOriginHost) Title() string {
+	return "Google APIs MCP Toolbox allows wildcard Origin or Host"
+}
+func (googleapisMCPToolboxWildcardOriginHost) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (googleapisMCPToolboxWildcardOriginHost) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (googleapisMCPToolboxWildcardOriginHost) Formats() []parse.Format { return parse.AllMCPFormats() }
+
+func (googleapisMCPToolboxWildcardOriginHost) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeGoogleapisMCPToolbox(s) {
+			continue
+		}
+		missing := googleapisMCPToolboxWildcardOrMissingControls(s)
+		if len(missing) == 0 {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "googleapis-mcp-toolbox-wildcard-origin-host",
+			Severity:     finding.SeverityHigh,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "Google APIs MCP Toolbox lacks strict Origin/Host allowlists",
+			Description:  fmt.Sprintf("CVE-2026-11624: server %q launches Google APIs MCP Toolbox with %s. MCP Toolbox before v0.25.0 had no Host validation flag, and later releases default --allowed-hosts and --allowed-origins to '*', allowing DNS rebinding from a malicious browser page to control a local Toolbox MCP server.", s.Name, strings.Join(missing, " and ")),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s %s", s.Command, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade MCP Toolbox to v0.25.0 or later and launch it with strict --allowed-hosts and --allowed-origins values for the local hostnames/origins you actually use; avoid '*' or omitted allowlists for agent-accessible database tools.",
+			Tags:         []string{"cve", "mcp-toolbox", "mcp", "dns-rebinding", "origin-validation", "host-validation"},
+		}))
+	}
+	return out
+}
+
+func looksLikeGoogleapisMCPToolbox(s parse.NormalizedMCPServer) bool {
+	joined := strings.ToLower(s.Name + " " + s.Command + " " + strings.Join(s.Args, " "))
+	needles := []string{
+		"@toolbox-sdk/server",
+		"googleapis/mcp-toolbox",
+		"googleapis/genai-toolbox",
+		"mcp-toolbox",
+		"genai-toolbox",
+	}
+	for _, needle := range needles {
+		if strings.Contains(joined, needle) {
+			return true
+		}
+	}
+	if strings.EqualFold(s.Name, "toolbox") || strings.EqualFold(s.Name, "toolbox-postgres") || strings.EqualFold(s.Name, "toolbox-mysql") {
+		return true
+	}
+	cmd := strings.Trim(strings.ToLower(s.Command), "'\"")
+	return cmd == "toolbox" || strings.HasSuffix(cmd, "/toolbox") || cmd == "toolbox.exe"
+}
+
+func googleapisMCPToolboxWildcardOrMissingControls(s parse.NormalizedMCPServer) []string {
+	hosts, hasHosts := mcpFlagValue(s.Args, "--allowed-hosts")
+	origins, hasOrigins := mcpFlagValue(s.Args, "--allowed-origins")
+	var missing []string
+	if !hasHosts || isWildcardList(hosts) {
+		missing = append(missing, "missing or wildcard --allowed-hosts")
+	}
+	if !hasOrigins || isWildcardList(origins) {
+		missing = append(missing, "missing or wildcard --allowed-origins")
+	}
+	return missing
+}
+
+func mcpFlagValue(args []string, flag string) (string, bool) {
+	for i, raw := range args {
+		arg := strings.TrimSpace(strings.Trim(raw, "'\""))
+		if arg == flag {
+			if i+1 < len(args) {
+				return strings.TrimSpace(strings.Trim(args[i+1], "'\"")), true
+			}
+			return "", true
+		}
+		if strings.HasPrefix(arg, flag+"=") {
+			return strings.TrimSpace(strings.TrimPrefix(arg, flag+"=")), true
+		}
+	}
+	return "", false
+}
+
+func isWildcardList(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return true
+	}
+	for _, part := range strings.Split(trimmed, ",") {
+		if strings.TrimSpace(part) == "*" {
+			return true
+		}
+	}
+	return false
+}

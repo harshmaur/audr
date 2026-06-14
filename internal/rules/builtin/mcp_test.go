@@ -546,3 +546,53 @@ func TestRule_MCPServerKubernetesKubectlFlagTokenExfil(t *testing.T) {
 		})
 	}
 }
+
+// --- googleapis-mcp-toolbox-wildcard-origin-host ---------------------------
+
+func TestRule_GoogleapisMCPToolboxWildcardOriginHost(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "npx toolbox sdk without host or origin allowlists fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"toolbox-postgres":{"command":"npx","args":["@toolbox-sdk/server","--prebuilt","postgres"]}}}`,
+			want: true,
+		},
+		{
+			name: "binary toolbox with wildcard host fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"toolbox":{"command":"toolbox","args":["--config","tools.yaml","--allowed-hosts=*","--allowed-origins","http://127.0.0.1:6274"]}}}`,
+			want: true,
+		},
+		{
+			name: "strict host and origin allowlists suppress finding",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"toolbox":{"command":"toolbox","args":["--config","tools.yaml","--allowed-hosts=127.0.0.1:5000,localhost:5000","--allowed-origins","http://127.0.0.1:6274"]}}}`,
+			want: false,
+		},
+		{
+			name: "disabled Windsurf server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"toolbox":{"command":"npx","args":["@toolbox-sdk/server"],"disabled":true}}}`,
+			want: false,
+		},
+		{
+			name: "unrelated generic toolbox name does not fire unless command matches",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"utilities":{"command":"python","args":["-m","toolbox_helpers"]}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "googleapis-mcp-toolbox-wildcard-origin-host"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}
