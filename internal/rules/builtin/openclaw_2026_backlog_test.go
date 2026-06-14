@@ -32,6 +32,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"shell option revalidation", "openclaw-shell-option-revalidation-bypass", "2026.5.11", "2026.5.12", func(d *parse.Document) []finding.Finding {
 			return (openclawShellOptionRevalidationBypass{}).Apply(d)
 		}},
+		{"telegram callback allowfrom", "openclaw-telegram-callback-allowfrom-bypass", "2026.5.5", "2026.5.6", func(d *parse.Document) []finding.Finding {
+			return (openclawTelegramCallbackAllowFromBypass{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {

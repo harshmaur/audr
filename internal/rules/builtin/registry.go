@@ -146,5 +146,6 @@ func builtins() []rules.Rule {
 		openclawGatewayChatSendScopeBypass{},
 		openclawNodePairingReconnectScopeConfusion{},
 		openclawShellOptionRevalidationBypass{},
+		openclawTelegramCallbackAllowFromBypass{},
 	}
 }
