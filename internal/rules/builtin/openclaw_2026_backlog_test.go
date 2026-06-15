@@ -35,6 +35,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"telegram callback allowfrom", "openclaw-telegram-callback-allowfrom-bypass", "2026.5.5", "2026.5.6", func(d *parse.Document) []finding.Finding {
 			return (openclawTelegramCallbackAllowFromBypass{}).Apply(d)
 		}},
+		{"marketplace extension metadata", "openclaw-marketplace-extension-metadata-redirect", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
+			return (openclawMarketplaceExtensionMetadataRedirect{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {

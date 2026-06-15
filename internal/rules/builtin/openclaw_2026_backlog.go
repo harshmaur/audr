@@ -21,6 +21,7 @@ type openclawGatewayChatSendScopeBypass struct{}
 type openclawNodePairingReconnectScopeConfusion struct{}
 type openclawShellOptionRevalidationBypass struct{}
 type openclawTelegramCallbackAllowFromBypass struct{}
+type openclawMarketplaceExtensionMetadataRedirect struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -244,6 +245,25 @@ func (openclawTelegramCallbackAllowFromBypass) Apply(doc *parse.Document) []find
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawTelegramCallbackAllowFromBypassVersion, openclawTelegramCallbackAllowFromBypassFinding)
 }
 
+func (openclawMarketplaceExtensionMetadataRedirect) ID() string {
+	return "openclaw-marketplace-extension-metadata-redirect"
+}
+func (openclawMarketplaceExtensionMetadataRedirect) Title() string {
+	return "OpenClaw version is vulnerable to marketplace extension metadata redirect"
+}
+func (openclawMarketplaceExtensionMetadataRedirect) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawMarketplaceExtensionMetadataRedirect) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawMarketplaceExtensionMetadataRedirect) Formats() []parse.Format {
+	return []parse.Format{parse.FormatPackageJSON}
+}
+func (openclawMarketplaceExtensionMetadataRedirect) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawMarketplaceExtensionMetadataRedirectVersion, openclawMarketplaceExtensionMetadataRedirectFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
 	if doc.PackageJSON == nil {
 		return nil
@@ -302,6 +322,9 @@ func vulnerableOpenClawShellOptionRevalidationBypassVersion(raw string) bool {
 func vulnerableOpenClawTelegramCallbackAllowFromBypassVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 6})
 }
+func vulnerableOpenClawMarketplaceExtensionMetadataRedirectVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -344,6 +367,9 @@ func openclawShellOptionRevalidationBypassFinding(path, match string) finding.Fi
 }
 func openclawTelegramCallbackAllowFromBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-telegram-callback-allowfrom-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.6 is vulnerable to Telegram callback allowFrom bypass", "CVE-2026-53807: OpenClaw before 2026.5.6 lets Telegram interactive callbacks mark senders authorized before commands.allowFrom validation is enforced, allowing authenticated users to invoke command behavior outside configured sender restrictions.", "Upgrade OpenClaw to 2026.5.6 or later and review Telegram interactive callback activity on affected deployments.", []string{"cve", "openclaw", "package-json", "telegram", "auth-bypass"})
+}
+func openclawMarketplaceExtensionMetadataRedirectFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-marketplace-extension-metadata-redirect", finding.SeverityHigh, "OpenClaw before 2026.5.18 can load runtime extensions from unscanned marketplace metadata targets", "CVE-2026-53810: OpenClaw before 2026.5.18 lets marketplace runtime extension metadata redirect loading toward unscanned package payloads, allowing trusted-operator extension metadata to bypass reviewed package entry points.", "Upgrade OpenClaw to 2026.5.18 or later and review marketplace/runtime extension metadata installed while vulnerable versions were in use.", []string{"cve", "openclaw", "package-json", "marketplace", "code-execution"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {

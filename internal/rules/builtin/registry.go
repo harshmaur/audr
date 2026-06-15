@@ -147,5 +147,6 @@ func builtins() []rules.Rule {
 		openclawNodePairingReconnectScopeConfusion{},
 		openclawShellOptionRevalidationBypass{},
 		openclawTelegramCallbackAllowFromBypass{},
+		openclawMarketplaceExtensionMetadataRedirect{},
 	}
 }
