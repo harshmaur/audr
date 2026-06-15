@@ -148,5 +148,6 @@ func builtins() []rules.Rule {
 		openclawShellOptionRevalidationBypass{},
 		openclawTelegramCallbackAllowFromBypass{},
 		openclawMarketplaceExtensionMetadataRedirect{},
+		openclawMatrixAllowFromDisplayNameBypass{},
 	}
 }

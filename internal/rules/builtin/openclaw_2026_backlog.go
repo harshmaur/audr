@@ -22,6 +22,7 @@ type openclawNodePairingReconnectScopeConfusion struct{}
 type openclawShellOptionRevalidationBypass struct{}
 type openclawTelegramCallbackAllowFromBypass struct{}
 type openclawMarketplaceExtensionMetadataRedirect struct{}
+type openclawMatrixAllowFromDisplayNameBypass struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -264,17 +265,34 @@ func (openclawMarketplaceExtensionMetadataRedirect) Apply(doc *parse.Document) [
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawMarketplaceExtensionMetadataRedirectVersion, openclawMarketplaceExtensionMetadataRedirectFinding)
 }
 
+func (openclawMatrixAllowFromDisplayNameBypass) ID() string {
+	return "openclaw-matrix-allowfrom-displayname-bypass"
+}
+func (openclawMatrixAllowFromDisplayNameBypass) Title() string {
+	return "OpenClaw version is vulnerable to Matrix allowFrom display-name bypass"
+}
+func (openclawMatrixAllowFromDisplayNameBypass) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawMatrixAllowFromDisplayNameBypass) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawMatrixAllowFromDisplayNameBypass) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawMatrixAllowFromDisplayNameBypass) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawMatrixAllowFromDisplayNameBypassVersion, openclawMatrixAllowFromDisplayNameBypassFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
-	if doc.PackageJSON == nil {
+	if doc.DependencyManifest == nil {
 		return nil
 	}
-	pkg := doc.PackageJSON
-	if pkg.Name == "openclaw" && vulnerable(pkg.Version) {
-		return []finding.Finding{makeFinding(doc.Path, fmt.Sprintf("openclaw@%s", pkg.Version))}
-	}
-	for _, deps := range []map[string]string{pkg.Dependencies, pkg.DevDependencies, pkg.OptionalDependencies, pkg.PeerDependencies} {
-		if v, ok := deps["openclaw"]; ok && vulnerable(v) {
-			return []finding.Finding{makeFinding(doc.Path, fmt.Sprintf("openclaw@%s", v))}
+	for _, dep := range doc.DependencyManifest.Dependencies {
+		if dep.Name == "openclaw" && vulnerable(dep.Version) {
+			f := makeFinding(doc.Path, fmt.Sprintf("openclaw@%s", dep.Version))
+			f.Line = dep.Line
+			return []finding.Finding{f}
 		}
 	}
 	return nil
@@ -325,6 +343,9 @@ func vulnerableOpenClawTelegramCallbackAllowFromBypassVersion(raw string) bool {
 func vulnerableOpenClawMarketplaceExtensionMetadataRedirectVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
 }
+func vulnerableOpenClawMatrixAllowFromDisplayNameBypassVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 7})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -370,6 +391,9 @@ func openclawTelegramCallbackAllowFromBypassFinding(path, match string) finding.
 }
 func openclawMarketplaceExtensionMetadataRedirectFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-marketplace-extension-metadata-redirect", finding.SeverityHigh, "OpenClaw before 2026.5.18 can load runtime extensions from unscanned marketplace metadata targets", "CVE-2026-53810: OpenClaw before 2026.5.18 lets marketplace runtime extension metadata redirect loading toward unscanned package payloads, allowing trusted-operator extension metadata to bypass reviewed package entry points.", "Upgrade OpenClaw to 2026.5.18 or later and review marketplace/runtime extension metadata installed while vulnerable versions were in use.", []string{"cve", "openclaw", "package-json", "marketplace", "code-execution"})
+}
+func openclawMatrixAllowFromDisplayNameBypassFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-matrix-allowfrom-displayname-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.7 lets Matrix display names bypass allowFrom policy", "CVE-2026-53811: OpenClaw before 2026.5.7 lets authenticated Matrix accounts match allowFrom policy entries through mutable display names instead of stable sender identity, allowing account owners to escalate to policy-authorized Matrix control flows.", "Upgrade OpenClaw to 2026.5.7 or later and review Matrix allowFrom policy entries and command activity from vulnerable deployments.", []string{"cve", "openclaw", "dependency-manifest", "matrix", "allowfrom", "auth-bypass"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {
