@@ -23,6 +23,7 @@ type openclawShellOptionRevalidationBypass struct{}
 type openclawTelegramCallbackAllowFromBypass struct{}
 type openclawMarketplaceExtensionMetadataRedirect struct{}
 type openclawMatrixAllowFromDisplayNameBypass struct{}
+type openclawBrowserControlPrivateNetworkSSRF struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -284,6 +285,25 @@ func (openclawMatrixAllowFromDisplayNameBypass) Apply(doc *parse.Document) []fin
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawMatrixAllowFromDisplayNameBypassVersion, openclawMatrixAllowFromDisplayNameBypassFinding)
 }
 
+func (openclawBrowserControlPrivateNetworkSSRF) ID() string {
+	return "openclaw-browser-control-private-network-ssrf"
+}
+func (openclawBrowserControlPrivateNetworkSSRF) Title() string {
+	return "OpenClaw version is vulnerable to browser-control private-network SSRF"
+}
+func (openclawBrowserControlPrivateNetworkSSRF) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawBrowserControlPrivateNetworkSSRF) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawBrowserControlPrivateNetworkSSRF) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawBrowserControlPrivateNetworkSSRF) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawBrowserControlPrivateNetworkSSRFVersion, openclawBrowserControlPrivateNetworkSSRFFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -346,6 +366,9 @@ func vulnerableOpenClawMarketplaceExtensionMetadataRedirectVersion(raw string) b
 func vulnerableOpenClawMatrixAllowFromDisplayNameBypassVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 7})
 }
+func vulnerableOpenClawBrowserControlPrivateNetworkSSRFVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -394,6 +417,9 @@ func openclawMarketplaceExtensionMetadataRedirectFinding(path, match string) fin
 }
 func openclawMatrixAllowFromDisplayNameBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-allowfrom-displayname-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.7 lets Matrix display names bypass allowFrom policy", "CVE-2026-53811: OpenClaw before 2026.5.7 lets authenticated Matrix accounts match allowFrom policy entries through mutable display names instead of stable sender identity, allowing account owners to escalate to policy-authorized Matrix control flows.", "Upgrade OpenClaw to 2026.5.7 or later and review Matrix allowFrom policy entries and command activity from vulnerable deployments.", []string{"cve", "openclaw", "dependency-manifest", "matrix", "allowfrom", "auth-bypass"})
+}
+func openclawBrowserControlPrivateNetworkSSRFFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-browser-control-private-network-ssrf", finding.SeverityHigh, "OpenClaw before 2026.5.18 can bypass private-network navigation blocks in browser control", "CVE-2026-53812: OpenClaw before 2026.5.18 contains a browser-control server-side request forgery flaw that lets authenticated users bypass private-network navigation restrictions after redirects.", "Upgrade OpenClaw to 2026.5.18 or later and review browser-control navigation/export activity from vulnerable deployments.", []string{"cve", "openclaw", "dependency-manifest", "browser-control", "ssrf"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {
