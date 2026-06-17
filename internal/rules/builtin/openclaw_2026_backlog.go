@@ -24,6 +24,7 @@ type openclawTelegramCallbackAllowFromBypass struct{}
 type openclawMarketplaceExtensionMetadataRedirect struct{}
 type openclawMatrixAllowFromDisplayNameBypass struct{}
 type openclawBrowserControlPrivateNetworkSSRF struct{}
+type openclawMemoryCoreArtifactRootTraversal struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -304,6 +305,25 @@ func (openclawBrowserControlPrivateNetworkSSRF) Apply(doc *parse.Document) []fin
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawBrowserControlPrivateNetworkSSRFVersion, openclawBrowserControlPrivateNetworkSSRFFinding)
 }
 
+func (openclawMemoryCoreArtifactRootTraversal) ID() string {
+	return "openclaw-memory-core-artifact-root-traversal"
+}
+func (openclawMemoryCoreArtifactRootTraversal) Title() string {
+	return "OpenClaw version is vulnerable to memory-core artifact root traversal"
+}
+func (openclawMemoryCoreArtifactRootTraversal) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawMemoryCoreArtifactRootTraversal) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawMemoryCoreArtifactRootTraversal) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawMemoryCoreArtifactRootTraversal) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawMemoryCoreArtifactRootTraversalVersion, openclawMemoryCoreArtifactRootTraversalFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -369,6 +389,9 @@ func vulnerableOpenClawMatrixAllowFromDisplayNameBypassVersion(raw string) bool 
 func vulnerableOpenClawBrowserControlPrivateNetworkSSRFVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
 }
+func vulnerableOpenClawMemoryCoreArtifactRootTraversalVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 4, 25})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -420,6 +443,9 @@ func openclawMatrixAllowFromDisplayNameBypassFinding(path, match string) finding
 }
 func openclawBrowserControlPrivateNetworkSSRFFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-browser-control-private-network-ssrf", finding.SeverityHigh, "OpenClaw before 2026.5.18 can bypass private-network navigation blocks in browser control", "CVE-2026-53812: OpenClaw before 2026.5.18 contains a browser-control server-side request forgery flaw that lets authenticated users bypass private-network navigation restrictions after redirects.", "Upgrade OpenClaw to 2026.5.18 or later and review browser-control navigation/export activity from vulnerable deployments.", []string{"cve", "openclaw", "dependency-manifest", "browser-control", "ssrf"})
+}
+func openclawMemoryCoreArtifactRootTraversalFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-memory-core-artifact-root-traversal", finding.SeverityHigh, "OpenClaw before 2026.4.25 can load memory-core artifacts from unintended roots", "CVE-2026-53813: OpenClaw before 2026.4.25 lets workspace-controlled memory-core artifact root resolution traverse to unintended local package roots, potentially loading malicious artifacts from outside the intended workspace boundary.", "Upgrade OpenClaw to 2026.4.25 or later and review memory-core artifact roots and workspace state created by vulnerable versions.", []string{"cve", "openclaw", "dependency-manifest", "memory-core", "path-traversal"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {

@@ -44,6 +44,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"browser control private network ssrf", "openclaw-browser-control-private-network-ssrf", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
 			return (openclawBrowserControlPrivateNetworkSSRF{}).Apply(d)
 		}},
+		{"memory-core artifact root traversal", "openclaw-memory-core-artifact-root-traversal", "2026.4.24", "2026.4.25", func(d *parse.Document) []finding.Finding {
+			return (openclawMemoryCoreArtifactRootTraversal{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {

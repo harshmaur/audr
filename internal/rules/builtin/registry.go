@@ -150,5 +150,6 @@ func builtins() []rules.Rule {
 		openclawMarketplaceExtensionMetadataRedirect{},
 		openclawMatrixAllowFromDisplayNameBypass{},
 		openclawBrowserControlPrivateNetworkSSRF{},
+		openclawMemoryCoreArtifactRootTraversal{},
 	}
 }
