@@ -47,6 +47,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"memory-core artifact root traversal", "openclaw-memory-core-artifact-root-traversal", "2026.4.24", "2026.4.25", func(d *parse.Document) []finding.Finding {
 			return (openclawMemoryCoreArtifactRootTraversal{}).Apply(d)
 		}},
+		{"hook-triggered owner loopback escalation", "openclaw-hook-triggered-owner-loopback-escalation", "2026.5.19", "2026.5.20", func(d *parse.Document) []finding.Finding {
+			return (openclawHookTriggeredOwnerLoopbackEscalation{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {

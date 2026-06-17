@@ -151,5 +151,6 @@ func builtins() []rules.Rule {
 		openclawMatrixAllowFromDisplayNameBypass{},
 		openclawBrowserControlPrivateNetworkSSRF{},
 		openclawMemoryCoreArtifactRootTraversal{},
+		openclawHookTriggeredOwnerLoopbackEscalation{},
 	}
 }

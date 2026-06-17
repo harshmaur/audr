@@ -25,6 +25,7 @@ type openclawMarketplaceExtensionMetadataRedirect struct{}
 type openclawMatrixAllowFromDisplayNameBypass struct{}
 type openclawBrowserControlPrivateNetworkSSRF struct{}
 type openclawMemoryCoreArtifactRootTraversal struct{}
+type openclawHookTriggeredOwnerLoopbackEscalation struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -324,6 +325,25 @@ func (openclawMemoryCoreArtifactRootTraversal) Apply(doc *parse.Document) []find
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawMemoryCoreArtifactRootTraversalVersion, openclawMemoryCoreArtifactRootTraversalFinding)
 }
 
+func (openclawHookTriggeredOwnerLoopbackEscalation) ID() string {
+	return "openclaw-hook-triggered-owner-loopback-escalation"
+}
+func (openclawHookTriggeredOwnerLoopbackEscalation) Title() string {
+	return "OpenClaw version is vulnerable to hook-triggered owner loopback escalation"
+}
+func (openclawHookTriggeredOwnerLoopbackEscalation) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawHookTriggeredOwnerLoopbackEscalation) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawHookTriggeredOwnerLoopbackEscalation) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawHookTriggeredOwnerLoopbackEscalation) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawHookTriggeredOwnerLoopbackEscalationVersion, openclawHookTriggeredOwnerLoopbackEscalationFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -392,6 +412,9 @@ func vulnerableOpenClawBrowserControlPrivateNetworkSSRFVersion(raw string) bool 
 func vulnerableOpenClawMemoryCoreArtifactRootTraversalVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 4, 25})
 }
+func vulnerableOpenClawHookTriggeredOwnerLoopbackEscalationVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 20})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -446,6 +469,9 @@ func openclawBrowserControlPrivateNetworkSSRFFinding(path, match string) finding
 }
 func openclawMemoryCoreArtifactRootTraversalFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-memory-core-artifact-root-traversal", finding.SeverityHigh, "OpenClaw before 2026.4.25 can load memory-core artifacts from unintended roots", "CVE-2026-53813: OpenClaw before 2026.4.25 lets workspace-controlled memory-core artifact root resolution traverse to unintended local package roots, potentially loading malicious artifacts from outside the intended workspace boundary.", "Upgrade OpenClaw to 2026.4.25 or later and review memory-core artifact roots and workspace state created by vulnerable versions.", []string{"cve", "openclaw", "dependency-manifest", "memory-core", "path-traversal"})
+}
+func openclawHookTriggeredOwnerLoopbackEscalationFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-hook-triggered-owner-loopback-escalation", finding.SeverityHigh, "OpenClaw before 2026.5.20 can escalate hook-triggered runs to owner MCP loopback scope", "CVE-2026-53814: OpenClaw before 2026.5.20 incorrectly gives hook-triggered agent runs owner-scoped MCP loopback access, letting lower-trust hook input reach privileged local MCP tools.", "Upgrade OpenClaw to 2026.5.20 or later and review hook-triggered agent runs and local MCP tool activity on affected deployments.", []string{"cve", "openclaw", "dependency-manifest", "hooks", "mcp", "privilege-escalation"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {
