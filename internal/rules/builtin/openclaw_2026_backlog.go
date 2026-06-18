@@ -26,6 +26,7 @@ type openclawMatrixAllowFromDisplayNameBypass struct{}
 type openclawBrowserControlPrivateNetworkSSRF struct{}
 type openclawMemoryCoreArtifactRootTraversal struct{}
 type openclawHookTriggeredOwnerLoopbackEscalation struct{}
+type openclawNodeEventProvenanceForgery struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -344,6 +345,25 @@ func (openclawHookTriggeredOwnerLoopbackEscalation) Apply(doc *parse.Document) [
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawHookTriggeredOwnerLoopbackEscalationVersion, openclawHookTriggeredOwnerLoopbackEscalationFinding)
 }
 
+func (openclawNodeEventProvenanceForgery) ID() string {
+	return "openclaw-node-event-provenance-forgery"
+}
+func (openclawNodeEventProvenanceForgery) Title() string {
+	return "OpenClaw version is vulnerable to node event provenance forgery"
+}
+func (openclawNodeEventProvenanceForgery) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawNodeEventProvenanceForgery) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawNodeEventProvenanceForgery) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawNodeEventProvenanceForgery) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawNodeEventProvenanceForgeryVersion, openclawNodeEventProvenanceForgeryFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -415,6 +435,9 @@ func vulnerableOpenClawMemoryCoreArtifactRootTraversalVersion(raw string) bool {
 func vulnerableOpenClawHookTriggeredOwnerLoopbackEscalationVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 20})
 }
+func vulnerableOpenClawNodeEventProvenanceForgeryVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -472,6 +495,9 @@ func openclawMemoryCoreArtifactRootTraversalFinding(path, match string) finding.
 }
 func openclawHookTriggeredOwnerLoopbackEscalationFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-hook-triggered-owner-loopback-escalation", finding.SeverityHigh, "OpenClaw before 2026.5.20 can escalate hook-triggered runs to owner MCP loopback scope", "CVE-2026-53814: OpenClaw before 2026.5.20 incorrectly gives hook-triggered agent runs owner-scoped MCP loopback access, letting lower-trust hook input reach privileged local MCP tools.", "Upgrade OpenClaw to 2026.5.20 or later and review hook-triggered agent runs and local MCP tool activity on affected deployments.", []string{"cve", "openclaw", "dependency-manifest", "hooks", "mcp", "privilege-escalation"})
+}
+func openclawNodeEventProvenanceForgeryFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-node-event-provenance-forgery", finding.SeverityHigh, "OpenClaw before 2026.5.18 can accept forged node exec lifecycle events", "CVE-2026-53816: OpenClaw before 2026.5.18 does not sufficiently validate node event provenance, letting paired or compromised nodes forge exec lifecycle events without system.run authorization.", "Upgrade OpenClaw to 2026.5.18 or later and review paired-node exec lifecycle activity from affected deployments.", []string{"cve", "openclaw", "dependency-manifest", "node-events", "provenance", "auth-bypass"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {

@@ -152,5 +152,6 @@ func builtins() []rules.Rule {
 		openclawBrowserControlPrivateNetworkSSRF{},
 		openclawMemoryCoreArtifactRootTraversal{},
 		openclawHookTriggeredOwnerLoopbackEscalation{},
+		openclawNodeEventProvenanceForgery{},
 	}
 }

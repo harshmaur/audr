@@ -50,6 +50,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"hook-triggered owner loopback escalation", "openclaw-hook-triggered-owner-loopback-escalation", "2026.5.19", "2026.5.20", func(d *parse.Document) []finding.Finding {
 			return (openclawHookTriggeredOwnerLoopbackEscalation{}).Apply(d)
 		}},
+		{"node event provenance forgery", "openclaw-node-event-provenance-forgery", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
+			return (openclawNodeEventProvenanceForgery{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {
