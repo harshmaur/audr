@@ -153,5 +153,6 @@ func builtins() []rules.Rule {
 		openclawMemoryCoreArtifactRootTraversal{},
 		openclawHookTriggeredOwnerLoopbackEscalation{},
 		openclawNodeEventProvenanceForgery{},
+		openclawControlUIPairingLocalitySpoof{},
 	}
 }

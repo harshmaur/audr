@@ -27,6 +27,7 @@ type openclawBrowserControlPrivateNetworkSSRF struct{}
 type openclawMemoryCoreArtifactRootTraversal struct{}
 type openclawHookTriggeredOwnerLoopbackEscalation struct{}
 type openclawNodeEventProvenanceForgery struct{}
+type openclawControlUIPairingLocalitySpoof struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -364,6 +365,25 @@ func (openclawNodeEventProvenanceForgery) Apply(doc *parse.Document) []finding.F
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawNodeEventProvenanceForgeryVersion, openclawNodeEventProvenanceForgeryFinding)
 }
 
+func (openclawControlUIPairingLocalitySpoof) ID() string {
+	return "openclaw-control-ui-pairing-locality-spoof"
+}
+func (openclawControlUIPairingLocalitySpoof) Title() string {
+	return "OpenClaw version is vulnerable to Control UI pairing locality spoofing"
+}
+func (openclawControlUIPairingLocalitySpoof) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawControlUIPairingLocalitySpoof) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawControlUIPairingLocalitySpoof) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawControlUIPairingLocalitySpoof) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawControlUIPairingLocalitySpoofVersion, openclawControlUIPairingLocalitySpoofFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -438,6 +458,9 @@ func vulnerableOpenClawHookTriggeredOwnerLoopbackEscalationVersion(raw string) b
 func vulnerableOpenClawNodeEventProvenanceForgeryVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
 }
+func vulnerableOpenClawControlUIPairingLocalitySpoofVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 22})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -498,6 +521,10 @@ func openclawHookTriggeredOwnerLoopbackEscalationFinding(path, match string) fin
 }
 func openclawNodeEventProvenanceForgeryFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-node-event-provenance-forgery", finding.SeverityHigh, "OpenClaw before 2026.5.18 can accept forged node exec lifecycle events", "CVE-2026-53816: OpenClaw before 2026.5.18 does not sufficiently validate node event provenance, letting paired or compromised nodes forge exec lifecycle events without system.run authorization.", "Upgrade OpenClaw to 2026.5.18 or later and review paired-node exec lifecycle activity from affected deployments.", []string{"cve", "openclaw", "dependency-manifest", "node-events", "provenance", "auth-bypass"})
+}
+
+func openclawControlUIPairingLocalitySpoofFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-control-ui-pairing-locality-spoof", finding.SeverityHigh, "OpenClaw before 2026.5.22 can accept spoofed Control UI pairing locality", "CVE-2026-53817: OpenClaw before 2026.5.22 trusts spoofable locality information during Control UI pairing, allowing network-adjacent attackers to present non-local control flows as local and reach higher-trust agent-control actions.", "Upgrade OpenClaw to 2026.5.22 or later and review Control UI pairings created or re-authorized while vulnerable versions were in use.", []string{"cve", "openclaw", "dependency-manifest", "control-ui", "pairing", "auth-bypass"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {

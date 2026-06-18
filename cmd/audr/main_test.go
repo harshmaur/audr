@@ -268,6 +268,11 @@ func TestUpdateScannersSkipsWhenAlreadyAtLatest(t *testing.T) {
 	if osvInstalled == "" || betterleaksInstalled == "" {
 		t.Skip("scanner binaries not installed; skipping installed-vs-latest test")
 	}
+	osvUpToDate, _, _ := scannerAlreadyLatest(context.Background(), "google", "osv-scanner", osvInstalled)
+	betterleaksUpToDate, _, _ := scannerAlreadyLatest(context.Background(), "betterleaks", "betterleaks", betterleaksInstalled)
+	if !osvUpToDate || !betterleaksUpToDate {
+		t.Skipf("scanner binaries not both at latest; installed osv=%q latest=%q betterleaks=%q latest=%q", osvInstalled, osvLatest, betterleaksInstalled, betterleaksLatest)
+	}
 
 	cmd := newUpdateScannersCmd()
 	var out bytes.Buffer

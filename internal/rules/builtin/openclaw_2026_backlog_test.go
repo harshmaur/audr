@@ -53,6 +53,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"node event provenance forgery", "openclaw-node-event-provenance-forgery", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
 			return (openclawNodeEventProvenanceForgery{}).Apply(d)
 		}},
+		{"control ui pairing locality spoof", "openclaw-control-ui-pairing-locality-spoof", "2026.5.21", "2026.5.22", func(d *parse.Document) []finding.Finding {
+			return (openclawControlUIPairingLocalitySpoof{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {
