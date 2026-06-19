@@ -547,6 +547,56 @@ func TestRule_MCPServerKubernetesKubectlFlagTokenExfil(t *testing.T) {
 	}
 }
 
+// --- mcp-pinot-unauth-http-default -----------------------------------------
+
+func TestRule_MCPPinotUnauthHTTPDefault(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "uvx vulnerable mcp-pinot version fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"pinot":{"command":"uvx","args":["mcp-pinot==3.0.1"]}}}`,
+			want: true,
+		},
+		{
+			name: "npx vulnerable mcp-pinot version fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"pinot":{"command":"npx","args":["mcp-pinot@3.0.0","--host","0.0.0.0","--port","8080"]}}}`,
+			want: true,
+		},
+		{
+			name: "fixed version does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"pinot":{"command":"uvx","args":["mcp-pinot==3.0.2"]}}}`,
+			want: false,
+		},
+		{
+			name: "unpinned package is handled by generic supply-chain rule only",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"pinot":{"command":"uvx","args":["mcp-pinot"]}}}`,
+			want: false,
+		},
+		{
+			name: "disabled Windsurf server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"pinot":{"command":"uvx","args":["mcp-pinot==3.0.1"],"disabled":true}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "mcp-pinot-unauth-http-default"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}
+
 // --- googleapis-mcp-toolbox-wildcard-origin-host ---------------------------
 
 func TestRule_GoogleapisMCPToolboxWildcardOriginHost(t *testing.T) {

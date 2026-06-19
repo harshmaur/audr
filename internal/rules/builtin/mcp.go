@@ -527,6 +527,7 @@ func mcpServerKubernetesAccessControlEnv(s parse.NormalizedMCPServer) (string, s
 // --- mcp-server-kubernetes-kubectl-flag-token-exfil ------------------------
 
 type mcpServerKubernetesKubectlFlagTokenExfil struct{}
+type mcpPinotUnauthHTTPDefault struct{}
 
 func (mcpServerKubernetesKubectlFlagTokenExfil) ID() string {
 	return "mcp-server-kubernetes-kubectl-flag-token-exfil"
@@ -622,6 +623,82 @@ func mcpServerKubernetesUsesKubeconfig(s parse.NormalizedMCPServer) bool {
 		}
 	}
 	return false
+}
+
+// --- mcp-pinot-unauth-http-default -----------------------------------------
+
+func (mcpPinotUnauthHTTPDefault) ID() string { return "mcp-pinot-unauth-http-default" }
+func (mcpPinotUnauthHTTPDefault) Title() string {
+	return "mcp-pinot exposes unauthenticated HTTP defaults"
+}
+func (mcpPinotUnauthHTTPDefault) Severity() finding.Severity { return finding.SeverityCritical }
+func (mcpPinotUnauthHTTPDefault) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (mcpPinotUnauthHTTPDefault) Formats() []parse.Format    { return parse.AllMCPFormats() }
+
+func (mcpPinotUnauthHTTPDefault) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeMCPPinot(s) {
+			continue
+		}
+		pkg, version, ok := mcpPinotPackageSpec(s)
+		if !ok || !vulnerableVersionBefore(version, []int{3, 0, 2}) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "mcp-pinot-unauth-http-default",
+			Severity:     finding.SeverityCritical,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "mcp-pinot 3.0.1 or earlier can expose an unauthenticated HTTP MCP server",
+			Description:  fmt.Sprintf("CVE-2026-49257: server %q launches %s %s. mcp-pinot 3.0.1 and earlier defaulted to an unauthenticated HTTP server on 0.0.0.0:8080, exposing Apache Pinot operations to any client that can reach the MCP endpoint.", s.Name, pkg, version),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s %s", s.Command, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade mcp-pinot beyond 3.0.1 before exposing it to agents. Until upgraded, remove it from MCP configs or bind it only to loopback behind explicit authentication and network controls.",
+			Tags:         []string{"cve", "mcp-pinot", "mcp", "apache-pinot", "missing-auth", "http-exposure"},
+		}))
+	}
+	return out
+}
+
+func looksLikeMCPPinot(s parse.NormalizedMCPServer) bool {
+	joined := strings.ToLower(s.Name + " " + s.Command + " " + strings.Join(s.Args, " "))
+	return strings.Contains(joined, "mcp-pinot") || strings.Contains(joined, "mcp_pinot")
+}
+
+func mcpPinotPackageSpec(s parse.NormalizedMCPServer) (pkg string, version string, ok bool) {
+	candidates := append([]string{s.Command}, s.Args...)
+	for _, raw := range candidates {
+		name, ver, matched := splitMCPPinotPackageSpec(raw)
+		if matched {
+			return name, ver, true
+		}
+	}
+	return "", "", false
+}
+
+func splitMCPPinotPackageSpec(raw string) (pkg string, version string, ok bool) {
+	s := strings.TrimSpace(strings.Trim(raw, "'\""))
+	for strings.HasPrefix(s, "npm:") {
+		s = strings.TrimPrefix(s, "npm:")
+	}
+	name := s
+	ver := ""
+	if strings.Contains(s, "==") {
+		parts := strings.SplitN(s, "==", 2)
+		name, ver = parts[0], parts[1]
+	} else if i := strings.LastIndex(s, "@"); i > 0 {
+		name, ver = s[:i], s[i+1:]
+	}
+	normalized := strings.ToLower(strings.ReplaceAll(name, "_", "-"))
+	if normalized == "mcp-pinot" {
+		return normalized, ver, true
+	}
+	return "", "", false
 }
 
 // --- googleapis-mcp-toolbox-wildcard-origin-host ---------------------------
