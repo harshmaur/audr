@@ -28,6 +28,7 @@ type openclawMemoryCoreArtifactRootTraversal struct{}
 type openclawHookTriggeredOwnerLoopbackEscalation struct{}
 type openclawNodeEventProvenanceForgery struct{}
 type openclawControlUIPairingLocalitySpoof struct{}
+type openclawSkillInstallHomebrewEnvOverride struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -384,6 +385,25 @@ func (openclawControlUIPairingLocalitySpoof) Apply(doc *parse.Document) []findin
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawControlUIPairingLocalitySpoofVersion, openclawControlUIPairingLocalitySpoofFinding)
 }
 
+func (openclawSkillInstallHomebrewEnvOverride) ID() string {
+	return "openclaw-skill-install-homebrew-env-override"
+}
+func (openclawSkillInstallHomebrewEnvOverride) Title() string {
+	return "OpenClaw version is vulnerable to skill install Homebrew executable override"
+}
+func (openclawSkillInstallHomebrewEnvOverride) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawSkillInstallHomebrewEnvOverride) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawSkillInstallHomebrewEnvOverride) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawSkillInstallHomebrewEnvOverride) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawSkillInstallHomebrewEnvOverrideVersion, openclawSkillInstallHomebrewEnvOverrideFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -461,6 +481,9 @@ func vulnerableOpenClawNodeEventProvenanceForgeryVersion(raw string) bool {
 func vulnerableOpenClawControlUIPairingLocalitySpoofVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 22})
 }
+func vulnerableOpenClawSkillInstallHomebrewEnvOverrideVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 27})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -525,6 +548,10 @@ func openclawNodeEventProvenanceForgeryFinding(path, match string) finding.Findi
 
 func openclawControlUIPairingLocalitySpoofFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-control-ui-pairing-locality-spoof", finding.SeverityHigh, "OpenClaw before 2026.5.22 can accept spoofed Control UI pairing locality", "CVE-2026-53817: OpenClaw before 2026.5.22 trusts spoofable locality information during Control UI pairing, allowing network-adjacent attackers to present non-local control flows as local and reach higher-trust agent-control actions.", "Upgrade OpenClaw to 2026.5.22 or later and review Control UI pairings created or re-authorized while vulnerable versions were in use.", []string{"cve", "openclaw", "dependency-manifest", "control-ui", "pairing", "auth-bypass"})
+}
+
+func openclawSkillInstallHomebrewEnvOverrideFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-skill-install-homebrew-env-override", finding.SeverityHigh, "OpenClaw before 2026.5.27 lets workspace .env override Homebrew executable selection during skill install", "CVE-2026-53819: OpenClaw before 2026.5.27 contains an arbitrary code execution vulnerability in skill install flows where workspace .env files can override Homebrew executable selection, allowing trusted-workspace attackers to execute unintended Homebrew-compatible executables during skill setup.", "Upgrade OpenClaw to 2026.5.27 or later and review skill setup activity and workspace .env files used by vulnerable versions.", []string{"cve", "openclaw", "dependency-manifest", "skill-install", "homebrew", "command-execution"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {

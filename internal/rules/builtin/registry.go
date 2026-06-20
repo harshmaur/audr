@@ -155,5 +155,6 @@ func builtins() []rules.Rule {
 		openclawHookTriggeredOwnerLoopbackEscalation{},
 		openclawNodeEventProvenanceForgery{},
 		openclawControlUIPairingLocalitySpoof{},
+		openclawSkillInstallHomebrewEnvOverride{},
 	}
 }

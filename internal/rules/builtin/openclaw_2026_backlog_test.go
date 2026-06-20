@@ -56,6 +56,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"control ui pairing locality spoof", "openclaw-control-ui-pairing-locality-spoof", "2026.5.21", "2026.5.22", func(d *parse.Document) []finding.Finding {
 			return (openclawControlUIPairingLocalitySpoof{}).Apply(d)
 		}},
+		{"skill install homebrew env override", "openclaw-skill-install-homebrew-env-override", "2026.5.26", "2026.5.27", func(d *parse.Document) []finding.Finding {
+			return (openclawSkillInstallHomebrewEnvOverride{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {
