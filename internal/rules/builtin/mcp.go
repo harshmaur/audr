@@ -528,6 +528,7 @@ func mcpServerKubernetesAccessControlEnv(s parse.NormalizedMCPServer) (string, s
 
 type mcpServerKubernetesKubectlFlagTokenExfil struct{}
 type mcpPinotUnauthHTTPDefault struct{}
+type googleapisMCPToolboxLegacyProtocolScopeBypass struct{}
 
 func (mcpServerKubernetesKubectlFlagTokenExfil) ID() string {
 	return "mcp-server-kubernetes-kubectl-flag-token-exfil"
@@ -768,6 +769,84 @@ func looksLikeGoogleapisMCPToolbox(s parse.NormalizedMCPServer) bool {
 	}
 	cmd := strings.Trim(strings.ToLower(s.Command), "'\"")
 	return cmd == "toolbox" || strings.HasSuffix(cmd, "/toolbox") || cmd == "toolbox.exe"
+}
+
+// --- googleapis-mcp-toolbox-legacy-protocol-scope-bypass --------------------
+
+func (googleapisMCPToolboxLegacyProtocolScopeBypass) ID() string {
+	return "googleapis-mcp-toolbox-legacy-protocol-scope-bypass"
+}
+func (googleapisMCPToolboxLegacyProtocolScopeBypass) Title() string {
+	return "Google APIs MCP Toolbox legacy protocol bypasses tool scopes"
+}
+func (googleapisMCPToolboxLegacyProtocolScopeBypass) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (googleapisMCPToolboxLegacyProtocolScopeBypass) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (googleapisMCPToolboxLegacyProtocolScopeBypass) Formats() []parse.Format {
+	return parse.AllMCPFormats()
+}
+
+func (googleapisMCPToolboxLegacyProtocolScopeBypass) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeGoogleapisMCPToolbox(s) {
+			continue
+		}
+		pkg, version, ok := googleapisMCPToolboxPackageSpec(s)
+		if !ok || !vulnerableVersionBefore(version, []int{1, 4, 0}) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "googleapis-mcp-toolbox-legacy-protocol-scope-bypass",
+			Severity:     finding.SeverityHigh,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "MCP Toolbox before 1.4.0 can bypass per-tool scopes through legacy protocol handlers",
+			Description:  fmt.Sprintf("CVE-2026-11719: server %q launches Google APIs MCP Toolbox package %s version %s. Versions before 1.4.0 did not enforce scopesRequired consistently across older MCP protocol handlers, so a low-privilege authenticated client could request or omit legacy MCP-Protocol-Version values and execute higher-privilege tools.", s.Name, pkg, version),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s %s", s.Command, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade MCP Toolbox to v1.4.0 or later and review exposed tool scopes for clients that could select older MCP protocol versions. Until upgraded, keep Toolbox bound to trusted local clients and avoid exposing admin tools to low-privilege tokens.",
+			Tags:         []string{"cve", "mcp-toolbox", "mcp", "authorization-bypass", "scope-bypass"},
+		}))
+	}
+	return out
+}
+
+func googleapisMCPToolboxPackageSpec(s parse.NormalizedMCPServer) (pkg string, version string, ok bool) {
+	candidates := append([]string{s.Command}, s.Args...)
+	for _, raw := range candidates {
+		name, ver, matched := splitGoogleapisMCPToolboxPackageSpec(raw)
+		if matched {
+			return name, ver, true
+		}
+	}
+	return "", "", false
+}
+
+func splitGoogleapisMCPToolboxPackageSpec(raw string) (pkg string, version string, ok bool) {
+	s := strings.TrimSpace(strings.Trim(raw, "'\""))
+	for strings.HasPrefix(s, "npm:") {
+		s = strings.TrimPrefix(s, "npm:")
+	}
+	name := s
+	ver := ""
+	if i := strings.LastIndex(s, "@"); i > 0 {
+		name = s[:i]
+		ver = s[i+1:]
+	}
+	normalized := strings.ToLower(strings.ReplaceAll(name, "_", "-"))
+	switch normalized {
+	case "@toolbox-sdk/server", "googleapis/mcp-toolbox", "googleapis/genai-toolbox", "mcp-toolbox", "genai-toolbox":
+		return normalized, ver, true
+	}
+	return "", "", false
 }
 
 func googleapisMCPToolboxWildcardOrMissingControls(s parse.NormalizedMCPServer) []string {

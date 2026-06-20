@@ -40,6 +40,7 @@ func builtins() []rules.Rule {
 		mcpServerKubernetesKubectlFlagTokenExfil{},
 		mcpPinotUnauthHTTPDefault{},
 		googleapisMCPToolboxWildcardOriginHost{},
+		googleapisMCPToolboxLegacyProtocolScopeBypass{},
 
 		// Claude Code rules.
 		claudeHookShellRCE{},

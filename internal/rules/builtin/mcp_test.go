@@ -646,3 +646,53 @@ func TestRule_GoogleapisMCPToolboxWildcardOriginHost(t *testing.T) {
 		})
 	}
 }
+
+// --- googleapis-mcp-toolbox-legacy-protocol-scope-bypass --------------------
+
+func TestRule_GoogleapisMCPToolboxLegacyProtocolScopeBypass(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "npx vulnerable toolbox sdk version fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"toolbox-postgres":{"command":"npx","args":["@toolbox-sdk/server@1.3.0","--prebuilt","postgres"]}}}`,
+			want: true,
+		},
+		{
+			name: "github package coordinate before fixed release fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"toolbox":{"command":"npx","args":["googleapis/mcp-toolbox@1.3.0","--config","tools.yaml"]}}}`,
+			want: true,
+		},
+		{
+			name: "fixed toolbox sdk version does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"toolbox-postgres":{"command":"npx","args":["@toolbox-sdk/server@1.4.0","--prebuilt","postgres"]}}}`,
+			want: false,
+		},
+		{
+			name: "unpinned toolbox is handled by generic supply-chain and origin rules only",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"toolbox-postgres":{"command":"npx","args":["@toolbox-sdk/server","--prebuilt","postgres"]}}}`,
+			want: false,
+		},
+		{
+			name: "disabled Windsurf server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"toolbox":{"command":"npx","args":["@toolbox-sdk/server@1.3.0"],"disabled":true}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "googleapis-mcp-toolbox-legacy-protocol-scope-bypass"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}
