@@ -547,6 +547,62 @@ func TestRule_MCPServerKubernetesKubectlFlagTokenExfil(t *testing.T) {
 	}
 }
 
+// --- network-ai-mcp-sse-empty-secret ---------------------------------------
+
+func TestRule_NetworkAIMCPSSEEmptySecret(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "Cursor npx vulnerable Network-AI with no secret fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"network-ai":{"command":"npx","args":["network-ai@5.7.1","--transport","sse"]}}}`,
+			want: true,
+		},
+		{
+			name: "empty MCP secret still fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"network-ai":{"command":"npx","args":["network-ai@5.7.1"],"env":{"MCP_SECRET":""}}}}`,
+			want: true,
+		},
+		{
+			name: "fixed version does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"network-ai":{"command":"npx","args":["network-ai@5.7.2"]}}}`,
+			want: false,
+		},
+		{
+			name: "strong explicit secret suppresses finding",
+			path: "/test/.codex/config.toml",
+			body: `[mcp_servers.network_ai]` + "\n" + `command = "npx"` + "\n" + `args = ["network-ai@5.7.1"]` + "\n" + `[mcp_servers.network_ai.env]` + "\n" + `MCP_SECRET = "0123456789abcdef0123456789abcdef"`,
+			want: false,
+		},
+		{
+			name: "disabled Windsurf server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"network-ai":{"command":"npx","args":["network-ai@5.7.1"],"disabled":true}}}`,
+			want: false,
+		},
+		{
+			name: "unrelated package does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"other":{"command":"npx","args":["@modelcontextprotocol/server-memory@1.0.0"]}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "network-ai-mcp-sse-empty-secret"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}
+
 // --- mcp-pinot-unauth-http-default -----------------------------------------
 
 func TestRule_MCPPinotUnauthHTTPDefault(t *testing.T) {

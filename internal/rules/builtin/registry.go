@@ -41,6 +41,7 @@ func builtins() []rules.Rule {
 		mcpPinotUnauthHTTPDefault{},
 		googleapisMCPToolboxWildcardOriginHost{},
 		googleapisMCPToolboxLegacyProtocolScopeBypass{},
+		networkAIMCPSSEEmptySecret{},
 
 		// Claude Code rules.
 		claudeHookShellRCE{},

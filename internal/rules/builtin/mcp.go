@@ -529,6 +529,7 @@ func mcpServerKubernetesAccessControlEnv(s parse.NormalizedMCPServer) (string, s
 type mcpServerKubernetesKubectlFlagTokenExfil struct{}
 type mcpPinotUnauthHTTPDefault struct{}
 type googleapisMCPToolboxLegacyProtocolScopeBypass struct{}
+type networkAIMCPSSEEmptySecret struct{}
 
 func (mcpServerKubernetesKubectlFlagTokenExfil) ID() string {
 	return "mcp-server-kubernetes-kubectl-flag-token-exfil"
@@ -624,6 +625,119 @@ func mcpServerKubernetesUsesKubeconfig(s parse.NormalizedMCPServer) bool {
 		}
 	}
 	return false
+}
+
+// --- network-ai-mcp-sse-empty-secret ---------------------------------------
+
+func (networkAIMCPSSEEmptySecret) ID() string { return "network-ai-mcp-sse-empty-secret" }
+func (networkAIMCPSSEEmptySecret) Title() string {
+	return "Network-AI MCP SSE server allows empty/default secret authorization"
+}
+func (networkAIMCPSSEEmptySecret) Severity() finding.Severity { return finding.SeverityCritical }
+func (networkAIMCPSSEEmptySecret) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (networkAIMCPSSEEmptySecret) Formats() []parse.Format    { return parse.AllMCPFormats() }
+
+func (networkAIMCPSSEEmptySecret) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeNetworkAI(s) {
+			continue
+		}
+		pkg, version, ok := networkAIPackageSpec(s)
+		if !ok || !vulnerableVersionBefore(version, []int{5, 7, 2}) {
+			continue
+		}
+		if networkAIHasNonDefaultSecret(s) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "network-ai-mcp-sse-empty-secret",
+			Severity:     finding.SeverityCritical,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "Network-AI before 5.7.2 can expose MCP SSE with an empty/default secret",
+			Description:  fmt.Sprintf("CVE-2026-48814: server %q launches %s %s without a non-default MCP secret in local agent configuration. Network-AI 5.7.1 and earlier still authorized requests when the MCP SSE secret was empty/default, allowing unauthenticated cross-origin MCP tool invocation.", s.Name, pkg, version),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s %s", s.Command, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade Network-AI to 5.7.2 or later. Until upgraded, remove the MCP SSE server from agent configs or set a strong non-default MCP secret and bind the server only to loopback/trusted clients.",
+			Tags:         []string{"cve", "network-ai", "mcp", "sse", "missing-auth", "cors"},
+		}))
+	}
+	return out
+}
+
+func looksLikeNetworkAI(s parse.NormalizedMCPServer) bool {
+	joined := strings.ToLower(s.Name + " " + s.Command + " " + strings.Join(s.Args, " "))
+	needles := []string{"network-ai", "network_ai", "network ai"}
+	for _, needle := range needles {
+		if strings.Contains(joined, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func networkAIPackageSpec(s parse.NormalizedMCPServer) (pkg string, version string, ok bool) {
+	candidates := append([]string{s.Command}, s.Args...)
+	for _, raw := range candidates {
+		name, ver, matched := splitNetworkAIPackageSpec(raw)
+		if matched {
+			return name, ver, true
+		}
+	}
+	return "", "", false
+}
+
+func splitNetworkAIPackageSpec(raw string) (pkg string, version string, ok bool) {
+	s := strings.TrimSpace(strings.Trim(raw, "'\""))
+	for strings.HasPrefix(s, "npm:") {
+		s = strings.TrimPrefix(s, "npm:")
+	}
+	name := s
+	ver := ""
+	if i := strings.LastIndex(s, "@"); i > 0 {
+		name = s[:i]
+		ver = s[i+1:]
+	}
+	normalized := strings.ToLower(strings.ReplaceAll(name, "_", "-"))
+	if normalized == "network-ai" {
+		return normalized, ver, true
+	}
+	return "", "", false
+}
+
+func networkAIHasNonDefaultSecret(s parse.NormalizedMCPServer) bool {
+	for k, v := range s.Env {
+		lk := strings.ToLower(k)
+		if !strings.Contains(lk, "secret") && !strings.Contains(lk, "token") && !strings.Contains(lk, "api_key") && !strings.Contains(lk, "apikey") {
+			continue
+		}
+		if networkAISecretLooksStrong(v) {
+			return true
+		}
+	}
+	for _, flag := range []string{"--secret", "--mcp-secret", "--mcp-sse-secret", "--auth-secret", "--token"} {
+		if value, ok := mcpFlagValue(s.Args, flag); ok && networkAISecretLooksStrong(value) {
+			return true
+		}
+	}
+	return false
+}
+
+func networkAISecretLooksStrong(value string) bool {
+	v := strings.TrimSpace(strings.Trim(value, "'\""))
+	if len(v) < 16 {
+		return false
+	}
+	switch strings.ToLower(v) {
+	case "default", "changeme", "change-me", "secret", "password", "network-ai", "network_ai":
+		return false
+	}
+	return true
 }
 
 // --- mcp-pinot-unauth-http-default -----------------------------------------
