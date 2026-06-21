@@ -530,6 +530,7 @@ type mcpServerKubernetesKubectlFlagTokenExfil struct{}
 type mcpPinotUnauthHTTPDefault struct{}
 type googleapisMCPToolboxLegacyProtocolScopeBypass struct{}
 type networkAIMCPSSEEmptySecret struct{}
+type lineDesktopMCPUnauthHTTPMode struct{}
 
 func (mcpServerKubernetesKubectlFlagTokenExfil) ID() string {
 	return "mcp-server-kubernetes-kubectl-flag-token-exfil"
@@ -621,6 +622,99 @@ func mcpServerKubernetesUsesKubeconfig(s parse.NormalizedMCPServer) bool {
 			return true
 		}
 		if la == "--kubeconfig" && i+1 < len(s.Args) && strings.TrimSpace(s.Args[i+1]) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// --- line-desktop-mcp-unauth-http-mode -------------------------------------
+
+func (lineDesktopMCPUnauthHTTPMode) ID() string { return "line-desktop-mcp-unauth-http-mode" }
+func (lineDesktopMCPUnauthHTTPMode) Title() string {
+	return "line-desktop-mcp exposes unauthenticated HTTP mode"
+}
+func (lineDesktopMCPUnauthHTTPMode) Severity() finding.Severity { return finding.SeverityHigh }
+func (lineDesktopMCPUnauthHTTPMode) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (lineDesktopMCPUnauthHTTPMode) Formats() []parse.Format    { return parse.AllMCPFormats() }
+
+func (lineDesktopMCPUnauthHTTPMode) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeLineDesktopMCP(s) {
+			continue
+		}
+		pkg, version, ok := lineDesktopMCPPackageSpec(s)
+		if !ok || !vulnerableVersionBefore(version, []int{1, 1, 2}) {
+			continue
+		}
+		if !lineDesktopMCPUsesHTTPMode(s) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "line-desktop-mcp-unauth-http-mode",
+			Severity:     finding.SeverityHigh,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "line-desktop-mcp before 1.1.2 can expose LINE Desktop over unauthenticated HTTP MCP",
+			Description:  fmt.Sprintf("CVE-2026-49357: server %q launches %s %s with --http-mode. line-desktop-mcp before 1.1.2 bound the Streamable HTTP MCP endpoint on 0.0.0.0 without MCP-layer authentication, allowing reachable clients to read LINE Desktop chat history or send messages through the logged-in desktop session.", s.Name, pkg, version),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s %s", s.Command, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade line-desktop-mcp to 1.1.2 or later before using --http-mode. Until upgraded, remove it from agent configs or keep it bound behind strict local-only network controls and explicit authentication.",
+			Tags:         []string{"cve", "line-desktop-mcp", "mcp", "missing-auth", "http-exposure", "privacy"},
+		}))
+	}
+	return out
+}
+
+func looksLikeLineDesktopMCP(s parse.NormalizedMCPServer) bool {
+	joined := strings.ToLower(s.Name + " " + s.Command + " " + strings.Join(s.Args, " "))
+	needles := []string{"line-desktop-mcp", "line_desktop_mcp", "line desktop mcp"}
+	for _, needle := range needles {
+		if strings.Contains(joined, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func lineDesktopMCPPackageSpec(s parse.NormalizedMCPServer) (pkg string, version string, ok bool) {
+	candidates := append([]string{s.Command}, s.Args...)
+	for _, raw := range candidates {
+		name, ver, matched := splitLineDesktopMCPPackageSpec(raw)
+		if matched {
+			return name, ver, true
+		}
+	}
+	return "", "", false
+}
+
+func splitLineDesktopMCPPackageSpec(raw string) (pkg string, version string, ok bool) {
+	s := strings.TrimSpace(strings.Trim(raw, "'\""))
+	for strings.HasPrefix(s, "npm:") {
+		s = strings.TrimPrefix(s, "npm:")
+	}
+	name := s
+	ver := ""
+	if i := strings.LastIndex(s, "@"); i > 0 {
+		name = s[:i]
+		ver = s[i+1:]
+	}
+	normalized := strings.ToLower(strings.ReplaceAll(name, "_", "-"))
+	if normalized == "line-desktop-mcp" {
+		return normalized, ver, true
+	}
+	return "", "", false
+}
+
+func lineDesktopMCPUsesHTTPMode(s parse.NormalizedMCPServer) bool {
+	for _, arg := range s.Args {
+		la := strings.ToLower(strings.TrimSpace(strings.Trim(arg, "'\"")))
+		if la == "--http-mode" || strings.HasPrefix(la, "--http-mode=") {
 			return true
 		}
 	}

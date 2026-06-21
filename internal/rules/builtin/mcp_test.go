@@ -547,6 +547,62 @@ func TestRule_MCPServerKubernetesKubectlFlagTokenExfil(t *testing.T) {
 	}
 }
 
+// --- line-desktop-mcp-unauth-http-mode -------------------------------------
+
+func TestRule_LineDesktopMCPUnauthHTTPMode(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "vulnerable line-desktop-mcp HTTP mode fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"line":{"command":"npx","args":["line-desktop-mcp@1.1.1","--http-mode"]}}}`,
+			want: true,
+		},
+		{
+			name: "equals form HTTP mode fires",
+			path: "/test/.codex/config.toml",
+			body: `[mcp_servers.line]` + "\n" + `command = "npx"` + "\n" + `args = ["line-desktop-mcp@1.0.0", "--http-mode=true"]`,
+			want: true,
+		},
+		{
+			name: "fixed version does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"line":{"command":"npx","args":["line-desktop-mcp@1.1.2","--http-mode"]}}}`,
+			want: false,
+		},
+		{
+			name: "stdio mode does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"line":{"command":"npx","args":["line-desktop-mcp@1.1.1"]}}}`,
+			want: false,
+		},
+		{
+			name: "disabled Windsurf server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"line":{"command":"npx","args":["line-desktop-mcp@1.1.1","--http-mode"],"disabled":true}}}`,
+			want: false,
+		},
+		{
+			name: "unrelated package does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"line":{"command":"npx","args":["line-bot-mcp-server@1.1.1","--http-mode"]}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "line-desktop-mcp-unauth-http-mode"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}
+
 // --- network-ai-mcp-sse-empty-secret ---------------------------------------
 
 func TestRule_NetworkAIMCPSSEEmptySecret(t *testing.T) {
