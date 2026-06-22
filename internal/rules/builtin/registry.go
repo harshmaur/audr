@@ -150,6 +150,7 @@ func builtins() []rules.Rule {
 		openclawGatewayChatSendScopeBypass{},
 		openclawNodePairingReconnectScopeConfusion{},
 		openclawShellOptionRevalidationBypass{},
+		openclawPowerShellEncodedCommandAliasBypass{},
 		openclawTelegramCallbackAllowFromBypass{},
 		openclawMarketplaceExtensionMetadataRedirect{},
 		openclawMatrixAllowFromDisplayNameBypass{},

@@ -20,6 +20,7 @@ type openclawBrowserTabSSRFReuse struct{}
 type openclawGatewayChatSendScopeBypass struct{}
 type openclawNodePairingReconnectScopeConfusion struct{}
 type openclawShellOptionRevalidationBypass struct{}
+type openclawPowerShellEncodedCommandAliasBypass struct{}
 type openclawTelegramCallbackAllowFromBypass struct{}
 type openclawMarketplaceExtensionMetadataRedirect struct{}
 type openclawMatrixAllowFromDisplayNameBypass struct{}
@@ -231,6 +232,25 @@ func (openclawShellOptionRevalidationBypass) Formats() []parse.Format {
 }
 func (openclawShellOptionRevalidationBypass) Apply(doc *parse.Document) []finding.Finding {
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawShellOptionRevalidationBypassVersion, openclawShellOptionRevalidationBypassFinding)
+}
+
+func (openclawPowerShellEncodedCommandAliasBypass) ID() string {
+	return "openclaw-powershell-encoded-command-alias-bypass"
+}
+func (openclawPowerShellEncodedCommandAliasBypass) Title() string {
+	return "OpenClaw version is vulnerable to PowerShell encoded-command alias bypass"
+}
+func (openclawPowerShellEncodedCommandAliasBypass) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawPowerShellEncodedCommandAliasBypass) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawPowerShellEncodedCommandAliasBypass) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawPowerShellEncodedCommandAliasBypass) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawPowerShellEncodedCommandAliasBypassVersion, openclawPowerShellEncodedCommandAliasBypassFinding)
 }
 
 func (openclawTelegramCallbackAllowFromBypass) ID() string {
@@ -457,6 +477,9 @@ func vulnerableOpenClawNodePairingReconnectScopeConfusionVersion(raw string) boo
 func vulnerableOpenClawShellOptionRevalidationBypassVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 12})
 }
+func vulnerableOpenClawPowerShellEncodedCommandAliasBypassVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 12})
+}
 func vulnerableOpenClawTelegramCallbackAllowFromBypassVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 6})
 }
@@ -523,6 +546,9 @@ func openclawNodePairingReconnectScopeConfusionFinding(path, match string) findi
 }
 func openclawShellOptionRevalidationBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-shell-option-revalidation-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.12 is vulnerable to shell option revalidation bypass", "CVE-2026-53806: OpenClaw before 2026.5.12 can let combined POSIX shell flags bypass exec revalidation checks, allowing inline shell content to evade intended allowlist validation when the affected feature is enabled.", "Upgrade OpenClaw to 2026.5.12 or later and review exec allowlist decisions made on affected deployments.", []string{"cve", "openclaw", "package-json", "shell", "command-execution", "allowlist-bypass"})
+}
+func openclawPowerShellEncodedCommandAliasBypassFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-powershell-encoded-command-alias-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.12 allows PowerShell encoded-command alias bypass", "CVE-2026-53836: OpenClaw before 2026.5.12 does not recognize abbreviated PowerShell encoded-command flag aliases in its allowlist parser, letting authenticated operators execute encoded PowerShell content outside intended command policy.", "Upgrade OpenClaw to 2026.5.12 or later and review PowerShell command executions allowed by vulnerable OpenClaw deployments.", []string{"cve", "openclaw", "dependency-manifest", "powershell", "command-execution", "allowlist-bypass"})
 }
 func openclawTelegramCallbackAllowFromBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-telegram-callback-allowfrom-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.6 is vulnerable to Telegram callback allowFrom bypass", "CVE-2026-53807: OpenClaw before 2026.5.6 lets Telegram interactive callbacks mark senders authorized before commands.allowFrom validation is enforced, allowing authenticated users to invoke command behavior outside configured sender restrictions.", "Upgrade OpenClaw to 2026.5.6 or later and review Telegram interactive callback activity on affected deployments.", []string{"cve", "openclaw", "package-json", "telegram", "auth-bypass"})
