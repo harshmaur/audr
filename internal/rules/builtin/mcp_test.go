@@ -603,6 +603,74 @@ func TestRule_LineDesktopMCPUnauthHTTPMode(t *testing.T) {
 	}
 }
 
+// --- windows-mcp-unauth-http-cors ------------------------------------------
+
+func TestRule_WindowsMCPUnauthHTTPCORS(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "uvx vulnerable Windows-MCP HTTP transport with wildcard CORS fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"windows":{"command":"uvx","args":["windows-mcp==0.7.4","--transport","http","--allow_origins","*"]}}}`,
+			want: true,
+		},
+		{
+			name: "at-version package form and equals flags fire",
+			path: "/test/.codex/config.toml",
+			body: `[mcp_servers.windows]` + "\n" + `command = "uvx"` + "\n" + `args = ["windows-mcp@0.7.4", "--transport=streamable-http", "--cors-origin=*"]`,
+			want: true,
+		},
+		{
+			name: "wildcard CORS env fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"windows":{"command":"uvx","args":["windows-mcp==0.7.4","--http"],"env":{"ALLOW_ORIGINS":"*"}}}}`,
+			want: true,
+		},
+		{
+			name: "fixed version does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"windows":{"command":"uvx","args":["windows-mcp==0.7.5","--transport","http","--allow_origins","*"]}}}`,
+			want: false,
+		},
+		{
+			name: "strict CORS origin does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"windows":{"command":"uvx","args":["windows-mcp==0.7.4","--transport","http","--allow_origins","http://127.0.0.1:6274"]}}}`,
+			want: false,
+		},
+		{
+			name: "stdio mode does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"windows":{"command":"uvx","args":["windows-mcp==0.7.4","--allow_origins","*"]}}}`,
+			want: false,
+		},
+		{
+			name: "disabled Windsurf server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"windows":{"command":"uvx","args":["windows-mcp==0.7.4","--transport","http","--allow_origins","*"],"disabled":true}}}`,
+			want: false,
+		},
+		{
+			name: "unrelated windows package does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"windows":{"command":"uvx","args":["windows-utils==0.7.4","--transport","http","--allow_origins","*"]}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "windows-mcp-unauth-http-cors"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}
+
 // --- network-ai-mcp-sse-empty-secret ---------------------------------------
 
 func TestRule_NetworkAIMCPSSEEmptySecret(t *testing.T) {

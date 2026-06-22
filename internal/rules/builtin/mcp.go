@@ -531,6 +531,7 @@ type mcpPinotUnauthHTTPDefault struct{}
 type googleapisMCPToolboxLegacyProtocolScopeBypass struct{}
 type networkAIMCPSSEEmptySecret struct{}
 type lineDesktopMCPUnauthHTTPMode struct{}
+type windowsMCPUnauthHTTPCORS struct{}
 
 func (mcpServerKubernetesKubectlFlagTokenExfil) ID() string {
 	return "mcp-server-kubernetes-kubectl-flag-token-exfil"
@@ -715,6 +716,130 @@ func lineDesktopMCPUsesHTTPMode(s parse.NormalizedMCPServer) bool {
 	for _, arg := range s.Args {
 		la := strings.ToLower(strings.TrimSpace(strings.Trim(arg, "'\"")))
 		if la == "--http-mode" || strings.HasPrefix(la, "--http-mode=") {
+			return true
+		}
+	}
+	return false
+}
+
+// --- windows-mcp-unauth-http-cors ------------------------------------------
+
+func (windowsMCPUnauthHTTPCORS) ID() string { return "windows-mcp-unauth-http-cors" }
+func (windowsMCPUnauthHTTPCORS) Title() string {
+	return "Windows-MCP exposes unauthenticated HTTP with wildcard CORS"
+}
+func (windowsMCPUnauthHTTPCORS) Severity() finding.Severity { return finding.SeverityHigh }
+func (windowsMCPUnauthHTTPCORS) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (windowsMCPUnauthHTTPCORS) Formats() []parse.Format    { return parse.AllMCPFormats() }
+
+func (windowsMCPUnauthHTTPCORS) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeWindowsMCP(s) {
+			continue
+		}
+		pkg, version, ok := windowsMCPPackageSpec(s)
+		if !ok || !vulnerableVersionBefore(version, []int{0, 7, 5}) {
+			continue
+		}
+		if !windowsMCPUsesHTTPMode(s) || !windowsMCPHasWildcardCORS(s) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "windows-mcp-unauth-http-cors",
+			Severity:     finding.SeverityHigh,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "Windows-MCP before 0.7.5 can expose unauthenticated PowerShell over HTTP",
+			Description:  fmt.Sprintf("CVE-2026-48989: server %q launches %s %s in an HTTP transport mode with wildcard CORS. Windows-MCP before 0.7.5 could expose the MCP control plane without authentication while making a PowerShell tool reachable cross-origin, allowing arbitrary command execution as the Windows user running the server.", s.Name, pkg, version),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s %s", s.Command, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade Windows-MCP to 0.7.5 or later before using HTTP transport. Until upgraded, remove the server from agent configs or bind it only to trusted loopback clients with explicit authentication and strict CORS origins.",
+			Tags:         []string{"cve", "windows-mcp", "mcp", "missing-auth", "cors", "powershell", "remote-code-execution"},
+		}))
+	}
+	return out
+}
+
+func looksLikeWindowsMCP(s parse.NormalizedMCPServer) bool {
+	joined := strings.ToLower(s.Name + " " + s.Command + " " + strings.Join(s.Args, " "))
+	needles := []string{"windows-mcp", "windows_mcp", "windows mcp", "cursortouch/windows-mcp"}
+	for _, needle := range needles {
+		if strings.Contains(joined, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func windowsMCPPackageSpec(s parse.NormalizedMCPServer) (pkg string, version string, ok bool) {
+	candidates := append([]string{s.Command}, s.Args...)
+	for _, raw := range candidates {
+		name, ver, matched := splitWindowsMCPPackageSpec(raw)
+		if matched {
+			return name, ver, true
+		}
+	}
+	return "", "", false
+}
+
+func splitWindowsMCPPackageSpec(raw string) (pkg string, version string, ok bool) {
+	s := strings.TrimSpace(strings.Trim(raw, "'\""))
+	for strings.HasPrefix(s, "pip:") || strings.HasPrefix(s, "pypi:") {
+		s = strings.TrimPrefix(strings.TrimPrefix(s, "pip:"), "pypi:")
+	}
+	name := s
+	ver := ""
+	if strings.Contains(s, "==") {
+		parts := strings.SplitN(s, "==", 2)
+		name, ver = parts[0], parts[1]
+	} else if i := strings.LastIndex(s, "@"); i > 0 {
+		name, ver = s[:i], s[i+1:]
+	}
+	normalized := strings.ToLower(strings.ReplaceAll(name, "_", "-"))
+	if normalized == "windows-mcp" {
+		return normalized, ver, true
+	}
+	return "", "", false
+}
+
+func windowsMCPUsesHTTPMode(s parse.NormalizedMCPServer) bool {
+	for i, raw := range s.Args {
+		arg := strings.ToLower(strings.TrimSpace(strings.Trim(raw, "'\"")))
+		switch {
+		case arg == "--http", arg == "--http-mode", arg == "--sse", arg == "--sse-mode":
+			return true
+		case strings.HasPrefix(arg, "--http-mode=") || strings.HasPrefix(arg, "--sse-mode="):
+			return true
+		case arg == "--transport" && i+1 < len(s.Args):
+			next := strings.ToLower(strings.TrimSpace(strings.Trim(s.Args[i+1], "'\"")))
+			if next == "http" || next == "sse" || next == "streamable-http" {
+				return true
+			}
+		case strings.HasPrefix(arg, "--transport="):
+			value := strings.TrimPrefix(arg, "--transport=")
+			if value == "http" || value == "sse" || value == "streamable-http" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func windowsMCPHasWildcardCORS(s parse.NormalizedMCPServer) bool {
+	flags := []string{"--allow-origins", "--allow_origins", "--allowed-origins", "--cors-origins", "--cors-origin", "--cors"}
+	for _, flag := range flags {
+		if value, ok := mcpFlagValue(s.Args, flag); ok && isWildcardList(value) {
+			return true
+		}
+	}
+	for k, v := range s.Env {
+		lk := strings.ToLower(k)
+		if (strings.Contains(lk, "origin") || strings.Contains(lk, "cors")) && isWildcardList(v) {
 			return true
 		}
 	}
