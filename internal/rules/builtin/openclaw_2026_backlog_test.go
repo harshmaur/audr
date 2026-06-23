@@ -44,6 +44,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"websocket operator scope", "openclaw-websocket-operator-scope-bypass", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
 			return (openclawWebsocketOperatorScopeBypass{}).Apply(d)
 		}},
+		{"shell wrapper argv mutation", "openclaw-shell-wrapper-argv-mutation", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
+			return (openclawShellWrapperArgvMutation{}).Apply(d)
+		}},
 		{"matrix allowfrom display name", "openclaw-matrix-allowfrom-displayname-bypass", "2026.5.6", "2026.5.7", func(d *parse.Document) []finding.Finding {
 			return (openclawMatrixAllowFromDisplayNameBypass{}).Apply(d)
 		}},

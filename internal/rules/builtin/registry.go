@@ -155,6 +155,7 @@ func builtins() []rules.Rule {
 		openclawTelegramCallbackAllowFromBypass{},
 		openclawMarketplaceExtensionMetadataRedirect{},
 		openclawWebsocketOperatorScopeBypass{},
+		openclawShellWrapperArgvMutation{},
 		openclawMatrixAllowFromDisplayNameBypass{},
 		openclawBrowserControlPrivateNetworkSSRF{},
 		openclawMemoryCoreArtifactRootTraversal{},
