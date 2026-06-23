@@ -41,6 +41,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"marketplace extension metadata", "openclaw-marketplace-extension-metadata-redirect", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
 			return (openclawMarketplaceExtensionMetadataRedirect{}).Apply(d)
 		}},
+		{"websocket operator scope", "openclaw-websocket-operator-scope-bypass", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
+			return (openclawWebsocketOperatorScopeBypass{}).Apply(d)
+		}},
 		{"matrix allowfrom display name", "openclaw-matrix-allowfrom-displayname-bypass", "2026.5.6", "2026.5.7", func(d *parse.Document) []finding.Finding {
 			return (openclawMatrixAllowFromDisplayNameBypass{}).Apply(d)
 		}},

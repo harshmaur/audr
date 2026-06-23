@@ -154,6 +154,7 @@ func builtins() []rules.Rule {
 		openclawPowerShellEncodedCommandAliasBypass{},
 		openclawTelegramCallbackAllowFromBypass{},
 		openclawMarketplaceExtensionMetadataRedirect{},
+		openclawWebsocketOperatorScopeBypass{},
 		openclawMatrixAllowFromDisplayNameBypass{},
 		openclawBrowserControlPrivateNetworkSSRF{},
 		openclawMemoryCoreArtifactRootTraversal{},

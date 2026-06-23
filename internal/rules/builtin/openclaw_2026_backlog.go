@@ -23,6 +23,7 @@ type openclawShellOptionRevalidationBypass struct{}
 type openclawPowerShellEncodedCommandAliasBypass struct{}
 type openclawTelegramCallbackAllowFromBypass struct{}
 type openclawMarketplaceExtensionMetadataRedirect struct{}
+type openclawWebsocketOperatorScopeBypass struct{}
 type openclawMatrixAllowFromDisplayNameBypass struct{}
 type openclawBrowserControlPrivateNetworkSSRF struct{}
 type openclawMemoryCoreArtifactRootTraversal struct{}
@@ -291,6 +292,25 @@ func (openclawMarketplaceExtensionMetadataRedirect) Apply(doc *parse.Document) [
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawMarketplaceExtensionMetadataRedirectVersion, openclawMarketplaceExtensionMetadataRedirectFinding)
 }
 
+func (openclawWebsocketOperatorScopeBypass) ID() string {
+	return "openclaw-websocket-operator-scope-bypass"
+}
+func (openclawWebsocketOperatorScopeBypass) Title() string {
+	return "OpenClaw version is vulnerable to WebSocket operator scope bypass"
+}
+func (openclawWebsocketOperatorScopeBypass) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawWebsocketOperatorScopeBypass) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawWebsocketOperatorScopeBypass) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawWebsocketOperatorScopeBypass) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawWebsocketOperatorScopeBypassVersion, openclawWebsocketOperatorScopeBypassFinding)
+}
+
 func (openclawMatrixAllowFromDisplayNameBypass) ID() string {
 	return "openclaw-matrix-allowfrom-displayname-bypass"
 }
@@ -486,6 +506,9 @@ func vulnerableOpenClawTelegramCallbackAllowFromBypassVersion(raw string) bool {
 func vulnerableOpenClawMarketplaceExtensionMetadataRedirectVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
 }
+func vulnerableOpenClawWebsocketOperatorScopeBypassVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
+}
 func vulnerableOpenClawMatrixAllowFromDisplayNameBypassVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 7})
 }
@@ -555,6 +578,9 @@ func openclawTelegramCallbackAllowFromBypassFinding(path, match string) finding.
 }
 func openclawMarketplaceExtensionMetadataRedirectFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-marketplace-extension-metadata-redirect", finding.SeverityHigh, "OpenClaw before 2026.5.18 can load runtime extensions from unscanned marketplace metadata targets", "CVE-2026-53810: OpenClaw before 2026.5.18 lets marketplace runtime extension metadata redirect loading toward unscanned package payloads, allowing trusted-operator extension metadata to bypass reviewed package entry points.", "Upgrade OpenClaw to 2026.5.18 or later and review marketplace/runtime extension metadata installed while vulnerable versions were in use.", []string{"cve", "openclaw", "package-json", "marketplace", "code-execution"})
+}
+func openclawWebsocketOperatorScopeBypassFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-websocket-operator-scope-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.18 accepts client-declared WebSocket operator scopes", "CVE-2026-53821: OpenClaw before 2026.5.18 accepted WebSocket client-declared operator scopes before binding them to server-approved pairing or trusted-proxy authorization, allowing restricted Control UI clients to obtain operator.admin authority.", "Upgrade OpenClaw to 2026.5.18 or later and review Control UI WebSocket sessions and admin-gated Gateway RPC activity on affected deployments.", []string{"cve", "openclaw", "dependency-manifest", "websocket", "control-ui", "auth-bypass"})
 }
 func openclawMatrixAllowFromDisplayNameBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-allowfrom-displayname-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.7 lets Matrix display names bypass allowFrom policy", "CVE-2026-53811: OpenClaw before 2026.5.7 lets authenticated Matrix accounts match allowFrom policy entries through mutable display names instead of stable sender identity, allowing account owners to escalate to policy-authorized Matrix control flows.", "Upgrade OpenClaw to 2026.5.7 or later and review Matrix allowFrom policy entries and command activity from vulnerable deployments.", []string{"cve", "openclaw", "dependency-manifest", "matrix", "allowfrom", "auth-bypass"})
