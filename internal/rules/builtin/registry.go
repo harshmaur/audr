@@ -157,6 +157,7 @@ func builtins() []rules.Rule {
 		openclawWebsocketOperatorScopeBypass{},
 		openclawShellWrapperArgvMutation{},
 		openclawMatrixAllowFromDisplayNameBypass{},
+		openclawSlackAllowFromDisplayNameBypass{},
 		openclawBrowserControlPrivateNetworkSSRF{},
 		openclawMemoryCoreArtifactRootTraversal{},
 		openclawHookTriggeredOwnerLoopbackEscalation{},

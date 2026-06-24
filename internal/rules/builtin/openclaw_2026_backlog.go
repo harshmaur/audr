@@ -26,6 +26,7 @@ type openclawMarketplaceExtensionMetadataRedirect struct{}
 type openclawWebsocketOperatorScopeBypass struct{}
 type openclawShellWrapperArgvMutation struct{}
 type openclawMatrixAllowFromDisplayNameBypass struct{}
+type openclawSlackAllowFromDisplayNameBypass struct{}
 type openclawBrowserControlPrivateNetworkSSRF struct{}
 type openclawMemoryCoreArtifactRootTraversal struct{}
 type openclawHookTriggeredOwnerLoopbackEscalation struct{}
@@ -350,6 +351,25 @@ func (openclawMatrixAllowFromDisplayNameBypass) Apply(doc *parse.Document) []fin
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawMatrixAllowFromDisplayNameBypassVersion, openclawMatrixAllowFromDisplayNameBypassFinding)
 }
 
+func (openclawSlackAllowFromDisplayNameBypass) ID() string {
+	return "openclaw-slack-allowfrom-displayname-bypass"
+}
+func (openclawSlackAllowFromDisplayNameBypass) Title() string {
+	return "OpenClaw version is vulnerable to Slack allowFrom display-name bypass"
+}
+func (openclawSlackAllowFromDisplayNameBypass) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawSlackAllowFromDisplayNameBypass) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawSlackAllowFromDisplayNameBypass) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawSlackAllowFromDisplayNameBypass) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawSlackAllowFromDisplayNameBypassVersion, openclawSlackAllowFromDisplayNameBypassFinding)
+}
+
 func (openclawBrowserControlPrivateNetworkSSRF) ID() string {
 	return "openclaw-browser-control-private-network-ssrf"
 }
@@ -535,6 +555,9 @@ func vulnerableOpenClawShellWrapperArgvMutationVersion(raw string) bool {
 func vulnerableOpenClawMatrixAllowFromDisplayNameBypassVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 7})
 }
+func vulnerableOpenClawSlackAllowFromDisplayNameBypassVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 3})
+}
 func vulnerableOpenClawBrowserControlPrivateNetworkSSRFVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
 }
@@ -610,6 +633,9 @@ func openclawShellWrapperArgvMutationFinding(path, match string) finding.Finding
 }
 func openclawMatrixAllowFromDisplayNameBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-allowfrom-displayname-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.7 lets Matrix display names bypass allowFrom policy", "CVE-2026-53811: OpenClaw before 2026.5.7 lets authenticated Matrix accounts match allowFrom policy entries through mutable display names instead of stable sender identity, allowing account owners to escalate to policy-authorized Matrix control flows.", "Upgrade OpenClaw to 2026.5.7 or later and review Matrix allowFrom policy entries and command activity from vulnerable deployments.", []string{"cve", "openclaw", "dependency-manifest", "matrix", "allowfrom", "auth-bypass"})
+}
+func openclawSlackAllowFromDisplayNameBypassFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-slack-allowfrom-displayname-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.3 lets Slack display names bypass allowFrom policy", "CVE-2026-53823: OpenClaw before 2026.5.3 binds Slack allowFrom checks to mutable display-name metadata, allowing Slack users who can change display names to match policy entries and gain unintended agent access.", "Upgrade OpenClaw to 2026.5.3 or later and review Slack allowFrom policy entries and command activity from vulnerable deployments.", []string{"cve", "openclaw", "dependency-manifest", "slack", "allowfrom", "auth-bypass"})
 }
 func openclawBrowserControlPrivateNetworkSSRFFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-browser-control-private-network-ssrf", finding.SeverityHigh, "OpenClaw before 2026.5.18 can bypass private-network navigation blocks in browser control", "CVE-2026-53812: OpenClaw before 2026.5.18 contains a browser-control server-side request forgery flaw that lets authenticated users bypass private-network navigation restrictions after redirects.", "Upgrade OpenClaw to 2026.5.18 or later and review browser-control navigation/export activity from vulnerable deployments.", []string{"cve", "openclaw", "dependency-manifest", "browser-control", "ssrf"})

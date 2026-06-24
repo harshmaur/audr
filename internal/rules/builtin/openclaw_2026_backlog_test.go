@@ -50,6 +50,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"matrix allowfrom display name", "openclaw-matrix-allowfrom-displayname-bypass", "2026.5.6", "2026.5.7", func(d *parse.Document) []finding.Finding {
 			return (openclawMatrixAllowFromDisplayNameBypass{}).Apply(d)
 		}},
+		{"slack allowfrom display name", "openclaw-slack-allowfrom-displayname-bypass", "2026.5.2", "2026.5.3", func(d *parse.Document) []finding.Finding {
+			return (openclawSlackAllowFromDisplayNameBypass{}).Apply(d)
+		}},
 		{"browser control private network ssrf", "openclaw-browser-control-private-network-ssrf", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
 			return (openclawBrowserControlPrivateNetworkSSRF{}).Apply(d)
 		}},
