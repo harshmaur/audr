@@ -73,7 +73,11 @@ func TestRunnerActuallyDropsPriority(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows uses priority class, not numeric nice — see TestRunnerWindowsLowPriority")
 	}
-	out, err := Runner{}.Run(context.Background(), "/bin/sh", "-c", "sleep 0.05; ps -p $$ -o nice= 2>/dev/null")
+	// Runner applies the nice drop immediately after Start. macOS can let the
+	// child shell reach ps before that post-start setpriority call lands, so keep
+	// this probe deliberately slower than a scheduler tick instead of racing the
+	// parent and intermittently observing the inherited nice value.
+	out, err := Runner{}.Run(context.Background(), "/bin/sh", "-c", "sleep 0.25; ps -p $$ -o nice= 2>/dev/null")
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
