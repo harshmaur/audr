@@ -149,6 +149,7 @@ func builtins() []rules.Rule {
 		openclawQQBotApprovalButtonBypass{},
 		openclawBrowserTabSSRFReuse{},
 		openclawGatewayChatSendScopeBypass{},
+		openclawNativeCommandOwnerOnlyBypass{},
 		openclawNodePairingReconnectScopeConfusion{},
 		openclawShellOptionRevalidationBypass{},
 		openclawPowerShellEncodedCommandAliasBypass{},

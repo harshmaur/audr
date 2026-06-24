@@ -18,6 +18,7 @@ type openclawQQBotAdminPolicyBypass struct{}
 type openclawQQBotApprovalButtonBypass struct{}
 type openclawBrowserTabSSRFReuse struct{}
 type openclawGatewayChatSendScopeBypass struct{}
+type openclawNativeCommandOwnerOnlyBypass struct{}
 type openclawNodePairingReconnectScopeConfusion struct{}
 type openclawShellOptionRevalidationBypass struct{}
 type openclawPowerShellEncodedCommandAliasBypass struct{}
@@ -197,6 +198,25 @@ func (openclawGatewayChatSendScopeBypass) Formats() []parse.Format {
 }
 func (openclawGatewayChatSendScopeBypass) Apply(doc *parse.Document) []finding.Finding {
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawGatewayChatSendScopeBypassVersion, openclawGatewayChatSendScopeBypassFinding)
+}
+
+func (openclawNativeCommandOwnerOnlyBypass) ID() string {
+	return "openclaw-native-command-owner-only-bypass"
+}
+func (openclawNativeCommandOwnerOnlyBypass) Title() string {
+	return "OpenClaw version is vulnerable to native command owner-only bypass"
+}
+func (openclawNativeCommandOwnerOnlyBypass) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawNativeCommandOwnerOnlyBypass) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawNativeCommandOwnerOnlyBypass) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawNativeCommandOwnerOnlyBypass) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawNativeCommandOwnerOnlyBypassVersion, openclawNativeCommandOwnerOnlyBypassFinding)
 }
 
 func (openclawNodePairingReconnectScopeConfusion) ID() string {
@@ -531,6 +551,9 @@ func vulnerableOpenClawBrowserTabSSRFReuseVersion(raw string) bool {
 func vulnerableOpenClawGatewayChatSendScopeBypassVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
 }
+func vulnerableOpenClawNativeCommandOwnerOnlyBypassVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 6})
+}
 func vulnerableOpenClawNodePairingReconnectScopeConfusionVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 27})
 }
@@ -609,6 +632,9 @@ func openclawBrowserTabSSRFReuseFinding(path, match string) finding.Finding {
 }
 func openclawGatewayChatSendScopeBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-gateway-chat-send-scope-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.18 bypasses Gateway chat.send scopes", "CVE-2026-35674: OpenClaw before 2026.5.18 lets scoped Gateway chat.send clients execute privileged commands and mutate plugin, config, MCP, allowlist, or ACP state.", "Upgrade OpenClaw to 2026.5.18 or later and review privileged state mutations performed through Gateway chat.send on affected deployments.", []string{"cve", "openclaw", "package-json", "gateway", "scope-bypass"})
+}
+func openclawNativeCommandOwnerOnlyBypassFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-native-command-owner-only-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.6 allows native command owner-only bypass", "CVE-2026-53828: OpenClaw before 2026.5.6 lets authenticated senders trigger native command handling without enforcing owner-only command policy, allowing unauthorized users to reach privileged native commands.", "Upgrade OpenClaw to 2026.5.6 or later and review native command execution activity from unauthorized senders on affected deployments.", []string{"cve", "openclaw", "dependency-manifest", "native-command", "auth-bypass"})
 }
 func openclawNodePairingReconnectScopeConfusionFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-node-pairing-reconnect-scope-confusion", finding.SeverityCritical, "OpenClaw before 2026.5.27 is vulnerable to node pairing reconnection scope confusion", "CVE-2026-53838: OpenClaw before 2026.5.27 can let paired nodes confuse approval scope decisions during reconnection, restoring or presenting broader node authority than intended.", "Upgrade OpenClaw to 2026.5.27 or later and review paired-node approvals and reconnection activity on affected deployments.", []string{"cve", "openclaw", "package-json", "node-pairing", "scope-confusion"})
