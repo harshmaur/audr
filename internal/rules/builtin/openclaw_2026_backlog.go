@@ -34,6 +34,7 @@ type openclawHookTriggeredOwnerLoopbackEscalation struct{}
 type openclawNodeEventProvenanceForgery struct{}
 type openclawControlUIPairingLocalitySpoof struct{}
 type openclawSkillInstallHomebrewEnvOverride struct{}
+type openclawApprovalDisplayTruncation struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -504,6 +505,25 @@ func (openclawSkillInstallHomebrewEnvOverride) Apply(doc *parse.Document) []find
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawSkillInstallHomebrewEnvOverrideVersion, openclawSkillInstallHomebrewEnvOverrideFinding)
 }
 
+func (openclawApprovalDisplayTruncation) ID() string {
+	return "openclaw-approval-display-truncation"
+}
+func (openclawApprovalDisplayTruncation) Title() string {
+	return "OpenClaw version is vulnerable to approval display truncation"
+}
+func (openclawApprovalDisplayTruncation) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawApprovalDisplayTruncation) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawApprovalDisplayTruncation) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawApprovalDisplayTruncation) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawApprovalDisplayTruncationVersion, openclawApprovalDisplayTruncationFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -599,6 +619,9 @@ func vulnerableOpenClawControlUIPairingLocalitySpoofVersion(raw string) bool {
 func vulnerableOpenClawSkillInstallHomebrewEnvOverrideVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 27})
 }
+func vulnerableOpenClawApprovalDisplayTruncationVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -682,6 +705,10 @@ func openclawControlUIPairingLocalitySpoofFinding(path, match string) finding.Fi
 
 func openclawSkillInstallHomebrewEnvOverrideFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-skill-install-homebrew-env-override", finding.SeverityHigh, "OpenClaw before 2026.5.27 lets workspace .env override Homebrew executable selection during skill install", "CVE-2026-53819: OpenClaw before 2026.5.27 contains an arbitrary code execution vulnerability in skill install flows where workspace .env files can override Homebrew executable selection, allowing trusted-workspace attackers to execute unintended Homebrew-compatible executables during skill setup.", "Upgrade OpenClaw to 2026.5.27 or later and review skill setup activity and workspace .env files used by vulnerable versions.", []string{"cve", "openclaw", "dependency-manifest", "skill-install", "homebrew", "command-execution"})
+}
+
+func openclawApprovalDisplayTruncationFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-approval-display-truncation", finding.SeverityHigh, "OpenClaw before 2026.5.18 can truncate approval displays", "CVE-2026-53829: OpenClaw before 2026.5.18 contains an approval display truncation flaw that can hide command suffixes or privileged action details from the user-facing approval prompt.", "Upgrade OpenClaw to 2026.5.18 or later and review approvals and command executions accepted on affected deployments.", []string{"cve", "openclaw", "dependency-manifest", "approval-bypass", "ui-truncation"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {

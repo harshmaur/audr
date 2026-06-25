@@ -74,6 +74,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"skill install homebrew env override", "openclaw-skill-install-homebrew-env-override", "2026.5.26", "2026.5.27", func(d *parse.Document) []finding.Finding {
 			return (openclawSkillInstallHomebrewEnvOverride{}).Apply(d)
 		}},
+		{"approval display truncation", "openclaw-approval-display-truncation", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
+			return (openclawApprovalDisplayTruncation{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {
