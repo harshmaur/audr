@@ -25,7 +25,12 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"qqbot admin", "openclaw-qqbot-admin-policy-bypass", "2026.4.28", "2026.4.29", func(d *parse.Document) []finding.Finding { return (openclawQQBotAdminPolicyBypass{}).Apply(d) }},
 		{"qqbot approval", "openclaw-qqbot-approval-button-bypass", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding { return (openclawQQBotApprovalButtonBypass{}).Apply(d) }},
 		{"browser ssrf", "openclaw-browser-tab-ssrf-reuse", "2026.4.28", "2026.4.29", func(d *parse.Document) []finding.Finding { return (openclawBrowserTabSSRFReuse{}).Apply(d) }},
-		{"gateway chat", "openclaw-gateway-chat-send-scope-bypass", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding { return (openclawGatewayChatSendScopeBypass{}).Apply(d) }},
+		{"gateway chat", "openclaw-gateway-chat-send-scope-bypass", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
+			return (openclawGatewayChatSendScopeBypass{}).Apply(d)
+		}},
+		{"system.run safe-bin shell expansion", "openclaw-system-run-safebin-shell-expansion", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
+			return (openclawSystemRunSafeBinShellExpansion{}).Apply(d)
+		}},
 		{"native command owner-only", "openclaw-native-command-owner-only-bypass", "2026.5.5", "2026.5.6", func(d *parse.Document) []finding.Finding {
 			return (openclawNativeCommandOwnerOnlyBypass{}).Apply(d)
 		}},

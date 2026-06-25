@@ -18,6 +18,7 @@ type openclawQQBotAdminPolicyBypass struct{}
 type openclawQQBotApprovalButtonBypass struct{}
 type openclawBrowserTabSSRFReuse struct{}
 type openclawGatewayChatSendScopeBypass struct{}
+type openclawSystemRunSafeBinShellExpansion struct{}
 type openclawNativeCommandOwnerOnlyBypass struct{}
 type openclawNodePairingReconnectScopeConfusion struct{}
 type openclawShellOptionRevalidationBypass struct{}
@@ -199,6 +200,25 @@ func (openclawGatewayChatSendScopeBypass) Formats() []parse.Format {
 }
 func (openclawGatewayChatSendScopeBypass) Apply(doc *parse.Document) []finding.Finding {
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawGatewayChatSendScopeBypassVersion, openclawGatewayChatSendScopeBypassFinding)
+}
+
+func (openclawSystemRunSafeBinShellExpansion) ID() string {
+	return "openclaw-system-run-safebin-shell-expansion"
+}
+func (openclawSystemRunSafeBinShellExpansion) Title() string {
+	return "OpenClaw version is vulnerable to system.run safe-bin shell expansion"
+}
+func (openclawSystemRunSafeBinShellExpansion) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawSystemRunSafeBinShellExpansion) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawSystemRunSafeBinShellExpansion) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawSystemRunSafeBinShellExpansion) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawSystemRunSafeBinShellExpansionVersion, openclawSystemRunSafeBinShellExpansionFinding)
 }
 
 func (openclawNativeCommandOwnerOnlyBypass) ID() string {
@@ -571,6 +591,9 @@ func vulnerableOpenClawBrowserTabSSRFReuseVersion(raw string) bool {
 func vulnerableOpenClawGatewayChatSendScopeBypassVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
 }
+func vulnerableOpenClawSystemRunSafeBinShellExpansionVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
+}
 func vulnerableOpenClawNativeCommandOwnerOnlyBypassVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 6})
 }
@@ -655,6 +678,9 @@ func openclawBrowserTabSSRFReuseFinding(path, match string) finding.Finding {
 }
 func openclawGatewayChatSendScopeBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-gateway-chat-send-scope-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.18 bypasses Gateway chat.send scopes", "CVE-2026-35674: OpenClaw before 2026.5.18 lets scoped Gateway chat.send clients execute privileged commands and mutate plugin, config, MCP, allowlist, or ACP state.", "Upgrade OpenClaw to 2026.5.18 or later and review privileged state mutations performed through Gateway chat.send on affected deployments.", []string{"cve", "openclaw", "package-json", "gateway", "scope-bypass"})
+}
+func openclawSystemRunSafeBinShellExpansionFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-system-run-safebin-shell-expansion", finding.SeverityHigh, "OpenClaw before 2026.5.18 lets shell expansion modify system.run safe-bin command interpretation", "CVE-2026-53831: OpenClaw before 2026.5.18 can allow POSIX shell metacharacters in approved system.run safe-bin commands to alter command interpretation and read unintended node-local files or sensitive configuration data.", "Upgrade OpenClaw to 2026.5.18 or later and review system.run safe-bin allowlist approvals and node-local file access from affected deployments.", []string{"cve", "openclaw", "dependency-manifest", "system-run", "shell", "file-read", "allowlist-bypass"})
 }
 func openclawNativeCommandOwnerOnlyBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-native-command-owner-only-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.6 allows native command owner-only bypass", "CVE-2026-53828: OpenClaw before 2026.5.6 lets authenticated senders trigger native command handling without enforcing owner-only command policy, allowing unauthorized users to reach privileged native commands.", "Upgrade OpenClaw to 2026.5.6 or later and review native command execution activity from unauthorized senders on affected deployments.", []string{"cve", "openclaw", "dependency-manifest", "native-command", "auth-bypass"})
