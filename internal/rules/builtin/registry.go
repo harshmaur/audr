@@ -90,6 +90,7 @@ func builtins() []rules.Rule {
 		codeRunnerMCPServerUnauthHTTP{},
 		libreChatMCPEnvSecretLeak{},
 		libreChatMCPAdminSecretResponseLeak{},
+		libreChatMCPOAuthResourceConfusion{},
 		xhsMCPMediaPathsSSRF{},
 		directusMCPFileURLSSRF{},
 		cloudbaseMCPOpenURLSSRF{},

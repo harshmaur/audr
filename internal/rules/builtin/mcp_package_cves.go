@@ -12,6 +12,7 @@ type xhsMCPMediaPathsSSRF struct{}
 type directusMCPFileURLSSRF struct{}
 type cloudbaseMCPOpenURLSSRF struct{}
 type libreChatMCPAdminSecretResponseLeak struct{}
+type libreChatMCPOAuthResourceConfusion struct{}
 
 func (xhsMCPMediaPathsSSRF) ID() string { return "xhs-mcp-media-paths-ssrf" }
 func (xhsMCPMediaPathsSSRF) Title() string {
@@ -65,6 +66,21 @@ func (libreChatMCPAdminSecretResponseLeak) Formats() []parse.Format {
 }
 func (libreChatMCPAdminSecretResponseLeak) Apply(doc *parse.Document) []finding.Finding {
 	return dependencyVersionFinding(doc, isLibreChatPackage, func(v string) bool { return vulnerableVersionBefore(v, []int{0, 8, 4}) }, libreChatMCPAdminSecretResponseLeakFinding)
+}
+
+func (libreChatMCPOAuthResourceConfusion) ID() string {
+	return "librechat-mcp-oauth-resource-confusion"
+}
+func (libreChatMCPOAuthResourceConfusion) Title() string {
+	return "LibreChat version is vulnerable to MCP OAuth resource confusion"
+}
+func (libreChatMCPOAuthResourceConfusion) Severity() finding.Severity { return finding.SeverityHigh }
+func (libreChatMCPOAuthResourceConfusion) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (libreChatMCPOAuthResourceConfusion) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (libreChatMCPOAuthResourceConfusion) Apply(doc *parse.Document) []finding.Finding {
+	return dependencyVersionFinding(doc, isLibreChatPackage, func(v string) bool { return vulnerableVersionBefore(v, []int{0, 8, 5}) }, libreChatMCPOAuthResourceConfusionFinding)
 }
 
 func dependencyVersionFinding(doc *parse.Document, matchesPackage func(string) bool, vulnerable func(string) bool, makeFinding func(string, int, string) finding.Finding) []finding.Finding {
@@ -160,5 +176,20 @@ func libreChatMCPAdminSecretResponseLeakFinding(path string, line int, match str
 		Match:        match,
 		SuggestedFix: "Upgrade LibreChat to 0.8.4 or later, rotate exposed MCP server secrets, and review which users had VIEW access to MCP server definitions.",
 		Tags:         []string{"cve", "librechat", "mcp", "secrets", "dependency-manifest"},
+	})
+}
+
+func libreChatMCPOAuthResourceConfusionFinding(path string, line int, match string) finding.Finding {
+	return finding.New(finding.Args{
+		RuleID:       "librechat-mcp-oauth-resource-confusion",
+		Severity:     finding.SeverityHigh,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "LibreChat before 0.8.5 can send MCP OAuth tokens to the wrong resource",
+		Description:  "CVE-2026-54030: LibreChat before 0.8.5 did not verify that OAuth Protected Resource metadata matched the configured MCP server URL, allowing a malicious MCP server to obtain access tokens intended for another server.",
+		Path:         path,
+		Line:         line,
+		Match:        match,
+		SuggestedFix: "Upgrade LibreChat to 0.8.5 or later, rotate OAuth tokens issued through untrusted MCP servers, and review configured MCP OAuth resource URLs.",
+		Tags:         []string{"cve", "librechat", "mcp", "oauth", "dependency-manifest"},
 	})
 }
