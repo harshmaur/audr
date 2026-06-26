@@ -527,6 +527,7 @@ func mcpServerKubernetesAccessControlEnv(s parse.NormalizedMCPServer) (string, s
 // --- mcp-server-kubernetes-kubectl-flag-token-exfil ------------------------
 
 type mcpServerKubernetesKubectlFlagTokenExfil struct{}
+type chromeDevToolsMCPDaemonPidSymlink struct{}
 type mcpPinotUnauthHTTPDefault struct{}
 type googleapisMCPToolboxLegacyProtocolScopeBypass struct{}
 type networkAIMCPSSEEmptySecret struct{}
@@ -627,6 +628,91 @@ func mcpServerKubernetesUsesKubeconfig(s parse.NormalizedMCPServer) bool {
 		}
 	}
 	return false
+}
+
+// --- chrome-devtools-mcp-daemon-pid-symlink --------------------------------
+
+func (chromeDevToolsMCPDaemonPidSymlink) ID() string {
+	return "chrome-devtools-mcp-daemon-pid-symlink"
+}
+func (chromeDevToolsMCPDaemonPidSymlink) Title() string {
+	return "Chrome DevTools MCP daemon pid file can follow symlinks"
+}
+func (chromeDevToolsMCPDaemonPidSymlink) Severity() finding.Severity {
+	return finding.SeverityMedium
+}
+func (chromeDevToolsMCPDaemonPidSymlink) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (chromeDevToolsMCPDaemonPidSymlink) Formats() []parse.Format {
+	return parse.AllMCPFormats()
+}
+
+func (chromeDevToolsMCPDaemonPidSymlink) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled {
+			continue
+		}
+		pkg, version, ok := chromeDevToolsMCPPackageSpec(s)
+		if !ok || !vulnerableChromeDevToolsMCPDaemonVersion(version) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "chrome-devtools-mcp-daemon-pid-symlink",
+			Severity:     finding.SeverityMedium,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "chrome-devtools-mcp before 1.1.0 can follow symlinks for daemon.pid",
+			Description:  fmt.Sprintf("CVE-2026-53765: server %q launches %s@%s. chrome-devtools-mcp versions from 0.20.0 before 1.1.0 write daemon.pid in a deterministic /tmp fallback runtime directory without O_NOFOLLOW, letting same-host attackers pre-create a symlink and truncate victim-writable files at daemon startup.", s.Name, pkg, version),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s@%s args=%q", pkg, version, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade chrome-devtools-mcp to 1.1.0 or later. Until upgraded, remove the MCP server from shared hosts or ensure the fallback runtime directory cannot be pre-populated by another local user before daemon startup.",
+			Tags:         []string{"cve", "chrome-devtools-mcp", "mcp", "symlink", "local-file-truncation"},
+		}))
+	}
+	return out
+}
+
+func chromeDevToolsMCPPackageSpec(s parse.NormalizedMCPServer) (pkg string, version string, ok bool) {
+	candidates := append([]string{s.Command}, s.Args...)
+	for _, raw := range candidates {
+		name, ver, matched := splitChromeDevToolsMCPPackageSpec(raw)
+		if matched {
+			return name, ver, true
+		}
+	}
+	return "", "", false
+}
+
+func splitChromeDevToolsMCPPackageSpec(raw string) (pkg string, version string, ok bool) {
+	s := strings.TrimSpace(strings.Trim(raw, "'\""))
+	for strings.HasPrefix(s, "npm:") {
+		s = strings.TrimPrefix(s, "npm:")
+	}
+	name := s
+	ver := ""
+	if i := strings.LastIndex(s, "@"); i > 0 {
+		name = s[:i]
+		ver = s[i+1:]
+	}
+	normalized := strings.ToLower(strings.ReplaceAll(name, "_", "-"))
+	if normalized == "chrome-devtools-mcp" {
+		return normalized, ver, true
+	}
+	return "", "", false
+}
+
+func vulnerableChromeDevToolsMCPDaemonVersion(raw string) bool {
+	m := packageVersionRE.FindString(strings.TrimSpace(raw))
+	if m == "" {
+		return false
+	}
+	return compareVersionParts(m, []int{0, 20, 0}) >= 0 && vulnerableVersionBefore(raw, []int{1, 1, 0})
 }
 
 // --- line-desktop-mcp-unauth-http-mode -------------------------------------
