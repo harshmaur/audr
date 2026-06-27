@@ -39,6 +39,7 @@ func builtins() []rules.Rule {
 		mcpServerKubernetesToolFilterBypass{},
 		mcpServerKubernetesKubectlFlagTokenExfil{},
 		chromeDevToolsMCPDaemonPidSymlink{},
+		githubMCPServerLockdownGlobalCache{},
 		lineDesktopMCPUnauthHTTPMode{},
 		windowsMCPUnauthHTTPCORS{},
 		mcpPinotUnauthHTTPDefault{},

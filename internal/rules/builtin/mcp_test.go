@@ -441,6 +441,62 @@ func TestRule_NocturneMemoryMissingAPIToken(t *testing.T) {
 	}
 }
 
+// --- github-mcp-server-lockdown-global-cache -------------------------------
+
+func TestRule_GitHubMCPServerLockdownGlobalCache(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "vulnerable shared HTTP lockdown config fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"github":{"command":"npx","args":["-y","@github/github-mcp-server@1.1.1","--transport","http","--lockdown-mode"]}}}`,
+			want: true,
+		},
+		{
+			name: "streamable HTTP and equals lockdown flag fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"github":{"command":"github-mcp-server","args":["--transport=streamable-http","--lockdown-mode=true","github-mcp-server@0.22.0"]}}}`,
+			want: true,
+		},
+		{
+			name: "fixed version suppressed",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"github":{"command":"npx","args":["@github/github-mcp-server@1.1.2","--transport","http","--lockdown-mode"]}}}`,
+			want: false,
+		},
+		{
+			name: "pre-affected version suppressed",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"github":{"command":"npx","args":["@github/github-mcp-server@0.21.9","--transport","http","--lockdown-mode"]}}}`,
+			want: false,
+		},
+		{
+			name: "stdio mode suppressed",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"github":{"command":"npx","args":["@github/github-mcp-server@1.1.1","--lockdown-mode"]}}}`,
+			want: false,
+		},
+		{
+			name: "lockdown disabled suppressed",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"github":{"command":"npx","args":["@github/github-mcp-server@1.1.1","--transport=http","--lockdown-mode=false"]}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "github-mcp-server-lockdown-global-cache"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}
+
 // --- mcp-server-kubernetes-tool-filter-bypass ------------------------------
 
 func TestRule_MCPServerKubernetesToolFilterBypass(t *testing.T) {

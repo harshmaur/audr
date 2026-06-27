@@ -528,6 +528,7 @@ func mcpServerKubernetesAccessControlEnv(s parse.NormalizedMCPServer) (string, s
 
 type mcpServerKubernetesKubectlFlagTokenExfil struct{}
 type chromeDevToolsMCPDaemonPidSymlink struct{}
+type githubMCPServerLockdownGlobalCache struct{}
 type mcpPinotUnauthHTTPDefault struct{}
 type googleapisMCPToolboxLegacyProtocolScopeBypass struct{}
 type networkAIMCPSSEEmptySecret struct{}
@@ -1043,6 +1044,122 @@ func networkAISecretLooksStrong(value string) bool {
 		return false
 	}
 	return true
+}
+
+// --- github-mcp-server-lockdown-global-cache -------------------------------
+
+func (githubMCPServerLockdownGlobalCache) ID() string {
+	return "github-mcp-server-lockdown-global-cache"
+}
+func (githubMCPServerLockdownGlobalCache) Title() string {
+	return "GitHub MCP Server HTTP lockdown mode is vulnerable to cross-user repo access cache confusion"
+}
+func (githubMCPServerLockdownGlobalCache) Severity() finding.Severity { return finding.SeverityMedium }
+func (githubMCPServerLockdownGlobalCache) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (githubMCPServerLockdownGlobalCache) Formats() []parse.Format    { return parse.AllMCPFormats() }
+
+func (githubMCPServerLockdownGlobalCache) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeGitHubMCPServer(s) {
+			continue
+		}
+		pkg, version, ok := githubMCPServerPackageSpec(s)
+		if !ok || !vulnerableGitHubMCPServerVersion(version) {
+			continue
+		}
+		if !githubMCPServerUsesHTTPMode(s) || !githubMCPServerLockdownModeEnabled(s) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "github-mcp-server-lockdown-global-cache",
+			Severity:     finding.SeverityMedium,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "GitHub MCP Server before 1.1.2 shares lockdown repo access cache across HTTP users",
+			Description:  fmt.Sprintf("CVE-2026-48529: server %q launches %s %s in HTTP mode with --lockdown-mode enabled. Affected GitHub MCP Server versions reused a process-global RepoAccessCache across authenticated HTTP users, so later users could inherit the first user's lockdown repository access decisions.", s.Name, pkg, version),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s %s", s.Command, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade github-mcp-server to 1.1.2 or later before running shared HTTP mode with --lockdown-mode. Until upgraded, avoid multi-user HTTP deployments or run isolated per-user MCP server processes.",
+			Tags:         []string{"cve", "github-mcp-server", "mcp", "http", "authorization-bypass", "lockdown-mode"},
+		}))
+	}
+	return out
+}
+
+func looksLikeGitHubMCPServer(s parse.NormalizedMCPServer) bool {
+	joined := strings.ToLower(s.Name + " " + s.Command + " " + strings.Join(s.Args, " "))
+	return strings.Contains(joined, "github-mcp-server") || strings.Contains(joined, "github/mcp") || strings.Contains(joined, "github mcp")
+}
+
+func githubMCPServerPackageSpec(s parse.NormalizedMCPServer) (pkg string, version string, ok bool) {
+	candidates := append([]string{s.Command}, s.Args...)
+	var matchedName string
+	for _, raw := range candidates {
+		name, ver, matched := splitGitHubMCPServerPackageSpec(raw)
+		if !matched {
+			continue
+		}
+		if ver != "" {
+			return name, ver, true
+		}
+		matchedName = name
+	}
+	if matchedName != "" {
+		return matchedName, "", true
+	}
+	return "", "", false
+}
+
+func splitGitHubMCPServerPackageSpec(raw string) (pkg string, version string, ok bool) {
+	s := strings.TrimSpace(strings.Trim(raw, "'\""))
+	for strings.HasPrefix(s, "npm:") {
+		s = strings.TrimPrefix(s, "npm:")
+	}
+	name := s
+	ver := ""
+	if strings.Contains(s, "==") {
+		parts := strings.SplitN(s, "==", 2)
+		name, ver = parts[0], parts[1]
+	} else if i := strings.LastIndex(s, "@"); i > 0 {
+		name, ver = s[:i], s[i+1:]
+	}
+	normalized := strings.ToLower(strings.ReplaceAll(name, "_", "-"))
+	switch normalized {
+	case "github-mcp-server", "@github/github-mcp-server", "github.com/github/github-mcp-server":
+		return normalized, ver, true
+	}
+	return "", "", false
+}
+
+func vulnerableGitHubMCPServerVersion(raw string) bool {
+	m := packageVersionRE.FindString(strings.TrimSpace(raw))
+	if m == "" {
+		return false
+	}
+	return compareVersionParts(m, []int{0, 22, 0}) >= 0 && compareVersionParts(m, []int{1, 1, 2}) < 0
+}
+
+func githubMCPServerUsesHTTPMode(s parse.NormalizedMCPServer) bool {
+	return windowsMCPUsesHTTPMode(s)
+}
+
+func githubMCPServerLockdownModeEnabled(s parse.NormalizedMCPServer) bool {
+	for _, raw := range s.Args {
+		arg := strings.ToLower(strings.TrimSpace(strings.Trim(raw, "'\"")))
+		if arg == "--lockdown-mode" || arg == "--lockdown" || arg == "--enable-lockdown-mode" {
+			return true
+		}
+		if strings.HasPrefix(arg, "--lockdown-mode=") || strings.HasPrefix(arg, "--lockdown=") {
+			value := strings.TrimSpace(strings.Trim(strings.SplitN(arg, "=", 2)[1], "'\""))
+			return value == "" || value == "1" || value == "true" || value == "yes"
+		}
+	}
+	return false
 }
 
 // --- mcp-pinot-unauth-http-default -----------------------------------------
