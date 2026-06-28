@@ -82,6 +82,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"approval display truncation", "openclaw-approval-display-truncation", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
 			return (openclawApprovalDisplayTruncation{}).Apply(d)
 		}},
+		{"trusted proxy identity header", "openclaw-trusted-proxy-identity-header-forgery", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
+			return (openclawTrustedProxyIdentityHeaderForgery{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {

@@ -36,6 +36,7 @@ type openclawNodeEventProvenanceForgery struct{}
 type openclawControlUIPairingLocalitySpoof struct{}
 type openclawSkillInstallHomebrewEnvOverride struct{}
 type openclawApprovalDisplayTruncation struct{}
+type openclawTrustedProxyIdentityHeaderForgery struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -544,6 +545,25 @@ func (openclawApprovalDisplayTruncation) Apply(doc *parse.Document) []finding.Fi
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawApprovalDisplayTruncationVersion, openclawApprovalDisplayTruncationFinding)
 }
 
+func (openclawTrustedProxyIdentityHeaderForgery) ID() string {
+	return "openclaw-trusted-proxy-identity-header-forgery"
+}
+func (openclawTrustedProxyIdentityHeaderForgery) Title() string {
+	return "OpenClaw version is vulnerable to trusted-proxy identity header forgery"
+}
+func (openclawTrustedProxyIdentityHeaderForgery) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawTrustedProxyIdentityHeaderForgery) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawTrustedProxyIdentityHeaderForgery) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawTrustedProxyIdentityHeaderForgery) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawTrustedProxyIdentityHeaderForgeryVersion, openclawTrustedProxyIdentityHeaderForgeryFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -645,6 +665,9 @@ func vulnerableOpenClawSkillInstallHomebrewEnvOverrideVersion(raw string) bool {
 func vulnerableOpenClawApprovalDisplayTruncationVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
 }
+func vulnerableOpenClawTrustedProxyIdentityHeaderForgeryVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -735,6 +758,10 @@ func openclawSkillInstallHomebrewEnvOverrideFinding(path, match string) finding.
 
 func openclawApprovalDisplayTruncationFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-approval-display-truncation", finding.SeverityHigh, "OpenClaw before 2026.5.18 can truncate approval displays", "CVE-2026-53829: OpenClaw before 2026.5.18 contains an approval display truncation flaw that can hide command suffixes or privileged action details from the user-facing approval prompt.", "Upgrade OpenClaw to 2026.5.18 or later and review approvals and command executions accepted on affected deployments.", []string{"cve", "openclaw", "dependency-manifest", "approval-bypass", "ui-truncation"})
+}
+
+func openclawTrustedProxyIdentityHeaderForgeryFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-trusted-proxy-identity-header-forgery", finding.SeverityHigh, "OpenClaw before 2026.5.18 accepts forged trusted-proxy identity headers", "CVE-2026-53832: OpenClaw before 2026.5.18 insufficiently validated trusted-proxy identity headers, allowing same-host callers that can reach the proxy-facing Gateway port to forge operator identity and escalate privileges.", "Upgrade OpenClaw to 2026.5.18 or later and review trusted-proxy/Gateway access logs and operator-scoped actions from affected deployments.", []string{"cve", "openclaw", "dependency-manifest", "trusted-proxy", "identity-forgery", "auth-bypass"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {

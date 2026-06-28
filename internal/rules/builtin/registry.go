@@ -171,5 +171,6 @@ func builtins() []rules.Rule {
 		openclawControlUIPairingLocalitySpoof{},
 		openclawSkillInstallHomebrewEnvOverride{},
 		openclawApprovalDisplayTruncation{},
+		openclawTrustedProxyIdentityHeaderForgery{},
 	}
 }
