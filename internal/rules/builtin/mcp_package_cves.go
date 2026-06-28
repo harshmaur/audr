@@ -13,6 +13,7 @@ type directusMCPFileURLSSRF struct{}
 type cloudbaseMCPOpenURLSSRF struct{}
 type libreChatMCPAdminSecretResponseLeak struct{}
 type libreChatMCPOAuthResourceConfusion struct{}
+type rtkRewriteOpenClawExecSyncInjection struct{}
 
 func (xhsMCPMediaPathsSSRF) ID() string { return "xhs-mcp-media-paths-ssrf" }
 func (xhsMCPMediaPathsSSRF) Title() string {
@@ -83,6 +84,21 @@ func (libreChatMCPOAuthResourceConfusion) Apply(doc *parse.Document) []finding.F
 	return dependencyVersionFinding(doc, isLibreChatPackage, func(v string) bool { return vulnerableVersionBefore(v, []int{0, 8, 5}) }, libreChatMCPOAuthResourceConfusionFinding)
 }
 
+func (rtkRewriteOpenClawExecSyncInjection) ID() string {
+	return "rtk-rewrite-openclaw-execsync-injection"
+}
+func (rtkRewriteOpenClawExecSyncInjection) Title() string {
+	return "@rtk-ai/rtk-rewrite 1.0.0 is vulnerable to shell command injection"
+}
+func (rtkRewriteOpenClawExecSyncInjection) Severity() finding.Severity { return finding.SeverityMedium }
+func (rtkRewriteOpenClawExecSyncInjection) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (rtkRewriteOpenClawExecSyncInjection) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (rtkRewriteOpenClawExecSyncInjection) Apply(doc *parse.Document) []finding.Finding {
+	return dependencyVersionFinding(doc, isRTKRewritePackage, func(v string) bool { return vulnerableExactVersion(v, []int{1, 0, 0}) }, rtkRewriteOpenClawExecSyncInjectionFinding)
+}
+
 func dependencyVersionFinding(doc *parse.Document, matchesPackage func(string) bool, vulnerable func(string) bool, makeFinding func(string, int, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -100,6 +116,9 @@ func isDirectusMCPPackage(name string) bool { return normalizePackageName(name) 
 func isCloudBaseMCPPackage(name string) bool {
 	n := normalizePackageName(name)
 	return n == "@cloudbase/cloudbase-mcp" || n == "cloudbase-mcp"
+}
+func isRTKRewritePackage(name string) bool {
+	return normalizePackageName(name) == "@rtk-ai/rtk-rewrite"
 }
 
 func normalizePackageName(name string) string {
@@ -191,5 +210,20 @@ func libreChatMCPOAuthResourceConfusionFinding(path string, line int, match stri
 		Match:        match,
 		SuggestedFix: "Upgrade LibreChat to 0.8.5 or later, rotate OAuth tokens issued through untrusted MCP servers, and review configured MCP OAuth resource URLs.",
 		Tags:         []string{"cve", "librechat", "mcp", "oauth", "dependency-manifest"},
+	})
+}
+
+func rtkRewriteOpenClawExecSyncInjectionFinding(path string, line int, match string) finding.Finding {
+	return finding.New(finding.Args{
+		RuleID:       "rtk-rewrite-openclaw-execsync-injection",
+		Severity:     finding.SeverityMedium,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "@rtk-ai/rtk-rewrite 1.0.0 shell-expands OpenClaw exec tool input",
+		Description:  "CVE-2026-55249: @rtk-ai/rtk-rewrite 1.0.0 passes OpenClaw exec tool input into a shell-backed execSync template; command substitutions such as $() can execute before rtk is invoked.",
+		Path:         path,
+		Line:         line,
+		Match:        match,
+		SuggestedFix: "Remove @rtk-ai/rtk-rewrite 1.0.0 from OpenClaw/plugin manifests or upgrade to a fixed release that avoids shell-backed execSync interpolation.",
+		Tags:         []string{"cve", "openclaw", "rtk", "dependency-manifest", "command-injection"},
 	})
 }

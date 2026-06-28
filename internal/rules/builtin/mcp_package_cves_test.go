@@ -21,6 +21,7 @@ func TestMCPPackageCVEs_FlagVulnerablePackageAndAllowFixed(t *testing.T) {
 		{"cloudbase mcp", "cloudbase-mcp-openurl-ssrf", "@cloudbase/cloudbase-mcp", "2.17.0", "2.17.1", func(d *parse.Document) []finding.Finding { return (cloudbaseMCPOpenURLSSRF{}).Apply(d) }},
 		{"librechat secret response", "librechat-mcp-admin-secret-response-leak", "librechat", "0.8.3", "0.8.4", func(d *parse.Document) []finding.Finding { return (libreChatMCPAdminSecretResponseLeak{}).Apply(d) }},
 		{"librechat oauth resource", "librechat-mcp-oauth-resource-confusion", "librechat", "0.8.4", "0.8.5", func(d *parse.Document) []finding.Finding { return (libreChatMCPOAuthResourceConfusion{}).Apply(d) }},
+		{"rtk rewrite", "rtk-rewrite-openclaw-execsync-injection", "@rtk-ai/rtk-rewrite", "1.0.0", "1.0.1", func(d *parse.Document) []finding.Finding { return (rtkRewriteOpenClawExecSyncInjection{}).Apply(d) }},
 	}
 
 	for _, tc := range tests {
