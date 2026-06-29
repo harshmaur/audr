@@ -15,6 +15,7 @@ type openclawLocalMediaRootSelfWhitelist struct{}
 type openclawDevicePairBootstrapScopeBypass struct{}
 type openclawSlackPluginApprovalGateBypass struct{}
 type openclawQQBotAdminPolicyBypass struct{}
+type openclawQQBotStreamingConfigBypass struct{}
 type openclawQQBotApprovalButtonBypass struct{}
 type openclawBrowserTabSSRFReuse struct{}
 type openclawGatewayChatSendScopeBypass struct{}
@@ -160,6 +161,25 @@ func (openclawQQBotAdminPolicyBypass) Formats() []parse.Format {
 }
 func (openclawQQBotAdminPolicyBypass) Apply(doc *parse.Document) []finding.Finding {
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawQQBotAdminPolicyBypassVersion, openclawQQBotAdminPolicyBypassFinding)
+}
+
+func (openclawQQBotStreamingConfigBypass) ID() string {
+	return "openclaw-qqbot-streaming-config-bypass"
+}
+func (openclawQQBotStreamingConfigBypass) Title() string {
+	return "OpenClaw version is vulnerable to QQBot streaming config authorization bypass"
+}
+func (openclawQQBotStreamingConfigBypass) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawQQBotStreamingConfigBypass) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawQQBotStreamingConfigBypass) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawQQBotStreamingConfigBypass) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawQQBotStreamingConfigBypassVersion, openclawQQBotStreamingConfigBypassFinding)
 }
 
 func (openclawQQBotApprovalButtonBypass) ID() string { return "openclaw-qqbot-approval-button-bypass" }
@@ -602,6 +622,9 @@ func vulnerableOpenClawSlackPluginApprovalGateBypassVersion(raw string) bool {
 func vulnerableOpenClawQQBotAdminPolicyBypassVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 4, 29})
 }
+func vulnerableOpenClawQQBotStreamingConfigBypassVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 4, 29})
+}
 func vulnerableOpenClawQQBotApprovalButtonBypassVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
 }
@@ -692,6 +715,9 @@ func openclawSlackPluginApprovalGateBypassFinding(path, match string) finding.Fi
 }
 func openclawQQBotAdminPolicyBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-qqbot-admin-policy-bypass", finding.SeverityMedium, "OpenClaw before 2026.4.29 bypasses QQBot admin command policy", "CVE-2026-34507: OpenClaw before 2026.4.29 lets QQBot admin commands skip DM-only and allowFrom policy checks for authenticated senders.", "Upgrade OpenClaw to 2026.4.29 or later and review QQBot admin command usage on affected deployments.", []string{"cve", "openclaw", "package-json", "qqbot", "policy-bypass"})
+}
+func openclawQQBotStreamingConfigBypassFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-qqbot-streaming-config-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.29 bypasses QQBot streaming config authorization", "CVE-2026-53833: OpenClaw before 2026.4.29 lets authenticated QQBot senders mutate streaming configuration without explicit non-wildcard allowFrom restrictions, allowing configuration changes outside intended admin policy.", "Upgrade OpenClaw to 2026.4.29 or later and review QQBot streaming configuration changes made on vulnerable deployments.", []string{"cve", "openclaw", "dependency-manifest", "qqbot", "config-mutation", "auth-bypass"})
 }
 func openclawQQBotApprovalButtonBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-qqbot-approval-button-bypass", finding.SeverityHigh, "OpenClaw before 2026.5.18 bypasses QQBot approval button identity checks", "CVE-2026-35630: OpenClaw before 2026.5.18 fails to enforce configured approver identity on QQBot native approval buttons.", "Upgrade OpenClaw to 2026.5.18 or later and review QQBot approval actions accepted by vulnerable versions.", []string{"cve", "openclaw", "package-json", "qqbot", "approval-bypass"})

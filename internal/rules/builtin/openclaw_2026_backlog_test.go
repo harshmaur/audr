@@ -23,6 +23,7 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"device pair", "openclaw-device-pair-bootstrap-scope-bypass", "2026.5.3", "2026.5.4", func(d *parse.Document) []finding.Finding { return (openclawDevicePairBootstrapScopeBypass{}).Apply(d) }},
 		{"slack plugin", "openclaw-slack-plugin-approval-gate-bypass", "2026.5.11", "2026.5.12", func(d *parse.Document) []finding.Finding { return (openclawSlackPluginApprovalGateBypass{}).Apply(d) }},
 		{"qqbot admin", "openclaw-qqbot-admin-policy-bypass", "2026.4.28", "2026.4.29", func(d *parse.Document) []finding.Finding { return (openclawQQBotAdminPolicyBypass{}).Apply(d) }},
+		{"qqbot streaming config", "openclaw-qqbot-streaming-config-bypass", "2026.4.28", "2026.4.29", func(d *parse.Document) []finding.Finding { return (openclawQQBotStreamingConfigBypass{}).Apply(d) }},
 		{"qqbot approval", "openclaw-qqbot-approval-button-bypass", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding { return (openclawQQBotApprovalButtonBypass{}).Apply(d) }},
 		{"browser ssrf", "openclaw-browser-tab-ssrf-reuse", "2026.4.28", "2026.4.29", func(d *parse.Document) []finding.Finding { return (openclawBrowserTabSSRFReuse{}).Apply(d) }},
 		{"gateway chat", "openclaw-gateway-chat-send-scope-bypass", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {

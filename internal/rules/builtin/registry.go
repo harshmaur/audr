@@ -150,6 +150,7 @@ func builtins() []rules.Rule {
 		openclawDevicePairBootstrapScopeBypass{},
 		openclawSlackPluginApprovalGateBypass{},
 		openclawQQBotAdminPolicyBypass{},
+		openclawQQBotStreamingConfigBypass{},
 		openclawQQBotApprovalButtonBypass{},
 		openclawBrowserTabSSRFReuse{},
 		openclawGatewayChatSendScopeBypass{},
