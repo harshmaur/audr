@@ -14,6 +14,7 @@ type cloudbaseMCPOpenURLSSRF struct{}
 type libreChatMCPAdminSecretResponseLeak struct{}
 type libreChatMCPOAuthResourceConfusion struct{}
 type rtkRewriteOpenClawExecSyncInjection struct{}
+type rtkPermissionSplitterShellBoundaryBypass struct{}
 
 func (xhsMCPMediaPathsSSRF) ID() string { return "xhs-mcp-media-paths-ssrf" }
 func (xhsMCPMediaPathsSSRF) Title() string {
@@ -99,6 +100,25 @@ func (rtkRewriteOpenClawExecSyncInjection) Apply(doc *parse.Document) []finding.
 	return dependencyVersionFinding(doc, isRTKRewritePackage, func(v string) bool { return vulnerableExactVersion(v, []int{1, 0, 0}) }, rtkRewriteOpenClawExecSyncInjectionFinding)
 }
 
+func (rtkPermissionSplitterShellBoundaryBypass) ID() string {
+	return "rtk-permission-splitter-shell-boundary-bypass"
+}
+func (rtkPermissionSplitterShellBoundaryBypass) Title() string {
+	return "rtk version is vulnerable to Claude hook permission splitter bypass"
+}
+func (rtkPermissionSplitterShellBoundaryBypass) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (rtkPermissionSplitterShellBoundaryBypass) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (rtkPermissionSplitterShellBoundaryBypass) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (rtkPermissionSplitterShellBoundaryBypass) Apply(doc *parse.Document) []finding.Finding {
+	return dependencyVersionFinding(doc, isRTKPackage, func(v string) bool { return vulnerableVersionBefore(v, []int{0, 42, 2}) }, rtkPermissionSplitterShellBoundaryBypassFinding)
+}
+
 func dependencyVersionFinding(doc *parse.Document, matchesPackage func(string) bool, vulnerable func(string) bool, makeFinding func(string, int, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -119,6 +139,10 @@ func isCloudBaseMCPPackage(name string) bool {
 }
 func isRTKRewritePackage(name string) bool {
 	return normalizePackageName(name) == "@rtk-ai/rtk-rewrite"
+}
+func isRTKPackage(name string) bool {
+	n := normalizePackageName(name)
+	return n == "rtk" || n == "@rtk-ai/rtk"
 }
 
 func normalizePackageName(name string) string {
@@ -225,5 +249,20 @@ func rtkRewriteOpenClawExecSyncInjectionFinding(path string, line int, match str
 		Match:        match,
 		SuggestedFix: "Remove @rtk-ai/rtk-rewrite 1.0.0 from OpenClaw/plugin manifests or upgrade to a fixed release that avoids shell-backed execSync interpolation.",
 		Tags:         []string{"cve", "openclaw", "rtk", "dependency-manifest", "command-injection"},
+	})
+}
+
+func rtkPermissionSplitterShellBoundaryBypassFinding(path string, line int, match string) finding.Finding {
+	return finding.New(finding.Args{
+		RuleID:       "rtk-permission-splitter-shell-boundary-bypass",
+		Severity:     finding.SeverityHigh,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "rtk before 0.42.2 can allow hidden shell commands through Claude hooks",
+		Description:  "CVE-2026-54555: rtk before 0.42.2 did not conservatively split or reject shell execution boundaries before returning permissionDecision: allow to Claude hook workflows, allowing a command with an approved prefix to hide a second shell command.",
+		Path:         path,
+		Line:         line,
+		Match:        match,
+		SuggestedFix: "Upgrade rtk to 0.42.2 or later and review Claude hook configurations that use rtk rewrite/permission filtering for shell commands.",
+		Tags:         []string{"cve", "rtk", "claude", "hooks", "dependency-manifest", "command-injection"},
 	})
 }

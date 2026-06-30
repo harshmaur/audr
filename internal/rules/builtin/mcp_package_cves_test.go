@@ -22,6 +22,9 @@ func TestMCPPackageCVEs_FlagVulnerablePackageAndAllowFixed(t *testing.T) {
 		{"librechat secret response", "librechat-mcp-admin-secret-response-leak", "librechat", "0.8.3", "0.8.4", func(d *parse.Document) []finding.Finding { return (libreChatMCPAdminSecretResponseLeak{}).Apply(d) }},
 		{"librechat oauth resource", "librechat-mcp-oauth-resource-confusion", "librechat", "0.8.4", "0.8.5", func(d *parse.Document) []finding.Finding { return (libreChatMCPOAuthResourceConfusion{}).Apply(d) }},
 		{"rtk rewrite", "rtk-rewrite-openclaw-execsync-injection", "@rtk-ai/rtk-rewrite", "1.0.0", "1.0.1", func(d *parse.Document) []finding.Finding { return (rtkRewriteOpenClawExecSyncInjection{}).Apply(d) }},
+		{"rtk permission splitter", "rtk-permission-splitter-shell-boundary-bypass", "@rtk-ai/rtk", "0.42.1", "0.42.2", func(d *parse.Document) []finding.Finding {
+			return (rtkPermissionSplitterShellBoundaryBypass{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {
