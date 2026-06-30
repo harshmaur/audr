@@ -93,6 +93,7 @@ func builtins() []rules.Rule {
 		libreChatMCPEnvSecretLeak{},
 		libreChatMCPAdminSecretResponseLeak{},
 		libreChatMCPOAuthResourceConfusion{},
+		flowiseCustomMCPMissingAuth{},
 		rtkRewriteOpenClawExecSyncInjection{},
 		rtkPermissionSplitterShellBoundaryBypass{},
 		xhsMCPMediaPathsSSRF{},
