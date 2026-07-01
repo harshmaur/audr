@@ -38,6 +38,7 @@ type openclawControlUIPairingLocalitySpoof struct{}
 type openclawSkillInstallHomebrewEnvOverride struct{}
 type openclawApprovalDisplayTruncation struct{}
 type openclawTrustedProxyIdentityHeaderForgery struct{}
+type openclawRetryEndpointHostnamePrefixBypass struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -584,6 +585,25 @@ func (openclawTrustedProxyIdentityHeaderForgery) Apply(doc *parse.Document) []fi
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawTrustedProxyIdentityHeaderForgeryVersion, openclawTrustedProxyIdentityHeaderForgeryFinding)
 }
 
+func (openclawRetryEndpointHostnamePrefixBypass) ID() string {
+	return "openclaw-retry-endpoint-hostname-prefix-bypass"
+}
+func (openclawRetryEndpointHostnamePrefixBypass) Title() string {
+	return "OpenClaw version is vulnerable to retry endpoint hostname-prefix validation bypass"
+}
+func (openclawRetryEndpointHostnamePrefixBypass) Severity() finding.Severity {
+	return finding.SeverityMedium
+}
+func (openclawRetryEndpointHostnamePrefixBypass) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawRetryEndpointHostnamePrefixBypass) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawRetryEndpointHostnamePrefixBypass) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawRetryEndpointHostnamePrefixBypassVersion, openclawRetryEndpointHostnamePrefixBypassFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -691,6 +711,9 @@ func vulnerableOpenClawApprovalDisplayTruncationVersion(raw string) bool {
 func vulnerableOpenClawTrustedProxyIdentityHeaderForgeryVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 18})
 }
+func vulnerableOpenClawRetryEndpointHostnamePrefixBypassVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 7})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -788,6 +811,10 @@ func openclawApprovalDisplayTruncationFinding(path, match string) finding.Findin
 
 func openclawTrustedProxyIdentityHeaderForgeryFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-trusted-proxy-identity-header-forgery", finding.SeverityHigh, "OpenClaw before 2026.5.18 accepts forged trusted-proxy identity headers", "CVE-2026-53832: OpenClaw before 2026.5.18 insufficiently validated trusted-proxy identity headers, allowing same-host callers that can reach the proxy-facing Gateway port to forge operator identity and escalate privileges.", "Upgrade OpenClaw to 2026.5.18 or later and review trusted-proxy/Gateway access logs and operator-scoped actions from affected deployments.", []string{"cve", "openclaw", "dependency-manifest", "trusted-proxy", "identity-forgery", "auth-bypass"})
+}
+
+func openclawRetryEndpointHostnamePrefixBypassFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-retry-endpoint-hostname-prefix-bypass", finding.SeverityMedium, "OpenClaw before 2026.5.7 accepts retry endpoint hostname prefixes", "CVE-2026-53839: OpenClaw before 2026.5.7 validates retry endpoints with hostname-prefix matching, allowing attacker-controlled hostnames that begin with an allowed hostname to pass policy and redirect agent retry traffic outside the intended endpoint.", "Upgrade OpenClaw to 2026.5.7 or later and review retry endpoint configuration and outbound retry traffic from vulnerable deployments.", []string{"cve", "openclaw", "dependency-manifest", "retry-endpoint", "hostname-validation", "ssrf"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {

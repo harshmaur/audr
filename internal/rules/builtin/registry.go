@@ -175,5 +175,6 @@ func builtins() []rules.Rule {
 		openclawSkillInstallHomebrewEnvOverride{},
 		openclawApprovalDisplayTruncation{},
 		openclawTrustedProxyIdentityHeaderForgery{},
+		openclawRetryEndpointHostnamePrefixBypass{},
 	}
 }

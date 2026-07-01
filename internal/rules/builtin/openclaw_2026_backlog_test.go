@@ -86,6 +86,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"trusted proxy identity header", "openclaw-trusted-proxy-identity-header-forgery", "2026.5.17", "2026.5.18", func(d *parse.Document) []finding.Finding {
 			return (openclawTrustedProxyIdentityHeaderForgery{}).Apply(d)
 		}},
+		{"retry endpoint hostname prefix", "openclaw-retry-endpoint-hostname-prefix-bypass", "2026.5.6", "2026.5.7", func(d *parse.Document) []finding.Finding {
+			return (openclawRetryEndpointHostnamePrefixBypass{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {
