@@ -25,6 +25,8 @@ func parseDependencyManifest(path string, raw []byte) (*DependencyManifest, erro
 		return parseGemfile(raw), nil
 	case "composer.json":
 		return parseComposerJSON(raw)
+	case "pnpm-lock.yaml":
+		return parsePNPMLock(raw), nil
 	default:
 		return nil, fmt.Errorf("dependency manifest parse: unsupported file %s", path)
 	}
@@ -203,6 +205,10 @@ func parseGemfile(raw []byte) *DependencyManifest {
 		m.Dependencies = append(m.Dependencies, Dependency{Name: strings.ToLower(match[1]), Version: version, Scope: "gem", Line: i + 1})
 	}
 	return m
+}
+
+func parsePNPMLock(raw []byte) *DependencyManifest {
+	return &DependencyManifest{Ecosystem: "npm"}
 }
 
 func parseComposerJSON(raw []byte) (*DependencyManifest, error) {

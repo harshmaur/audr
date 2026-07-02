@@ -10,6 +10,7 @@ func TestDetectFormatDependencyManifest(t *testing.T) {
 		"/repo/Cargo.toml",
 		"/repo/Gemfile",
 		"/repo/composer.json",
+		"/repo/pnpm-lock.yaml",
 	} {
 		if got := DetectFormat(path); got != FormatDependencyManifest {
 			t.Fatalf("DetectFormat(%s) = %q, want %q", path, got, FormatDependencyManifest)

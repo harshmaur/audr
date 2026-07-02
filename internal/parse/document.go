@@ -469,7 +469,7 @@ func DetectFormat(path string) Format {
 	}
 
 	switch base {
-	case "requirements.txt", "pyproject.toml", "go.mod", "Cargo.toml", "Gemfile", "composer.json":
+	case "requirements.txt", "pyproject.toml", "go.mod", "Cargo.toml", "Gemfile", "composer.json", "pnpm-lock.yaml":
 		return FormatDependencyManifest
 	}
 
