@@ -994,3 +994,53 @@ func TestRule_GoogleapisMCPToolboxLegacyProtocolScopeBypass(t *testing.T) {
 		})
 	}
 }
+
+// --- fast-mcp-telegram-bearer-token-path-traversal -------------------------
+
+func TestRule_FastMCPTelegramBearerTokenPathTraversal(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "uvx vulnerable package in HTTP mode fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"telegram":{"command":"uvx","args":["fast-mcp-telegram==0.19.0","--transport","http","--port","8765"]}}}`,
+			want: true,
+		},
+		{
+			name: "pinned vulnerable package with transport flag form fires",
+			path: "/test/.codex/config.toml",
+			body: `[mcp_servers.telegram]` + "\n" + `command = "python"` + "\n" + `args = ["-m", "fast-mcp-telegram==0.18.0", "--transport=streamable-http"]`,
+			want: true,
+		},
+		{
+			name: "fixed version does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"telegram":{"command":"uvx","args":["fast-mcp-telegram==0.19.1","--transport","http"]}}}`,
+			want: false,
+		},
+		{
+			name: "stdio-only vulnerable package does not fire this HTTP-token rule",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"telegram":{"command":"uvx","args":["fast-mcp-telegram==0.19.0"]}}}`,
+			want: false,
+		},
+		{
+			name: "disabled server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"telegram":{"command":"uvx","args":["fast-mcp-telegram==0.19.0","--transport","http"],"disabled":true}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "fast-mcp-telegram-bearer-token-path-traversal"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}

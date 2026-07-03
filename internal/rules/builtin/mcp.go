@@ -527,6 +527,7 @@ func mcpServerKubernetesAccessControlEnv(s parse.NormalizedMCPServer) (string, s
 // --- mcp-server-kubernetes-kubectl-flag-token-exfil ------------------------
 
 type mcpServerKubernetesKubectlFlagTokenExfil struct{}
+type fastMCPTelegramBearerTokenPathTraversal struct{}
 type chromeDevToolsMCPDaemonPidSymlink struct{}
 type githubMCPServerLockdownGlobalCache struct{}
 type mcpPinotUnauthHTTPDefault struct{}
@@ -626,6 +627,108 @@ func mcpServerKubernetesUsesKubeconfig(s parse.NormalizedMCPServer) bool {
 		}
 		if la == "--kubeconfig" && i+1 < len(s.Args) && strings.TrimSpace(s.Args[i+1]) != "" {
 			return true
+		}
+	}
+	return false
+}
+
+// --- fast-mcp-telegram-bearer-token-path-traversal -------------------------
+
+func (fastMCPTelegramBearerTokenPathTraversal) ID() string {
+	return "fast-mcp-telegram-bearer-token-path-traversal"
+}
+func (fastMCPTelegramBearerTokenPathTraversal) Title() string {
+	return "fast-mcp-telegram HTTP bearer tokens can traverse into the default Telegram session"
+}
+func (fastMCPTelegramBearerTokenPathTraversal) Severity() finding.Severity {
+	return finding.SeverityCritical
+}
+func (fastMCPTelegramBearerTokenPathTraversal) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (fastMCPTelegramBearerTokenPathTraversal) Formats() []parse.Format {
+	return parse.AllMCPFormats()
+}
+
+func (fastMCPTelegramBearerTokenPathTraversal) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled {
+			continue
+		}
+		pkg, version, ok := fastMCPTelegramPackageSpec(s)
+		if !ok || !vulnerableVersionBefore(version, []int{0, 19, 1}) {
+			continue
+		}
+		if !fastMCPTelegramHTTPMode(s) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "fast-mcp-telegram-bearer-token-path-traversal",
+			Severity:     finding.SeverityCritical,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "fast-mcp-telegram before 0.19.1 HTTP bearer tokens can select the legacy Telegram session",
+			Description:  fmt.Sprintf("CVE-2026-52830: server %q launches %s@%s in HTTP mode. fast-mcp-telegram before 0.19.1 joined the raw Bearer token into the session-file path, so path separators could traverse into the default ~/.config/fast-mcp-telegram/telegram.session legacy session and bypass the reserved token control.", s.Name, pkg, version),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s@%s args=%q", pkg, version, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade fast-mcp-telegram to 0.19.1 or later. Until upgraded, remove HTTP/Bearer-token mode from agent-accessible MCP configs, rotate Telegram session material, and avoid using the default legacy telegram.session with exposed HTTP transports.",
+			Tags:         []string{"cve", "fast-mcp-telegram", "mcp", "telegram", "authentication-bypass", "path-traversal"},
+		}))
+	}
+	return out
+}
+
+func fastMCPTelegramPackageSpec(s parse.NormalizedMCPServer) (pkg string, version string, ok bool) {
+	candidates := append([]string{s.Command}, s.Args...)
+	for _, raw := range candidates {
+		name, ver, matched := splitFastMCPTelegramPackageSpec(raw)
+		if matched {
+			return name, ver, true
+		}
+	}
+	return "", "", false
+}
+
+func splitFastMCPTelegramPackageSpec(raw string) (pkg string, version string, ok bool) {
+	s := strings.TrimSpace(strings.Trim(raw, "'\""))
+	for strings.HasPrefix(s, "npm:") {
+		s = strings.TrimPrefix(s, "npm:")
+	}
+	name := s
+	ver := ""
+	if i := strings.LastIndex(s, "=="); i > 0 {
+		name = s[:i]
+		ver = s[i+2:]
+	} else if i := strings.LastIndex(s, "@"); i > 0 {
+		name = s[:i]
+		ver = s[i+1:]
+	}
+	normalized := strings.ToLower(strings.ReplaceAll(name, "_", "-"))
+	if normalized == "fast-mcp-telegram" {
+		return normalized, ver, true
+	}
+	return "", "", false
+}
+
+func fastMCPTelegramHTTPMode(s parse.NormalizedMCPServer) bool {
+	for i, arg := range s.Args {
+		la := strings.ToLower(strings.TrimSpace(arg))
+		if la == "--http" || la == "http" || la == "serve-http" || la == "server-http" {
+			return true
+		}
+		if strings.HasPrefix(la, "--http=") || strings.HasPrefix(la, "--host=") || strings.HasPrefix(la, "--port=") || strings.HasPrefix(la, "--transport=http") || strings.HasPrefix(la, "--transport=streamable-http") {
+			return true
+		}
+		if la == "--transport" && i+1 < len(s.Args) {
+			next := strings.ToLower(strings.TrimSpace(s.Args[i+1]))
+			if next == "http" || next == "streamable-http" {
+				return true
+			}
 		}
 	}
 	return false
