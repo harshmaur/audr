@@ -32,6 +32,7 @@ func TestDetectFormat(t *testing.T) {
 		{`C:\Users\harsh\Documents\WindowsPowerShell\Microsoft.VSCode_profile.ps1`, FormatPowerShellProfile},
 		{"/repo/.env", FormatEnv},
 		{"/repo/.env.local", FormatEnv},
+		{"/repo/.tool-versions", FormatMiseToolVersions},
 		{"/repo/random.txt", FormatUnknown},
 		{"/repo/README.md", FormatUnknown},
 	}

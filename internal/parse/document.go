@@ -29,6 +29,7 @@ const (
 	FormatReleaseAgeConfig      Format = "release-age-config"       // package-manager/dependency-bot release-age cooldown configs
 	FormatAPMPluginManifest     Format = "apm-plugin-manifest"      // Microsoft APM plugin.json component manifests
 	FormatGitConfig             Format = "git-config"               // bare/nested git config files with executable hooks/helpers
+	FormatMiseToolVersions      Format = "mise-tool-versions"       // .tool-versions dev-tool install/version config
 	FormatMiniShaiHuludArtifact Format = "mini-shai-hulud-artifact" // known local IOC/persistence files
 	FormatUnknown               Format = ""
 )
@@ -466,6 +467,9 @@ func DetectFormat(path string) Format {
 	}
 	if isGitConfigPath(normalized, base, dir) {
 		return FormatGitConfig
+	}
+	if base == ".tool-versions" {
+		return FormatMiseToolVersions
 	}
 
 	switch base {

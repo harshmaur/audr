@@ -128,6 +128,7 @@ func builtins() []rules.Rule {
 		// Dependency supply-chain hardening rules.
 		dependencyMinimumReleaseAgeMissing{},
 		pnpmLockfileMissingIntegrity{},
+		miseHTTPBackendSymlinkEscape{},
 
 		// package.json OpenClaw version posture rules.
 		openclawUnboundBootstrapSetupCode{},
