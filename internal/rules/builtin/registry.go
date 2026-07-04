@@ -114,6 +114,7 @@ func builtins() []rules.Rule {
 		hermesAgentSkillsGuardMultiwordPatterns{},
 		libreChatAPIKeysUserIDIDOR{},
 		aiderMCPWorkingDirEditableFilesCommandInjection{},
+		angularLanguageServiceTrustedMarkdownCommandURI{},
 		claudeHUDComspecCommandInjection{},
 		claudeHUDOSC8TerminalInjection{},
 		miniShaiHuludMaliciousOptionalDependency{},

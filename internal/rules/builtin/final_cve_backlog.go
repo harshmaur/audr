@@ -15,6 +15,7 @@ type junoClawPluginShellShCAgentCommand struct{}
 type hermesAgentSkillsGuardMultiwordPatterns struct{}
 type libreChatAPIKeysUserIDIDOR struct{}
 type aiderMCPWorkingDirEditableFilesCommandInjection struct{}
+type angularLanguageServiceTrustedMarkdownCommandURI struct{}
 
 func (anythingLLMFilesystemRGOptionInjection) ID() string {
 	return "anythingllm-filesystem-rg-option-injection"
@@ -149,6 +150,28 @@ func (aiderMCPWorkingDirEditableFilesCommandInjection) Apply(doc *parse.Document
 	return out
 }
 
+func (angularLanguageServiceTrustedMarkdownCommandURI) ID() string {
+	return "angular-language-service-trusted-markdown-command-uri"
+}
+func (angularLanguageServiceTrustedMarkdownCommandURI) Title() string {
+	return "Angular Language Service VS Code extension trusts hover Markdown commands"
+}
+func (angularLanguageServiceTrustedMarkdownCommandURI) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (angularLanguageServiceTrustedMarkdownCommandURI) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (angularLanguageServiceTrustedMarkdownCommandURI) Formats() []parse.Format {
+	return []parse.Format{parse.FormatPackageJSON}
+}
+func (angularLanguageServiceTrustedMarkdownCommandURI) Apply(doc *parse.Document) []finding.Finding {
+	if doc.PackageJSON == nil || !isAngularLanguageServiceVSCodeExtension(doc) || !vulnerableVersionBefore(doc.PackageJSON.Version, []int{21, 2, 4}) {
+		return nil
+	}
+	return []finding.Finding{angularLanguageServiceTrustedMarkdownCommandURIFinding(doc.Path, packageJSONVersionLine(doc), fmt.Sprintf("%s@%s", doc.PackageJSON.Name, doc.PackageJSON.Version))}
+}
+
 func isAnythingLLMPackage(name string) bool {
 	n := normalizePackageName(name)
 	return n == "anything-llm" || n == "anythingllm"
@@ -173,6 +196,30 @@ func looksLikeAiderMCPGitHubSource(s parse.NormalizedMCPServer) bool {
 	return strings.Contains(joined, "github.com/eiliyaabedini/aider-mcp") || strings.Contains(joined, "eiliyaabedini/aider-mcp")
 }
 
+func isAngularLanguageServiceVSCodeExtension(doc *parse.Document) bool {
+	if doc.PackageJSON == nil {
+		return false
+	}
+	name := normalizePackageName(doc.PackageJSON.Name)
+	if name != "ng-template" && name != "@angular/language-service" && name != "@angular/language-server" {
+		return false
+	}
+	raw := strings.ToLower(string(doc.Raw))
+	if name == "ng-template" {
+		return strings.Contains(raw, `"publisher"`) && strings.Contains(raw, "angular") && strings.Contains(raw, "language service")
+	}
+	return strings.Contains(raw, "angular") && strings.Contains(raw, "language service")
+}
+
+func packageJSONVersionLine(doc *parse.Document) int {
+	for i, line := range strings.Split(string(doc.Raw), "\n") {
+		if strings.Contains(line, `"version"`) {
+			return i + 1
+		}
+	}
+	return 1
+}
+
 func anythingLLMFilesystemRGOptionInjectionFinding(path string, line int, match string) finding.Finding {
 	return finding.New(finding.Args{RuleID: "anythingllm-filesystem-rg-option-injection", Severity: finding.SeverityHigh, Taxonomy: finding.TaxDetectable, Title: "AnythingLLM before 1.13.0 allows filesystem-search rg option injection", Description: "CVE-2026-48116: AnythingLLM before 1.13.0 passes agent-controlled filesystem-search terms to ripgrep in a way that can be abused as option injection.", Path: path, Line: line, Match: match, SuggestedFix: "Upgrade AnythingLLM to 1.13.0 or later and review filesystem-search tool exposure to untrusted prompts.", Tags: []string{"cve", "anythingllm", "dependency-manifest", "option-injection"}})
 }
@@ -195,4 +242,8 @@ func hermesAgentSkillsGuardMultiwordPatternsFinding(path string, line int, match
 
 func libreChatAPIKeysUserIDIDORFinding(path string, line int, match string) finding.Finding {
 	return finding.New(finding.Args{RuleID: "librechat-api-keys-userid-idor", Severity: finding.SeverityHigh, Taxonomy: finding.TaxDetectable, Title: "LibreChat before 0.8.3 is vulnerable to API key userId IDOR", Description: "CVE-2026-31942: LibreChat versions through 0.7.6 allowed API key update requests to carry userId fields that could target other users' keys. Fixed releases sanitize the request body before updateUserKey.", Path: path, Line: line, Match: match, SuggestedFix: "Upgrade LibreChat to 0.8.3-rc1 / 0.8.3 or later and rotate API keys that may have been exposed or modified.", Tags: []string{"cve", "librechat", "dependency-manifest", "idor"}})
+}
+
+func angularLanguageServiceTrustedMarkdownCommandURIFinding(path string, line int, match string) finding.Finding {
+	return finding.New(finding.Args{RuleID: "angular-language-service-trusted-markdown-command-uri", Severity: finding.SeverityHigh, Taxonomy: finding.TaxDetectable, Title: "Angular Language Service before 21.2.4 trusts hover Markdown command URIs", Description: "CVE-2026-50178: Angular Language Service VS Code extension versions before 21.2.4 render language-server hover Markdown with isTrusted enabled, allowing malicious project or dependency JSDoc to present command: URIs that execute on the developer host when clicked.", Path: path, Line: line, Match: match, SuggestedFix: "Upgrade the Angular Language Service VS Code extension to 21.2.4 or later and treat untrusted project hovers as unsafe until upgraded.", Tags: []string{"cve", "angular", "vscode-extension", "command-uri", "developer-tool"}})
 }

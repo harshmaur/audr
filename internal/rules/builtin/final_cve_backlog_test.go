@@ -60,6 +60,38 @@ func TestAiderMCPWorkingDirEditableFilesCommandInjection(t *testing.T) {
 	}
 }
 
+func TestAngularLanguageServiceTrustedMarkdownCommandURI(t *testing.T) {
+	rule := angularLanguageServiceTrustedMarkdownCommandURI{}
+	doc := parse.Parse("/home/u/.vscode/extensions/angular.ng-template-21.2.3/package.json", []byte(`{
+		"name": "ng-template",
+		"displayName": "Angular Language Service",
+		"publisher": "Angular",
+		"version": "21.2.3"
+	}`))
+	findings := rule.Apply(doc)
+	if len(findings) != 1 {
+		t.Fatalf("got %d findings, want 1", len(findings))
+	}
+	if findings[0].RuleID != "angular-language-service-trusted-markdown-command-uri" {
+		t.Fatalf("rule id = %q", findings[0].RuleID)
+	}
+
+	fixed := parse.Parse("/home/u/.vscode/extensions/angular.ng-template-21.2.4/package.json", []byte(`{
+		"name": "ng-template",
+		"displayName": "Angular Language Service",
+		"publisher": "Angular",
+		"version": "21.2.4"
+	}`))
+	if findings := rule.Apply(fixed); len(findings) != 0 {
+		t.Fatalf("got %d findings for fixed extension, want 0", len(findings))
+	}
+
+	unrelated := parse.Parse("/repo/package.json", []byte(`{"name":"ng-template","version":"21.2.3"}`))
+	if findings := rule.Apply(unrelated); len(findings) != 0 {
+		t.Fatalf("got %d findings for unrelated package, want 0", len(findings))
+	}
+}
+
 func backlogManifestDoc(path, name, version string) *parse.Document {
 	switch path {
 	case "pyproject.toml":
