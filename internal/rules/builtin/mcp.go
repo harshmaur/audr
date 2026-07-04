@@ -529,6 +529,7 @@ func mcpServerKubernetesAccessControlEnv(s parse.NormalizedMCPServer) (string, s
 type mcpServerKubernetesKubectlFlagTokenExfil struct{}
 type fastMCPTelegramBearerTokenPathTraversal struct{}
 type chromeDevToolsMCPDaemonPidSymlink struct{}
+type chromeDevToolsMCPRootsSymlinkEscape struct{}
 type githubMCPServerLockdownGlobalCache struct{}
 type mcpPinotUnauthHTTPDefault struct{}
 type googleapisMCPToolboxLegacyProtocolScopeBypass struct{}
@@ -817,6 +818,62 @@ func vulnerableChromeDevToolsMCPDaemonVersion(raw string) bool {
 		return false
 	}
 	return compareVersionParts(m, []int{0, 20, 0}) >= 0 && vulnerableVersionBefore(raw, []int{1, 1, 0})
+}
+
+// --- chrome-devtools-mcp-roots-symlink-escape -------------------------------
+
+func (chromeDevToolsMCPRootsSymlinkEscape) ID() string {
+	return "chrome-devtools-mcp-roots-symlink-escape"
+}
+func (chromeDevToolsMCPRootsSymlinkEscape) Title() string {
+	return "Chrome DevTools MCP roots can be escaped through symlinks"
+}
+func (chromeDevToolsMCPRootsSymlinkEscape) Severity() finding.Severity {
+	return finding.SeverityMedium
+}
+func (chromeDevToolsMCPRootsSymlinkEscape) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (chromeDevToolsMCPRootsSymlinkEscape) Formats() []parse.Format {
+	return parse.AllMCPFormats()
+}
+
+func (chromeDevToolsMCPRootsSymlinkEscape) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled {
+			continue
+		}
+		pkg, version, ok := chromeDevToolsMCPPackageSpec(s)
+		if !ok || !vulnerableChromeDevToolsMCPRootsVersion(version) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "chrome-devtools-mcp-roots-symlink-escape",
+			Severity:     finding.SeverityMedium,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "chrome-devtools-mcp before 1.1.0 can escape MCP roots through symlinks",
+			Description:  fmt.Sprintf("CVE-2026-53766: server %q launches %s@%s. chrome-devtools-mcp versions from 0.24.0 before 1.1.0 validated workspace roots using path.resolve() instead of canonical filesystem paths, so a symlink inside an allowed root could let agent file tools read or write outside the intended workspace boundary.", s.Name, pkg, version),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s@%s args=%q", pkg, version, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade chrome-devtools-mcp to 1.1.0 or later. Until upgraded, remove the server from agent configs or avoid exposing file/workspace tools to untrusted pages or prompt-controlled sessions.",
+			Tags:         []string{"cve", "chrome-devtools-mcp", "mcp", "symlink", "workspace-escape", "file-write"},
+		}))
+	}
+	return out
+}
+
+func vulnerableChromeDevToolsMCPRootsVersion(raw string) bool {
+	m := packageVersionRE.FindString(strings.TrimSpace(raw))
+	if m == "" {
+		return false
+	}
+	return compareVersionParts(m, []int{0, 24, 0}) >= 0 && vulnerableVersionBefore(raw, []int{1, 1, 0})
 }
 
 // --- line-desktop-mcp-unauth-http-mode -------------------------------------

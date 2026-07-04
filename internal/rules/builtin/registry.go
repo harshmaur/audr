@@ -40,6 +40,7 @@ func builtins() []rules.Rule {
 		mcpServerKubernetesKubectlFlagTokenExfil{},
 		fastMCPTelegramBearerTokenPathTraversal{},
 		chromeDevToolsMCPDaemonPidSymlink{},
+		chromeDevToolsMCPRootsSymlinkEscape{},
 		githubMCPServerLockdownGlobalCache{},
 		lineDesktopMCPUnauthHTTPMode{},
 		windowsMCPUnauthHTTPCORS{},

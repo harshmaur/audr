@@ -665,6 +665,68 @@ func TestRule_ChromeDevToolsMCPDaemonPidSymlink(t *testing.T) {
 	}
 }
 
+// --- chrome-devtools-mcp-roots-symlink-escape -------------------------------
+
+func TestRule_ChromeDevToolsMCPRootsSymlinkEscape(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "vulnerable roots version fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"devtools":{"command":"npx","args":["chrome-devtools-mcp@1.0.0"]}}}`,
+			want: true,
+		},
+		{
+			name: "npm prefix form fires",
+			path: "/test/.codex/config.toml",
+			body: `[mcp_servers.devtools]` + "\n" + `command = "npx"` + "\n" + `args = ["npm:chrome-devtools-mcp@0.24.0"]`,
+			want: true,
+		},
+		{
+			name: "fixed version does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"devtools":{"command":"npx","args":["chrome-devtools-mcp@1.1.0"]}}}`,
+			want: false,
+		},
+		{
+			name: "pre-vulnerable version does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"devtools":{"command":"npx","args":["chrome-devtools-mcp@0.23.9"]}}}`,
+			want: false,
+		},
+		{
+			name: "unpinned package does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"devtools":{"command":"npx","args":["chrome-devtools-mcp"]}}}`,
+			want: false,
+		},
+		{
+			name: "disabled server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"devtools":{"command":"npx","args":["chrome-devtools-mcp@1.0.0"],"disabled":true}}}`,
+			want: false,
+		},
+		{
+			name: "unrelated package does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"filesystem":{"command":"npx","args":["@modelcontextprotocol/server-filesystem@1.0.0"]}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "chrome-devtools-mcp-roots-symlink-escape"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}
+
 // --- line-desktop-mcp-unauth-http-mode -------------------------------------
 
 func TestRule_LineDesktopMCPUnauthHTTPMode(t *testing.T) {
