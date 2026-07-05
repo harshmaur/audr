@@ -1106,3 +1106,47 @@ func TestRule_FastMCPTelegramBearerTokenPathTraversal(t *testing.T) {
 		})
 	}
 }
+
+// --- kong-konnect-mcp-prompt-injection -------------------------------------
+
+func TestRule_KongKonnectMCPPromptInjection(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "vulnerable npx package with Konnect token fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"kong-konnect":{"command":"npx","args":["kong-konnect-mcp@0.9.0"],"env":{"KONNECT_ACCESS_TOKEN":"kpat_test","KONNECT_REGION":"us"}}}}`,
+			want: true,
+		},
+		{
+			name: "fixed package does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"kong-konnect":{"command":"npx","args":["kong-konnect-mcp@1.0.0"],"env":{"KONNECT_ACCESS_TOKEN":"kpat_test"}}}}`,
+			want: false,
+		},
+		{
+			name: "vulnerable package without token is not active Konnect posture",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"kong-konnect":{"command":"npx","args":["kong-konnect-mcp@0.9.0"]}}}`,
+			want: false,
+		},
+		{
+			name: "disabled server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"kong-konnect":{"command":"npx","args":["kong-konnect-mcp@0.9.0"],"env":{"KONNECT_ACCESS_TOKEN":"kpat_test"},"disabled":true}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "kong-konnect-mcp-prompt-injection"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}

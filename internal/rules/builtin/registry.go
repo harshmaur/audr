@@ -42,6 +42,7 @@ func builtins() []rules.Rule {
 		chromeDevToolsMCPDaemonPidSymlink{},
 		chromeDevToolsMCPRootsSymlinkEscape{},
 		githubMCPServerLockdownGlobalCache{},
+		kongKonnectMCPPromptInjection{},
 		lineDesktopMCPUnauthHTTPMode{},
 		windowsMCPUnauthHTTPCORS{},
 		mcpPinotUnauthHTTPDefault{},

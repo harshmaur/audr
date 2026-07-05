@@ -531,6 +531,7 @@ type fastMCPTelegramBearerTokenPathTraversal struct{}
 type chromeDevToolsMCPDaemonPidSymlink struct{}
 type chromeDevToolsMCPRootsSymlinkEscape struct{}
 type githubMCPServerLockdownGlobalCache struct{}
+type kongKonnectMCPPromptInjection struct{}
 type mcpPinotUnauthHTTPDefault struct{}
 type googleapisMCPToolboxLegacyProtocolScopeBypass struct{}
 type networkAIMCPSSEEmptySecret struct{}
@@ -613,6 +614,99 @@ func splitMCPServerKubernetesPackageSpec(raw string) (pkg string, version string
 		return normalized, ver, true
 	}
 	return "", "", false
+}
+
+// --- kong-konnect-mcp-prompt-injection -------------------------------------
+
+func (kongKonnectMCPPromptInjection) ID() string {
+	return "kong-konnect-mcp-prompt-injection"
+}
+func (kongKonnectMCPPromptInjection) Title() string {
+	return "Kong Konnect MCP server can return untrusted analytics content to agents"
+}
+func (kongKonnectMCPPromptInjection) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (kongKonnectMCPPromptInjection) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (kongKonnectMCPPromptInjection) Formats() []parse.Format {
+	return parse.AllMCPFormats()
+}
+
+func (kongKonnectMCPPromptInjection) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled {
+			continue
+		}
+		pkg, version, ok := kongKonnectMCPPackageSpec(s)
+		if !ok || !vulnerableVersionBefore(version, []int{1, 0, 0}) {
+			continue
+		}
+		tokenName, hasToken := kongKonnectMCPTokenEnv(s)
+		if !hasToken {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "kong-konnect-mcp-prompt-injection",
+			Severity:     finding.SeverityHigh,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "Kong Konnect MCP server before 1.0.0 exposes agent prompt-injection posture",
+			Description:  fmt.Sprintf("CVE-2026-13341: server %q invokes %s before 1.0.0 with %s configured. Vulnerable Kong Konnect MCP versions returned unneutralized analytics and configuration data to AI agents and could construct unintended Konnect API paths with the user's token.", s.Name, pkg, tokenName),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s@%s env=%s", pkg, version, tokenName),
+			SuggestedFix: "Upgrade kong-konnect-mcp to 1.0.0 or later. Until upgraded, remove the server from agent configs or restrict it to sandboxed clients with egress controls and no raw plugin configuration exposure.",
+			Tags:         []string{"cve", "kong-konnect-mcp", "mcp", "prompt-injection", "credential-exposure"},
+		}))
+	}
+	return out
+}
+
+func kongKonnectMCPPackageSpec(s parse.NormalizedMCPServer) (pkg string, version string, ok bool) {
+	candidates := append([]string{s.Command}, s.Args...)
+	for _, raw := range candidates {
+		name, ver, matched := splitKongKonnectMCPPackageSpec(raw)
+		if matched {
+			return name, ver, true
+		}
+	}
+	return "", "", false
+}
+
+func splitKongKonnectMCPPackageSpec(raw string) (pkg string, version string, ok bool) {
+	s := strings.TrimSpace(strings.Trim(raw, "'\""))
+	for strings.HasPrefix(s, "npm:") {
+		s = strings.TrimPrefix(s, "npm:")
+	}
+	name := s
+	ver := ""
+	if i := strings.LastIndex(s, "=="); i > 0 {
+		name = s[:i]
+		ver = s[i+2:]
+	} else if i := strings.LastIndex(s, "@"); i > 0 {
+		name = s[:i]
+		ver = s[i+1:]
+	}
+	normalized := strings.ToLower(strings.ReplaceAll(name, "_", "-"))
+	if normalized == "kong-konnect-mcp" {
+		return normalized, ver, true
+	}
+	return "", "", false
+}
+
+func kongKonnectMCPTokenEnv(s parse.NormalizedMCPServer) (string, bool) {
+	for k, v := range s.Env {
+		if strings.EqualFold(k, "KONNECT_ACCESS_TOKEN") && strings.TrimSpace(v) != "" {
+			return k, true
+		}
+	}
+	return "", false
 }
 
 func mcpServerKubernetesUsesKubeconfig(s parse.NormalizedMCPServer) bool {
