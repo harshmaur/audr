@@ -10,6 +10,7 @@ import (
 )
 
 type pnpmLockfileMissingIntegrity struct{}
+type pnpmUnscopedAuthTokenRegistryForwarding struct{}
 
 func (pnpmLockfileMissingIntegrity) ID() string { return "pnpm-lockfile-missing-integrity" }
 func (pnpmLockfileMissingIntegrity) Title() string {
@@ -103,4 +104,68 @@ func summarizePNPMResolution(lines []string) string {
 		return "resolution missing integrity"
 	}
 	return fmt.Sprintf("%s (missing integrity)", strings.TrimSpace(lines[0]))
+}
+
+func (pnpmUnscopedAuthTokenRegistryForwarding) ID() string {
+	return "pnpm-unscoped-auth-token-registry-forwarding"
+}
+func (pnpmUnscopedAuthTokenRegistryForwarding) Title() string {
+	return "pnpm can forward an unscoped npm token to a repository registry"
+}
+func (pnpmUnscopedAuthTokenRegistryForwarding) Severity() finding.Severity {
+	return finding.SeverityMedium
+}
+func (pnpmUnscopedAuthTokenRegistryForwarding) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (pnpmUnscopedAuthTokenRegistryForwarding) Formats() []parse.Format {
+	return []parse.Format{parse.FormatReleaseAgeConfig}
+}
+
+func (pnpmUnscopedAuthTokenRegistryForwarding) Apply(doc *parse.Document) []finding.Finding {
+	if filepath.Base(filepath.ToSlash(doc.Path)) != ".npmrc" {
+		return nil
+	}
+	tokenLine, tokenMatch := firstUnscopedNPMAuthTokenLine(string(doc.Raw))
+	if tokenLine == 0 || !npmrcSetsRegistry(string(doc.Raw)) {
+		return nil
+	}
+	return []finding.Finding{finding.New(finding.Args{
+		RuleID:       "pnpm-unscoped-auth-token-registry-forwarding",
+		Severity:     finding.SeverityMedium,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        ".npmrc combines a registry override with an unscoped auth token",
+		Description:  "CVE-2026-50017: pnpm before 10.34.0 / 11.4.0 could bind user-level unscoped npm credentials to a repository-selected registry. A .npmrc that combines registry= with _authToken= is the local posture that can leak credentials when vulnerable pnpm versions are used.",
+		Path:         doc.Path,
+		Line:         tokenLine,
+		Match:        tokenMatch,
+		SuggestedFix: "Upgrade pnpm to 10.34.0 / 11.4.0 or later. Remove unscoped _authToken entries and scope tokens to their intended registry host, for example //registry.npmjs.org/:_authToken=..., before running pnpm in untrusted workspaces.",
+		Tags:         []string{"cve", "pnpm", "npmrc", "credential-leak", "registry"},
+	})}
+}
+
+func firstUnscopedNPMAuthTokenLine(raw string) (int, string) {
+	for i, line := range strings.Split(raw, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, ";") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "_authToken=") {
+			return i + 1, "_authToken=<redacted>"
+		}
+	}
+	return 0, ""
+}
+
+func npmrcSetsRegistry(raw string) bool {
+	for _, line := range strings.Split(raw, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, ";") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "registry=") {
+			return true
+		}
+	}
+	return false
 }
