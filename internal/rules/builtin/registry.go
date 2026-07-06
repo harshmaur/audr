@@ -98,6 +98,7 @@ func builtins() []rules.Rule {
 		libreChatMCPOAuthResourceConfusion{},
 		presentonMCPAuthBypass{},
 		flowiseCustomMCPMissingAuth{},
+		flowiseCustomMCPEnvCaseBypass{},
 		rtkRewriteOpenClawExecSyncInjection{},
 		rtkPermissionSplitterShellBoundaryBypass{},
 		xhsMCPMediaPathsSSRF{},
