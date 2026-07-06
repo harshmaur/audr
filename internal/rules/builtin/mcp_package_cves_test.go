@@ -25,6 +25,9 @@ func TestMCPPackageCVEs_FlagVulnerablePackageAndAllowFixed(t *testing.T) {
 		{"rtk permission splitter", "rtk-permission-splitter-shell-boundary-bypass", "@rtk-ai/rtk", "0.42.1", "0.42.2", func(d *parse.Document) []finding.Finding {
 			return (rtkPermissionSplitterShellBoundaryBypass{}).Apply(d)
 		}},
+		{"claude code worktree git confusion", "claude-code-worktree-git-confusion", "@anthropic-ai/claude-code", "2.1.163", "2.1.164", func(d *parse.Document) []finding.Finding {
+			return (claudeCodeWorktreeGitConfusion{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {
@@ -45,5 +48,20 @@ func TestMCPPackageCVEs_FlagVulnerablePackageAndAllowFixed(t *testing.T) {
 				t.Fatalf("got %d findings, want 0", len(findings))
 			}
 		})
+	}
+}
+
+func TestClaudeCodeWorktreeGitConfusionVersionRange(t *testing.T) {
+	if vulnerableClaudeCodeWorktreeGitConfusionVersion("2.1.37") {
+		t.Fatal("2.1.37 is below the vulnerable introduced version")
+	}
+	if !vulnerableClaudeCodeWorktreeGitConfusionVersion("2.1.38") {
+		t.Fatal("2.1.38 should be vulnerable")
+	}
+	if !vulnerableClaudeCodeWorktreeGitConfusionVersion("^2.1.100") {
+		t.Fatal("2.1.100 should be vulnerable even with a range prefix")
+	}
+	if vulnerableClaudeCodeWorktreeGitConfusionVersion("2.1.164") {
+		t.Fatal("2.1.164 should be fixed")
 	}
 }

@@ -116,6 +116,7 @@ func builtins() []rules.Rule {
 		libreChatAPIKeysUserIDIDOR{},
 		aiderMCPWorkingDirEditableFilesCommandInjection{},
 		angularLanguageServiceTrustedMarkdownCommandURI{},
+		claudeCodeWorktreeGitConfusion{},
 		claudeHUDComspecCommandInjection{},
 		claudeHUDOSC8TerminalInjection{},
 		miniShaiHuludMaliciousOptionalDependency{},
