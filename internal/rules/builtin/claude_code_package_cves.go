@@ -33,7 +33,7 @@ func vulnerableClaudeCodeWorktreeGitConfusionVersion(raw string) bool {
 	if m == "" {
 		return false
 	}
-	return compareVersionParts(m, []int{2, 1, 38}) >= 0 && compareVersionParts(m, []int{2, 1, 164}) < 0
+	return compareVersionParts(m, []int{2, 1, 38}) >= 0 && compareVersionParts(m, []int{2, 1, 163}) < 0
 }
 
 func claudeCodeWorktreeGitConfusionFinding(path string, line int, match string) finding.Finding {
@@ -41,12 +41,12 @@ func claudeCodeWorktreeGitConfusionFinding(path string, line int, match string) 
 		RuleID:       "claude-code-worktree-git-confusion",
 		Severity:     finding.SeverityHigh,
 		Taxonomy:     finding.TaxDetectable,
-		Title:        "Claude Code 2.1.38 through 2.1.163 allows worktree Git directory confusion",
-		Description:  "CVE-2026-55607: Claude Code versions 2.1.38 through 2.1.163 mishandled worktrees named .git and worktrees outside the sandbox context, enabling Git directory confusion attacks through symlink manipulation and executable Git helper configuration.",
+		Title:        "Claude Code 2.1.38 through 2.1.162 allows worktree Git directory confusion",
+		Description:  "CVE-2026-55607: Claude Code versions 2.1.38 before 2.1.163 mishandled worktrees named .git and worktrees outside the sandbox context, enabling Git directory confusion attacks through symlink manipulation and executable Git helper configuration.",
 		Path:         path,
 		Line:         line,
 		Match:        match,
-		SuggestedFix: "Upgrade @anthropic-ai/claude-code to 2.1.164 or later and audit any repositories opened with vulnerable Claude Code versions for unexpected worktrees, symlinks, and executable Git helper configuration.",
+		SuggestedFix: "Upgrade @anthropic-ai/claude-code to 2.1.163 or later and audit any repositories opened with vulnerable Claude Code versions for unexpected worktrees, symlinks, and executable Git helper configuration.",
 		Tags:         []string{"cve", "claude-code", "dependency-manifest", "git-config", "sandbox-escape"},
 	})
 }
