@@ -78,25 +78,25 @@ func Defaults() []string {
 		// dirs that are 100%-cache: skipping them whole is safe (the
 		// user's actual code lives in ~/code or ~/projects, not in
 		// these tool-internal dirs).
-		".bun",         // Bun's install cache + globals
-		".pnpm-store",  // pnpm global content-addressed cache
-		".yarn",        // Yarn's cache + global/install state
-		".deno",        // Deno's module cache
-		".gem",         // RubyGems user cache
-		".m2",          // Maven local repository
-		".gradle",      // Gradle build + dependency cache
-		".cargo",       // Rust crates cache (registry + git + bin)
+		".bun",        // Bun's install cache + globals
+		".pnpm-store", // pnpm global content-addressed cache
+		".yarn",       // Yarn's cache + global/install state
+		".deno",       // Deno's module cache
+		".gem",        // RubyGems user cache
+		".m2",         // Maven local repository
+		".gradle",     // Gradle build + dependency cache
+		".cargo",      // Rust crates cache (registry + git + bin)
 
 		// Multi-segment cache paths (sub-paths within larger dirs the
 		// user might legitimately also have CODE in — e.g., ~/go has
 		// both pkg/mod (cache) AND src (potentially user repos)).
-		"go/pkg",                       // Go module cache
-		".npm/_cacache",                // npm install cache (keep .npm/global)
-		".npm/_npx",                    // npx ephemeral package extracts — rotate on every `npx <pkg>` run
-		".npm/_logs",                   // npm debug logs — rotate on every install/error
-		".gradle/caches",               // explicit second match in case .gradle isn't matched at root
-		"Library/Caches",               // macOS user caches
-		"AppData/Local/Temp",           // Windows user temp
+		"go/pkg",             // Go module cache
+		".npm/_cacache",      // npm install cache (keep .npm/global)
+		".npm/_npx",          // npx ephemeral package extracts — rotate on every `npx <pkg>` run
+		".npm/_logs",         // npm debug logs — rotate on every install/error
+		".gradle/caches",     // explicit second match in case .gradle isn't matched at root
+		"Library/Caches",     // macOS user caches
+		"AppData/Local/Temp", // Windows user temp
 		"AppData/Local/Microsoft/Windows/INetCache",
 
 		// audr's own SQLite state directory. Scanning it triggers a
@@ -164,10 +164,10 @@ func Defaults() []string {
 func BinaryFileExtensions() []string {
 	return []string{
 		// Mobile build outputs
-		"apk",   // Android package
-		"aab",   // Android App Bundle
-		"ipa",   // iOS app archive
-		"dex",   // Dalvik executable inside APKs
+		"apk", // Android package
+		"aab", // Android App Bundle
+		"ipa", // iOS app archive
+		"dex", // Dalvik executable inside APKs
 		// Native / shared libraries
 		"so",    // Linux shared object
 		"dll",   // Windows dynamic library
@@ -315,7 +315,15 @@ func patternForExtension(ext string) string {
 // patternForSegment converts a Defaults() entry into a regex pattern
 // that matches the segment as a path component.
 func patternForSegment(segment string) string {
-	return `(^|/)` + regexp.QuoteMeta(segment) + `(/|$)`
+	const sep = `[\\/]`
+	parts := splitPathSegments(strings.TrimSpace(segment))
+	if len(parts) == 0 {
+		return `a^`
+	}
+	for i, part := range parts {
+		parts[i] = regexp.QuoteMeta(part)
+	}
+	return `(^|` + sep + `)` + strings.Join(parts, sep) + `(` + sep + `|$)`
 }
 
 // PathExcluded reports whether the given path contains any of the
