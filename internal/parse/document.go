@@ -30,6 +30,7 @@ const (
 	FormatAPMPluginManifest     Format = "apm-plugin-manifest"      // Microsoft APM plugin.json component manifests
 	FormatGitConfig             Format = "git-config"               // bare/nested git config files with executable hooks/helpers
 	FormatMiseToolVersions      Format = "mise-tool-versions"       // .tool-versions dev-tool install/version config
+	FormatDockerfile            Format = "dockerfile"               // Dockerfile build posture checks
 	FormatMiniShaiHuludArtifact Format = "mini-shai-hulud-artifact" // known local IOC/persistence files
 	FormatUnknown               Format = ""
 )
@@ -470,6 +471,9 @@ func DetectFormat(path string) Format {
 	}
 	if base == ".tool-versions" {
 		return FormatMiseToolVersions
+	}
+	if base == "Dockerfile" || strings.HasPrefix(base, "Dockerfile.") {
+		return FormatDockerfile
 	}
 
 	switch base {

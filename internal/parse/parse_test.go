@@ -33,6 +33,8 @@ func TestDetectFormat(t *testing.T) {
 		{"/repo/.env", FormatEnv},
 		{"/repo/.env.local", FormatEnv},
 		{"/repo/.tool-versions", FormatMiseToolVersions},
+		{"/repo/Dockerfile", FormatDockerfile},
+		{"/repo/docker/Dockerfile.gpu", FormatDockerfile},
 		{"/repo/random.txt", FormatUnknown},
 		{"/repo/README.md", FormatUnknown},
 	}

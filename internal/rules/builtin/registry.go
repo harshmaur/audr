@@ -136,6 +136,7 @@ func builtins() []rules.Rule {
 		pnpmLockfileMissingIntegrity{},
 		pnpmUnscopedAuthTokenRegistryForwarding{},
 		miseHTTPBackendSymlinkEscape{},
+		vLLMFlashInferDependencyConfusion{},
 
 		// package.json OpenClaw version posture rules.
 		openclawUnboundBootstrapSetupCode{},
