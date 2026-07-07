@@ -89,6 +89,7 @@ func builtins() []rules.Rule {
 		// OSV lacks coverage for a locally auditable agent/MCP package surface.
 		microsoftAPMPluginComponentTraversal{},
 		mlflowAssistantOriginBypass{},
+		deeptutorMCPToolGrantBypass{},
 		mcpCalculateServerEvalRCE{},
 		lumiverseMCPArgsRCE{},
 		gitlabMCPServerUnauthHTTP{},
