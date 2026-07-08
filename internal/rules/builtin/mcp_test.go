@@ -1150,3 +1150,47 @@ func TestRule_KongKonnectMCPPromptInjection(t *testing.T) {
 		})
 	}
 }
+
+// --- awesome-mcp-wiki-summary-ssrf -----------------------------------------
+
+func TestRule_AwesomeMCPWikiSummarySSRF(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "mcp-wiki server fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"wiki":{"command":"python","args":["/opt/Awesome-MCP-Server/mcp-wiki/src/mcp_wiki/server.py"]}}}`,
+			want: true,
+		},
+		{
+			name: "wiki-summary server name fires",
+			path: "/test/.codex/config.toml",
+			body: `[mcp_servers.wiki-summary]` + "\n" + `command = "uvx"` + "\n" + `args = ["mcp-wiki"]`,
+			want: true,
+		},
+		{
+			name: "unrelated wiki helper does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"docs":{"command":"python","args":["wiki_cleaner.py"]}}}`,
+			want: false,
+		},
+		{
+			name: "disabled mcp-wiki server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"wiki":{"command":"uvx","args":["mcp-wiki"],"disabled":true}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "awesome-mcp-wiki-summary-ssrf"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}

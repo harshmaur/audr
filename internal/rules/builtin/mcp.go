@@ -537,6 +537,7 @@ type googleapisMCPToolboxLegacyProtocolScopeBypass struct{}
 type networkAIMCPSSEEmptySecret struct{}
 type lineDesktopMCPUnauthHTTPMode struct{}
 type windowsMCPUnauthHTTPCORS struct{}
+type awesomeMCPWikiSummarySSRF struct{}
 
 func (mcpServerKubernetesKubectlFlagTokenExfil) ID() string {
 	return "mcp-server-kubernetes-kubectl-flag-token-exfil"
@@ -1490,6 +1491,64 @@ func splitMCPPinotPackageSpec(raw string) (pkg string, version string, ok bool) 
 		return normalized, ver, true
 	}
 	return "", "", false
+}
+
+// --- awesome-mcp-wiki-summary-ssrf -----------------------------------------
+
+func (awesomeMCPWikiSummarySSRF) ID() string {
+	return "awesome-mcp-wiki-summary-ssrf"
+}
+func (awesomeMCPWikiSummarySSRF) Title() string {
+	return "Awesome MCP Server mcp-wiki wiki-summary can fetch arbitrary URLs"
+}
+func (awesomeMCPWikiSummarySSRF) Severity() finding.Severity {
+	return finding.SeverityMedium
+}
+func (awesomeMCPWikiSummarySSRF) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (awesomeMCPWikiSummarySSRF) Formats() []parse.Format { return parse.AllMCPFormats() }
+
+func (awesomeMCPWikiSummarySSRF) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeAwesomeMCPWikiServer(s) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "awesome-mcp-wiki-summary-ssrf",
+			Severity:     finding.SeverityMedium,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "Awesome-MCP-Server mcp-wiki wiki-summary exposes SSRF posture",
+			Description:  fmt.Sprintf("CVE-2026-14748: server %q appears to launch AIAnytime Awesome-MCP-Server's mcp-wiki/wiki-summary component. Affected rolling-release builds through a884bb51bcd99e08e14fd712c749d55d9d9a13ab allowed the url argument to trigger server-side requests, exposing local/internal network targets to agent-controlled input.", s.Name),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s %s", s.Command, strings.Join(s.Args, " ")),
+			SuggestedFix: "Update or remove the mcp-wiki server from agent-accessible MCP configs. Until the upstream fix is verified, disable wiki-summary URL fetching or restrict the server with egress controls that block loopback, metadata, and private network ranges.",
+			Tags:         []string{"cve", "awesome-mcp-server", "mcp-wiki", "mcp", "ssrf"},
+		}))
+	}
+	return out
+}
+
+func looksLikeAwesomeMCPWikiServer(s parse.NormalizedMCPServer) bool {
+	joined := strings.ToLower(strings.ReplaceAll(s.Name+" "+s.Command+" "+strings.Join(s.Args, " "), "_", "-"))
+	needles := []string{
+		"awesome-mcp-server",
+		"mcp-wiki",
+		"wiki-summary",
+		"mcp-wiki/server.py",
+	}
+	for _, needle := range needles {
+		if strings.Contains(joined, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 // --- googleapis-mcp-toolbox-wildcard-origin-host ---------------------------
