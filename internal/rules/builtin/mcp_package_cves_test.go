@@ -28,6 +28,9 @@ func TestMCPPackageCVEs_FlagVulnerablePackageAndAllowFixed(t *testing.T) {
 		{"flowise custom mcp env case bypass", "flowise-custom-mcp-env-case-bypass", "flowise", "3.1.2", "3.1.3", func(d *parse.Document) []finding.Finding {
 			return (flowiseCustomMCPEnvCaseBypass{}).Apply(d)
 		}},
+		{"serena dashboard unauth flask api", "serena-dashboard-unauth-flask-api", "serena-agent", "1.5.1", "1.5.2", func(d *parse.Document) []finding.Finding {
+			return (serenaDashboardUnauthFlaskAPI{}).Apply(d)
+		}},
 		{"claude code worktree git confusion", "claude-code-worktree-git-confusion", "@anthropic-ai/claude-code", "2.1.162", "2.1.163", func(d *parse.Document) []finding.Finding {
 			return (claudeCodeWorktreeGitConfusion{}).Apply(d)
 		}},

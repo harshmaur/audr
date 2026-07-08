@@ -100,6 +100,7 @@ func builtins() []rules.Rule {
 		presentonMCPAuthBypass{},
 		flowiseCustomMCPMissingAuth{},
 		flowiseCustomMCPEnvCaseBypass{},
+		serenaDashboardUnauthFlaskAPI{},
 		rtkRewriteOpenClawExecSyncInjection{},
 		rtkPermissionSplitterShellBoundaryBypass{},
 		xhsMCPMediaPathsSSRF{},

@@ -16,6 +16,7 @@ type libreChatMCPOAuthResourceConfusion struct{}
 type rtkRewriteOpenClawExecSyncInjection struct{}
 type rtkPermissionSplitterShellBoundaryBypass struct{}
 type flowiseCustomMCPEnvCaseBypass struct{}
+type serenaDashboardUnauthFlaskAPI struct{}
 
 func (xhsMCPMediaPathsSSRF) ID() string { return "xhs-mcp-media-paths-ssrf" }
 func (xhsMCPMediaPathsSSRF) Title() string {
@@ -135,6 +136,19 @@ func (flowiseCustomMCPEnvCaseBypass) Apply(doc *parse.Document) []finding.Findin
 	return dependencyVersionFinding(doc, isFlowisePackage, func(v string) bool { return vulnerableVersionBefore(v, []int{3, 1, 3}) }, flowiseCustomMCPEnvCaseBypassFinding)
 }
 
+func (serenaDashboardUnauthFlaskAPI) ID() string { return "serena-dashboard-unauth-flask-api" }
+func (serenaDashboardUnauthFlaskAPI) Title() string {
+	return "Serena dashboard exposes unauthenticated Flask API before 1.5.2"
+}
+func (serenaDashboardUnauthFlaskAPI) Severity() finding.Severity { return finding.SeverityHigh }
+func (serenaDashboardUnauthFlaskAPI) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (serenaDashboardUnauthFlaskAPI) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (serenaDashboardUnauthFlaskAPI) Apply(doc *parse.Document) []finding.Finding {
+	return dependencyVersionFinding(doc, isSerenaPackage, func(v string) bool { return vulnerableVersionBefore(v, []int{1, 5, 2}) }, serenaDashboardUnauthFlaskAPIFinding)
+}
+
 func dependencyVersionFinding(doc *parse.Document, matchesPackage func(string) bool, vulnerable func(string) bool, makeFinding func(string, int, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -163,6 +177,10 @@ func isRTKPackage(name string) bool {
 func isFlowisePackage(name string) bool {
 	n := normalizePackageName(name)
 	return n == "flowise" || n == "flowiseai" || n == "@flowiseai/flowise"
+}
+func isSerenaPackage(name string) bool {
+	n := normalizePackageName(name)
+	return n == "serena-agent" || n == "serena"
 }
 
 func normalizePackageName(name string) string {
@@ -299,5 +317,20 @@ func flowiseCustomMCPEnvCaseBypassFinding(path string, line int, match string) f
 		Match:        match,
 		SuggestedFix: "Upgrade Flowise to 3.1.3 or later and review Custom MCP node environment entries for case variants of NODE_OPTIONS before allowing untrusted users to configure MCP servers.",
 		Tags:         []string{"cve", "flowise", "mcp", "dependency-manifest", "node-options", "rce"},
+	})
+}
+
+func serenaDashboardUnauthFlaskAPIFinding(path string, line int, match string) finding.Finding {
+	return finding.New(finding.Args{
+		RuleID:       "serena-dashboard-unauth-flask-api",
+		Severity:     finding.SeverityHigh,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "Serena before 1.5.2 exposes an unauthenticated agent-memory dashboard API",
+		Description:  "CVE-2026-49471: Serena before 1.5.2 exposes its built-in Flask dashboard API on a predictable local port without authentication, CSRF protection, or Host header validation. DNS rebinding can let a malicious web page write persistent agent memory that Serena later reads and acts on.",
+		Path:         path,
+		Line:         line,
+		Match:        match,
+		SuggestedFix: "Upgrade Serena / serena-agent to 1.5.2 or later and clear or review persistent agent memory created while vulnerable versions were installed.",
+		Tags:         []string{"cve", "serena", "mcp", "dependency-manifest", "dns-rebinding", "agent-memory"},
 	})
 }
