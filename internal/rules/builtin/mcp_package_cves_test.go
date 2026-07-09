@@ -31,6 +31,9 @@ func TestMCPPackageCVEs_FlagVulnerablePackageAndAllowFixed(t *testing.T) {
 		{"serena dashboard unauth flask api", "serena-dashboard-unauth-flask-api", "serena-agent", "1.5.1", "1.5.2", func(d *parse.Document) []finding.Finding {
 			return (serenaDashboardUnauthFlaskAPI{}).Apply(d)
 		}},
+		{"cline dashboard browser origin bypass", "cline-dashboard-browser-origin-bypass", "@cline/cline", "3.0.29", "3.0.30", func(d *parse.Document) []finding.Finding {
+			return (clineDashboardBrowserOriginBypass{}).Apply(d)
+		}},
 		{"claude code worktree git confusion", "claude-code-worktree-git-confusion", "@anthropic-ai/claude-code", "2.1.162", "2.1.163", func(d *parse.Document) []finding.Finding {
 			return (claudeCodeWorktreeGitConfusion{}).Apply(d)
 		}},

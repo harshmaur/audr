@@ -17,6 +17,7 @@ type rtkRewriteOpenClawExecSyncInjection struct{}
 type rtkPermissionSplitterShellBoundaryBypass struct{}
 type flowiseCustomMCPEnvCaseBypass struct{}
 type serenaDashboardUnauthFlaskAPI struct{}
+type clineDashboardBrowserOriginBypass struct{}
 
 func (xhsMCPMediaPathsSSRF) ID() string { return "xhs-mcp-media-paths-ssrf" }
 func (xhsMCPMediaPathsSSRF) Title() string {
@@ -149,6 +150,21 @@ func (serenaDashboardUnauthFlaskAPI) Apply(doc *parse.Document) []finding.Findin
 	return dependencyVersionFinding(doc, isSerenaPackage, func(v string) bool { return vulnerableVersionBefore(v, []int{1, 5, 2}) }, serenaDashboardUnauthFlaskAPIFinding)
 }
 
+func (clineDashboardBrowserOriginBypass) ID() string {
+	return "cline-dashboard-browser-origin-bypass"
+}
+func (clineDashboardBrowserOriginBypass) Title() string {
+	return "Cline Hub dashboard before 3.0.30 accepts untrusted browser WebSockets"
+}
+func (clineDashboardBrowserOriginBypass) Severity() finding.Severity { return finding.SeverityHigh }
+func (clineDashboardBrowserOriginBypass) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (clineDashboardBrowserOriginBypass) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (clineDashboardBrowserOriginBypass) Apply(doc *parse.Document) []finding.Finding {
+	return dependencyVersionFinding(doc, isClinePackage, func(v string) bool { return vulnerableVersionBefore(v, []int{3, 0, 30}) }, clineDashboardBrowserOriginBypassFinding)
+}
+
 func dependencyVersionFinding(doc *parse.Document, matchesPackage func(string) bool, vulnerable func(string) bool, makeFinding func(string, int, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -181,6 +197,10 @@ func isFlowisePackage(name string) bool {
 func isSerenaPackage(name string) bool {
 	n := normalizePackageName(name)
 	return n == "serena-agent" || n == "serena"
+}
+func isClinePackage(name string) bool {
+	n := normalizePackageName(name)
+	return n == "@cline/cline" || n == "cline"
 }
 
 func normalizePackageName(name string) string {
@@ -332,5 +352,20 @@ func serenaDashboardUnauthFlaskAPIFinding(path string, line int, match string) f
 		Match:        match,
 		SuggestedFix: "Upgrade Serena / serena-agent to 1.5.2 or later and clear or review persistent agent memory created while vulnerable versions were installed.",
 		Tags:         []string{"cve", "serena", "mcp", "dependency-manifest", "dns-rebinding", "agent-memory"},
+	})
+}
+
+func clineDashboardBrowserOriginBypassFinding(path string, line int, match string) finding.Finding {
+	return finding.New(finding.Args{
+		RuleID:       "cline-dashboard-browser-origin-bypass",
+		Severity:     finding.SeverityHigh,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "Cline Hub dashboard before 3.0.30 trusts browser WebSocket requests",
+		Description:  "CVE-2026-59723: Cline Hub dashboard versions before 3.0.30 accept /browser WebSocket connections without validating Origin, and local dashboards without ROOM_SECRET can accept desktopCommand frames that read workspace state, mutate MCP/provider settings, or trigger command execution.",
+		Path:         path,
+		Line:         line,
+		Match:        match,
+		SuggestedFix: "Upgrade @cline/cline / cline to 3.0.30 or later, set a non-empty ROOM_SECRET for any local dashboard use, and review MCP/provider settings changed while vulnerable versions were installed.",
+		Tags:         []string{"cve", "cline", "dashboard", "websocket", "origin", "dependency-manifest"},
 	})
 }
