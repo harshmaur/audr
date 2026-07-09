@@ -191,5 +191,6 @@ func builtins() []rules.Rule {
 		openclawApprovalDisplayTruncation{},
 		openclawTrustedProxyIdentityHeaderForgery{},
 		openclawRetryEndpointHostnamePrefixBypass{},
+		openclawWorkspaceDotenvCredentialOverride{},
 	}
 }

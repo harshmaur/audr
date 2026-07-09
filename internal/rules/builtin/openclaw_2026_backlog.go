@@ -39,6 +39,7 @@ type openclawSkillInstallHomebrewEnvOverride struct{}
 type openclawApprovalDisplayTruncation struct{}
 type openclawTrustedProxyIdentityHeaderForgery struct{}
 type openclawRetryEndpointHostnamePrefixBypass struct{}
+type openclawWorkspaceDotenvCredentialOverride struct{}
 
 func (openclawMatrixDMPairingAuthBypass) ID() string { return "openclaw-matrix-dm-pairing-auth-bypass" }
 func (openclawMatrixDMPairingAuthBypass) Title() string {
@@ -604,6 +605,25 @@ func (openclawRetryEndpointHostnamePrefixBypass) Apply(doc *parse.Document) []fi
 	return openclawPackageVersionFindings(doc, vulnerableOpenClawRetryEndpointHostnamePrefixBypassVersion, openclawRetryEndpointHostnamePrefixBypassFinding)
 }
 
+func (openclawWorkspaceDotenvCredentialOverride) ID() string {
+	return "openclaw-workspace-dotenv-credential-override"
+}
+func (openclawWorkspaceDotenvCredentialOverride) Title() string {
+	return "OpenClaw version is vulnerable to workspace dotenv credential override"
+}
+func (openclawWorkspaceDotenvCredentialOverride) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawWorkspaceDotenvCredentialOverride) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawWorkspaceDotenvCredentialOverride) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawWorkspaceDotenvCredentialOverride) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(doc, vulnerableOpenClawWorkspaceDotenvCredentialOverrideVersion, openclawWorkspaceDotenvCredentialOverrideFinding)
+}
+
 func openclawPackageVersionFindings(doc *parse.Document, vulnerable func(string) bool, makeFinding func(string, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -714,6 +734,9 @@ func vulnerableOpenClawTrustedProxyIdentityHeaderForgeryVersion(raw string) bool
 func vulnerableOpenClawRetryEndpointHostnamePrefixBypassVersion(raw string) bool {
 	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 7})
 }
+func vulnerableOpenClawWorkspaceDotenvCredentialOverrideVersion(raw string) bool {
+	return vulnerableOpenClawVersionBefore(raw, []int{2026, 5, 28})
+}
 
 func openclawMatrixDMPairingAuthBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-matrix-dm-pairing-auth-bypass", finding.SeverityHigh, "OpenClaw before 2026.4.15 trusts Matrix DM pairing stores for room control commands", "CVE-2026-44110: OpenClaw before 2026.4.15 trusts DM pairing store state for Matrix room control-command authorization, allowing authorization bypass in agent-control rooms.", "Upgrade OpenClaw to 2026.4.15 or later and review Matrix room control-command pairings created by vulnerable versions.", []string{"cve", "openclaw", "package-json", "matrix", "auth-bypass"})
@@ -815,6 +838,10 @@ func openclawTrustedProxyIdentityHeaderForgeryFinding(path, match string) findin
 
 func openclawRetryEndpointHostnamePrefixBypassFinding(path, match string) finding.Finding {
 	return openclawBacklogFinding(path, match, "openclaw-retry-endpoint-hostname-prefix-bypass", finding.SeverityMedium, "OpenClaw before 2026.5.7 accepts retry endpoint hostname prefixes", "CVE-2026-53839: OpenClaw before 2026.5.7 validates retry endpoints with hostname-prefix matching, allowing attacker-controlled hostnames that begin with an allowed hostname to pass policy and redirect agent retry traffic outside the intended endpoint.", "Upgrade OpenClaw to 2026.5.7 or later and review retry endpoint configuration and outbound retry traffic from vulnerable deployments.", []string{"cve", "openclaw", "dependency-manifest", "retry-endpoint", "hostname-validation", "ssrf"})
+}
+
+func openclawWorkspaceDotenvCredentialOverrideFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(path, match, "openclaw-workspace-dotenv-credential-override", finding.SeverityHigh, "OpenClaw before 2026.5.28 allows workspace dotenv files to override provider credentials", "CVE-2026-59261: OpenClaw before 2026.5.28 can let lower-trust workspace dotenv files override provider credential environment values, exposing secrets that should stay inside trusted credential boundaries.", "Upgrade OpenClaw to 2026.5.28 or later and review workspace dotenv files and provider credentials used with affected OpenClaw versions.", []string{"cve", "openclaw", "dependency-manifest", "dotenv", "credential-exposure"})
 }
 
 func openclawBacklogFinding(path, match, ruleID string, severity finding.Severity, title, description, suggestedFix string, tags []string) finding.Finding {

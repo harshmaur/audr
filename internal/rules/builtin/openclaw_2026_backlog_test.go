@@ -89,6 +89,9 @@ func TestOpenClaw2026BacklogRules_FlagVulnerablePackageAndAllowFixed(t *testing.
 		{"retry endpoint hostname prefix", "openclaw-retry-endpoint-hostname-prefix-bypass", "2026.5.6", "2026.5.7", func(d *parse.Document) []finding.Finding {
 			return (openclawRetryEndpointHostnamePrefixBypass{}).Apply(d)
 		}},
+		{"workspace dotenv credential override", "openclaw-workspace-dotenv-credential-override", "2026.5.27", "2026.5.28", func(d *parse.Document) []finding.Finding {
+			return (openclawWorkspaceDotenvCredentialOverride{}).Apply(d)
+		}},
 	}
 
 	for _, tc := range tests {
