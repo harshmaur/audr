@@ -536,6 +536,7 @@ type mcpPinotUnauthHTTPDefault struct{}
 type googleapisMCPToolboxLegacyProtocolScopeBypass struct{}
 type networkAIMCPSSEEmptySecret struct{}
 type lineDesktopMCPUnauthHTTPMode struct{}
+type deepseekMCPServerUnauthHTTP struct{}
 type windowsMCPUnauthHTTPCORS struct{}
 type awesomeMCPWikiSummarySSRF struct{}
 
@@ -1058,6 +1059,143 @@ func lineDesktopMCPUsesHTTPMode(s parse.NormalizedMCPServer) bool {
 	for _, arg := range s.Args {
 		la := strings.ToLower(strings.TrimSpace(strings.Trim(arg, "'\"")))
 		if la == "--http-mode" || strings.HasPrefix(la, "--http-mode=") {
+			return true
+		}
+	}
+	return false
+}
+
+// --- deepseek-mcp-server-unauth-http ---------------------------------------
+
+func (deepseekMCPServerUnauthHTTP) ID() string { return "deepseek-mcp-server-unauth-http" }
+func (deepseekMCPServerUnauthHTTP) Title() string {
+	return "DeepSeek MCP Server exposes unauthenticated HTTP transport"
+}
+func (deepseekMCPServerUnauthHTTP) Severity() finding.Severity { return finding.SeverityMedium }
+func (deepseekMCPServerUnauthHTTP) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (deepseekMCPServerUnauthHTTP) Formats() []parse.Format    { return parse.AllMCPFormats() }
+
+func (deepseekMCPServerUnauthHTTP) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeDeepSeekMCPServer(s) {
+			continue
+		}
+		pkg, version, ok := deepseekMCPServerPackageSpec(s)
+		if !ok || !vulnerableVersionBefore(version, []int{1, 8, 0}) {
+			continue
+		}
+		if !deepseekMCPServerUsesHTTPTransport(s) || deepseekMCPServerHasAuthControl(s) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "deepseek-mcp-server-unauth-http",
+			Severity:     finding.SeverityMedium,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "DeepSeek MCP Server before 1.8.0 can expose unauthenticated HTTP MCP",
+			Description:  fmt.Sprintf("CVE-2026-55605: server %q launches %s %s in HTTP transport mode without an auth provider or middleware signal. @arikusi/deepseek-mcp-server before 1.8.0 did not enforce authentication on self-hosted POST /mcp HTTP endpoints, allowing reachable clients to invoke tools as the configured MCP server.", s.Name, pkg, version),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s %s", s.Command, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade @arikusi/deepseek-mcp-server to 1.8.0 or later before using HTTP transport. Until upgraded, remove the server from agent configs, switch to stdio, or place it behind explicit authentication middleware bound only to trusted clients.",
+			Tags:         []string{"cve", "deepseek-mcp-server", "mcp", "missing-auth", "http-exposure"},
+		}))
+	}
+	return out
+}
+
+func looksLikeDeepSeekMCPServer(s parse.NormalizedMCPServer) bool {
+	joined := strings.ToLower(s.Name + " " + s.Command + " " + strings.Join(s.Args, " "))
+	needles := []string{"@arikusi/deepseek-mcp-server", "deepseek-mcp-server", "deepseek_mcp_server", "deepseek mcp server"}
+	for _, needle := range needles {
+		if strings.Contains(joined, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func deepseekMCPServerPackageSpec(s parse.NormalizedMCPServer) (pkg string, version string, ok bool) {
+	candidates := append([]string{s.Command}, s.Args...)
+	for _, raw := range candidates {
+		name, ver, matched := splitDeepSeekMCPServerPackageSpec(raw)
+		if matched {
+			return name, ver, true
+		}
+	}
+	return "", "", false
+}
+
+func splitDeepSeekMCPServerPackageSpec(raw string) (pkg string, version string, ok bool) {
+	s := strings.TrimSpace(strings.Trim(raw, "'\""))
+	for strings.HasPrefix(s, "npm:") {
+		s = strings.TrimPrefix(s, "npm:")
+	}
+	name := s
+	ver := ""
+	if i := strings.LastIndex(s, "@"); i > 0 {
+		name = s[:i]
+		ver = s[i+1:]
+	}
+	normalized := strings.ToLower(strings.ReplaceAll(name, "_", "-"))
+	if normalized == "@arikusi/deepseek-mcp-server" || normalized == "deepseek-mcp-server" {
+		return normalized, ver, true
+	}
+	return "", "", false
+}
+
+func deepseekMCPServerUsesHTTPTransport(s parse.NormalizedMCPServer) bool {
+	for i, raw := range s.Args {
+		arg := strings.ToLower(strings.TrimSpace(strings.Trim(raw, "'\"")))
+		switch {
+		case arg == "--http", arg == "--http-mode", arg == "--sse", arg == "--sse-mode":
+			return true
+		case strings.HasPrefix(arg, "--http=") || strings.HasPrefix(arg, "--http-mode="):
+			return true
+		case strings.HasPrefix(arg, "--transport="):
+			v := strings.TrimPrefix(arg, "--transport=")
+			if strings.Contains(v, "http") || strings.Contains(v, "sse") {
+				return true
+			}
+		case arg == "--transport" && i+1 < len(s.Args):
+			next := strings.ToLower(strings.TrimSpace(strings.Trim(s.Args[i+1], "'\"")))
+			if strings.Contains(next, "http") || strings.Contains(next, "sse") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func deepseekMCPServerHasAuthControl(s parse.NormalizedMCPServer) bool {
+	for i, raw := range s.Args {
+		arg := strings.ToLower(strings.TrimSpace(strings.Trim(raw, "'\"")))
+		if strings.Contains(arg, "auth") || strings.Contains(arg, "middleware") {
+			if strings.Contains(arg, "no-auth") || strings.Contains(arg, "disable-auth") {
+				continue
+			}
+			if strings.Contains(arg, "=") {
+				parts := strings.SplitN(arg, "=", 2)
+				if strings.TrimSpace(parts[1]) != "" && strings.TrimSpace(parts[1]) != "false" {
+					return true
+				}
+				continue
+			}
+			if i+1 < len(s.Args) {
+				next := strings.TrimSpace(strings.Trim(s.Args[i+1], "'\""))
+				if next != "" && !strings.HasPrefix(next, "-") && !strings.EqualFold(next, "false") {
+					return true
+				}
+			}
+		}
+	}
+	for k, v := range s.Env {
+		key := strings.ToLower(k)
+		if (strings.Contains(key, "auth") || strings.Contains(key, "middleware") || strings.Contains(key, "token")) && strings.TrimSpace(v) != "" {
 			return true
 		}
 	}

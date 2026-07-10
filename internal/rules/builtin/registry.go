@@ -44,6 +44,7 @@ func builtins() []rules.Rule {
 		githubMCPServerLockdownGlobalCache{},
 		kongKonnectMCPPromptInjection{},
 		lineDesktopMCPUnauthHTTPMode{},
+		deepseekMCPServerUnauthHTTP{},
 		windowsMCPUnauthHTTPCORS{},
 		mcpPinotUnauthHTTPDefault{},
 		googleapisMCPToolboxWildcardOriginHost{},

@@ -783,6 +783,68 @@ func TestRule_LineDesktopMCPUnauthHTTPMode(t *testing.T) {
 	}
 }
 
+// --- deepseek-mcp-server-unauth-http ---------------------------------------
+
+func TestRule_DeepSeekMCPServerUnauthHTTP(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "vulnerable scoped package HTTP transport fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"deepseek":{"command":"npx","args":["@arikusi/deepseek-mcp-server@1.7.9","--transport","http"]}}}`,
+			want: true,
+		},
+		{
+			name: "equals transport form fires",
+			path: "/test/.codex/config.toml",
+			body: `[mcp_servers.deepseek]` + "\n" + `command = "npx"` + "\n" + `args = ["npm:@arikusi/deepseek-mcp-server@1.4.2", "--transport=streamable-http"]`,
+			want: true,
+		},
+		{
+			name: "fixed version does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"deepseek":{"command":"npx","args":["@arikusi/deepseek-mcp-server@1.8.0","--transport","http"]}}}`,
+			want: false,
+		},
+		{
+			name: "stdio mode does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"deepseek":{"command":"npx","args":["@arikusi/deepseek-mcp-server@1.7.9"]}}}`,
+			want: false,
+		},
+		{
+			name: "explicit auth middleware does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"deepseek":{"command":"npx","args":["@arikusi/deepseek-mcp-server@1.7.9","--transport","http","--auth-provider","oidc"]}}}`,
+			want: false,
+		},
+		{
+			name: "disabled server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"deepseek":{"command":"npx","args":["@arikusi/deepseek-mcp-server@1.7.9","--transport","http"],"disabled":true}}}`,
+			want: false,
+		},
+		{
+			name: "unrelated DeepSeek package does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"deepseek":{"command":"npx","args":["deepseek-sdk@1.7.9","--transport","http"]}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "deepseek-mcp-server-unauth-http"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}
+
 // --- windows-mcp-unauth-http-cors ------------------------------------------
 
 func TestRule_WindowsMCPUnauthHTTPCORS(t *testing.T) {
