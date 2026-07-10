@@ -103,6 +103,7 @@ func builtins() []rules.Rule {
 		flowiseCustomMCPEnvCaseBypass{},
 		serenaDashboardUnauthFlaskAPI{},
 		clineDashboardBrowserOriginBypass{},
+		rufloMCPBridgeUnauthRCE{},
 		rtkRewriteOpenClawExecSyncInjection{},
 		rtkPermissionSplitterShellBoundaryBypass{},
 		xhsMCPMediaPathsSSRF{},

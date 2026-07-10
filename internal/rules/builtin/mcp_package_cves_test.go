@@ -34,6 +34,9 @@ func TestMCPPackageCVEs_FlagVulnerablePackageAndAllowFixed(t *testing.T) {
 		{"cline dashboard browser origin bypass", "cline-dashboard-browser-origin-bypass", "@cline/cline", "3.0.29", "3.0.30", func(d *parse.Document) []finding.Finding {
 			return (clineDashboardBrowserOriginBypass{}).Apply(d)
 		}},
+		{"ruflo mcp bridge unauth rce", "ruflo-mcp-bridge-unauth-rce", "ruflo", "3.16.2", "3.16.3", func(d *parse.Document) []finding.Finding {
+			return (rufloMCPBridgeUnauthRCE{}).Apply(d)
+		}},
 		{"claude code worktree git confusion", "claude-code-worktree-git-confusion", "@anthropic-ai/claude-code", "2.1.162", "2.1.163", func(d *parse.Document) []finding.Finding {
 			return (claudeCodeWorktreeGitConfusion{}).Apply(d)
 		}},

@@ -18,6 +18,7 @@ type rtkPermissionSplitterShellBoundaryBypass struct{}
 type flowiseCustomMCPEnvCaseBypass struct{}
 type serenaDashboardUnauthFlaskAPI struct{}
 type clineDashboardBrowserOriginBypass struct{}
+type rufloMCPBridgeUnauthRCE struct{}
 
 func (xhsMCPMediaPathsSSRF) ID() string { return "xhs-mcp-media-paths-ssrf" }
 func (xhsMCPMediaPathsSSRF) Title() string {
@@ -165,6 +166,21 @@ func (clineDashboardBrowserOriginBypass) Apply(doc *parse.Document) []finding.Fi
 	return dependencyVersionFinding(doc, isClinePackage, func(v string) bool { return vulnerableVersionBefore(v, []int{3, 0, 30}) }, clineDashboardBrowserOriginBypassFinding)
 }
 
+func (rufloMCPBridgeUnauthRCE) ID() string {
+	return "ruflo-mcp-bridge-unauth-rce"
+}
+func (rufloMCPBridgeUnauthRCE) Title() string {
+	return "Ruflo MCP bridge default deployment is unauthenticated before 3.16.3"
+}
+func (rufloMCPBridgeUnauthRCE) Severity() finding.Severity { return finding.SeverityCritical }
+func (rufloMCPBridgeUnauthRCE) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (rufloMCPBridgeUnauthRCE) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (rufloMCPBridgeUnauthRCE) Apply(doc *parse.Document) []finding.Finding {
+	return dependencyVersionFinding(doc, isRufloPackage, func(v string) bool { return vulnerableVersionBefore(v, []int{3, 16, 3}) }, rufloMCPBridgeUnauthRCEFinding)
+}
+
 func dependencyVersionFinding(doc *parse.Document, matchesPackage func(string) bool, vulnerable func(string) bool, makeFinding func(string, int, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -202,6 +218,7 @@ func isClinePackage(name string) bool {
 	n := normalizePackageName(name)
 	return n == "@cline/cline" || n == "cline"
 }
+func isRufloPackage(name string) bool { return normalizePackageName(name) == "ruflo" }
 
 func normalizePackageName(name string) string {
 	n := strings.ToLower(strings.TrimSpace(name))
@@ -367,5 +384,20 @@ func clineDashboardBrowserOriginBypassFinding(path string, line int, match strin
 		Match:        match,
 		SuggestedFix: "Upgrade @cline/cline / cline to 3.0.30 or later, set a non-empty ROOM_SECRET for any local dashboard use, and review MCP/provider settings changed while vulnerable versions were installed.",
 		Tags:         []string{"cve", "cline", "dashboard", "websocket", "origin", "dependency-manifest"},
+	})
+}
+
+func rufloMCPBridgeUnauthRCEFinding(path string, line int, match string) finding.Finding {
+	return finding.New(finding.Args{
+		RuleID:       "ruflo-mcp-bridge-unauth-rce",
+		Severity:     finding.SeverityCritical,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "Ruflo before 3.16.3 exposes unauthenticated MCP bridge tool calls",
+		Description:  "CVE-2026-59726: Ruflo's default docker-compose MCP bridge deployment before 3.16.3 exposed POST /mcp and /mcp/:group without authentication, allowing network attackers to invoke tools/call such as terminal_execute, read provider API keys, and poison AgentDB learning-store patterns.",
+		Path:         path,
+		Line:         line,
+		Match:        match,
+		SuggestedFix: "Upgrade ruflo to 3.16.3 or later, require authentication on any MCP bridge endpoint, and rotate provider keys or review AgentDB state if an unauthenticated bridge was exposed.",
+		Tags:         []string{"cve", "ruflo", "mcp", "docker-compose", "rce", "dependency-manifest"},
 	})
 }
