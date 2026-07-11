@@ -603,6 +603,28 @@ func TestRule_MCPServerKubernetesKubectlFlagTokenExfil(t *testing.T) {
 	}
 }
 
+func TestRule_MCPServerKubernetesStructuredArgTokenExfil(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{"vulnerable server with KUBECONFIG env fires", "/test/.cursor/mcp.json", `{"mcpServers":{"kubernetes":{"command":"npx","args":["mcp-server-kubernetes@3.8.0"],"env":{"KUBECONFIG":"/home/user/.kube/config"}}}}`, true},
+		{"vulnerable server with kubeconfig arg fires", "/test/.codex/config.toml", `[mcp_servers.kubernetes]` + "\n" + `command = "npx"` + "\n" + `args = ["npm:mcp-server-kubernetes@3.8.9", "--kubeconfig=/home/user/.kube/admin.conf"]`, true},
+		{"fixed version does not fire", "/test/.cursor/mcp.json", `{"mcpServers":{"kubernetes":{"command":"npx","args":["mcp-server-kubernetes@3.9.0"],"env":{"KUBECONFIG":"/home/user/.kube/config"}}}}`, false},
+		{"vulnerable version without kubeconfig posture does not fire", "/test/.cursor/mcp.json", `{"mcpServers":{"kubernetes":{"command":"npx","args":["mcp-server-kubernetes@3.8.0"]}}}`, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "mcp-server-kubernetes-structured-arg-token-exfil"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}
+
 // --- chrome-devtools-mcp-daemon-pid-symlink --------------------------------
 
 func TestRule_ChromeDevToolsMCPDaemonPidSymlink(t *testing.T) {

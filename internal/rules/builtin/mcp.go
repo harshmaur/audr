@@ -527,6 +527,7 @@ func mcpServerKubernetesAccessControlEnv(s parse.NormalizedMCPServer) (string, s
 // --- mcp-server-kubernetes-kubectl-flag-token-exfil ------------------------
 
 type mcpServerKubernetesKubectlFlagTokenExfil struct{}
+type mcpServerKubernetesStructuredArgTokenExfil struct{}
 type fastMCPTelegramBearerTokenPathTraversal struct{}
 type chromeDevToolsMCPDaemonPidSymlink struct{}
 type chromeDevToolsMCPRootsSymlinkEscape struct{}
@@ -583,6 +584,54 @@ func (mcpServerKubernetesKubectlFlagTokenExfil) Apply(doc *parse.Document) []fin
 			Line:         s.Line,
 			Match:        fmt.Sprintf("%s@%s args=%q", pkg, version, strings.Join(s.Args, " ")),
 			SuggestedFix: "Upgrade mcp-server-kubernetes to 3.7.0 or later. Until upgraded, remove the MCP server from agent configs or run it only with tightly scoped Kubernetes credentials that cannot read sensitive logs or access privileged cluster resources.",
+			Tags:         []string{"cve", "mcp-server-kubernetes", "mcp", "kubernetes", "token-exfiltration", "argument-injection"},
+		}))
+	}
+	return out
+}
+
+// --- mcp-server-kubernetes-structured-arg-token-exfil ---------------------
+
+func (mcpServerKubernetesStructuredArgTokenExfil) ID() string {
+	return "mcp-server-kubernetes-structured-arg-token-exfil"
+}
+func (mcpServerKubernetesStructuredArgTokenExfil) Title() string {
+	return "MCP Server Kubernetes structured tools can inject kubectl flags"
+}
+func (mcpServerKubernetesStructuredArgTokenExfil) Severity() finding.Severity {
+	return finding.SeverityCritical
+}
+func (mcpServerKubernetesStructuredArgTokenExfil) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (mcpServerKubernetesStructuredArgTokenExfil) Formats() []parse.Format {
+	return parse.AllMCPFormats()
+}
+
+func (mcpServerKubernetesStructuredArgTokenExfil) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled || !looksLikeMCPServerKubernetes(s) {
+			continue
+		}
+		pkg, version, ok := mcpServerKubernetesPackageSpec(s)
+		if !ok || !vulnerableVersionBefore(version, []int{3, 9, 0}) || !mcpServerKubernetesUsesKubeconfig(s) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "mcp-server-kubernetes-structured-arg-token-exfil",
+			Severity:     finding.SeverityCritical,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "MCP Server Kubernetes before 3.9.0 can exfiltrate kubeconfig tokens through structured-tool arguments",
+			Description:  fmt.Sprintf("CVE-2026-61459: server %q invokes %s before 3.9.0 with a local kubeconfig posture. Leading dashes in resourceType or name for kubectl_get, kubectl_describe, and kubectl_delete can inject --server and redirect kubectl to an attacker-controlled API server, exposing the operator's bearer token.", s.Name, pkg),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s@%s args=%q", pkg, version, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade mcp-server-kubernetes to 3.9.0 or later. Until upgraded, remove the MCP server from agent configs or use a tightly scoped kubeconfig whose token cannot access sensitive cluster resources.",
 			Tags:         []string{"cve", "mcp-server-kubernetes", "mcp", "kubernetes", "token-exfiltration", "argument-injection"},
 		}))
 	}

@@ -38,6 +38,7 @@ func builtins() []rules.Rule {
 		nocturneMemoryMissingAPIToken{},
 		mcpServerKubernetesToolFilterBypass{},
 		mcpServerKubernetesKubectlFlagTokenExfil{},
+		mcpServerKubernetesStructuredArgTokenExfil{},
 		fastMCPTelegramBearerTokenPathTraversal{},
 		chromeDevToolsMCPDaemonPidSymlink{},
 		chromeDevToolsMCPRootsSymlinkEscape{},
