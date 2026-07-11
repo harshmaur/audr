@@ -93,6 +93,7 @@ func builtins() []rules.Rule {
 		microsoftAPMPluginComponentTraversal{},
 		mlflowAssistantOriginBypass{},
 		deeptutorMCPToolGrantBypass{},
+		deepseekMCPSessionIDHijack{},
 		mcpCalculateServerEvalRCE{},
 		lumiverseMCPArgsRCE{},
 		gitlabMCPServerUnauthHTTP{},
