@@ -124,6 +124,7 @@ func builtins() []rules.Rule {
 		hermesAgentSkillsGuardMultiwordPatterns{},
 		libreChatAPIKeysUserIDIDOR{},
 		aiderMCPWorkingDirEditableFilesCommandInjection{},
+		aerostackMCPWhatsAppMediaURLSSRF{},
 		angularLanguageServiceTrustedMarkdownCommandURI{},
 		claudeCodeWorktreeGitConfusion{},
 		claudeHUDComspecCommandInjection{},

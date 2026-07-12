@@ -60,6 +60,23 @@ func TestAiderMCPWorkingDirEditableFilesCommandInjection(t *testing.T) {
 	}
 }
 
+func TestAerostackMCPWhatsAppMediaURLSSRF(t *testing.T) {
+	rule := aerostackMCPWhatsAppMediaURLSSRF{}
+	doc := parse.Parse(".mcp.json", []byte(`{"mcpServers":{"whatsapp":{"command":"uvx","args":["--from","git+https://github.com/aerostackdev/aerostack-mcp@6315dfde7df0a15aaf743f88d91347115e09ba23","mcp-whatsapp"]}}}`))
+	findings := rule.Apply(doc)
+	if len(findings) != 1 {
+		t.Fatalf("got %d findings, want 1", len(findings))
+	}
+	if findings[0].RuleID != "aerostack-mcp-whatsapp-media-url-ssrf" {
+		t.Fatalf("rule id = %q", findings[0].RuleID)
+	}
+
+	clean := parse.Parse(".mcp.json", []byte(`{"mcpServers":{"whatsapp":{"command":"uvx","args":["mcp-whatsapp"]}}}`))
+	if findings := rule.Apply(clean); len(findings) != 0 {
+		t.Fatalf("got %d findings for unidentifiable package source, want 0", len(findings))
+	}
+}
+
 func TestAngularLanguageServiceTrustedMarkdownCommandURI(t *testing.T) {
 	rule := angularLanguageServiceTrustedMarkdownCommandURI{}
 	doc := parse.Parse("/home/u/.vscode/extensions/angular.ng-template-21.2.3/package.json", []byte(`{

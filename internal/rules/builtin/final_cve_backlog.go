@@ -16,6 +16,7 @@ type hermesAgentSkillsGuardMultiwordPatterns struct{}
 type libreChatAPIKeysUserIDIDOR struct{}
 type aiderMCPWorkingDirEditableFilesCommandInjection struct{}
 type angularLanguageServiceTrustedMarkdownCommandURI struct{}
+type aerostackMCPWhatsAppMediaURLSSRF struct{}
 
 func (anythingLLMFilesystemRGOptionInjection) ID() string {
 	return "anythingllm-filesystem-rg-option-injection"
@@ -150,6 +151,33 @@ func (aiderMCPWorkingDirEditableFilesCommandInjection) Apply(doc *parse.Document
 	return out
 }
 
+func (aerostackMCPWhatsAppMediaURLSSRF) ID() string {
+	return "aerostack-mcp-whatsapp-media-url-ssrf"
+}
+func (aerostackMCPWhatsAppMediaURLSSRF) Title() string {
+	return "Aerostack MCP WhatsApp server uses a vulnerable media URL fetcher"
+}
+func (aerostackMCPWhatsAppMediaURLSSRF) Severity() finding.Severity { return finding.SeverityMedium }
+func (aerostackMCPWhatsAppMediaURLSSRF) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (aerostackMCPWhatsAppMediaURLSSRF) Formats() []parse.Format    { return parse.AllMCPFormats() }
+func (aerostackMCPWhatsAppMediaURLSSRF) Apply(doc *parse.Document) []finding.Finding {
+	var out []finding.Finding
+	for _, s := range parse.NormalizeMCPServers(doc) {
+		if s.Disabled || !looksLikeAerostackMCPWhatsAppGitHubSource(s) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID: "aerostack-mcp-whatsapp-media-url-ssrf", Severity: finding.SeverityMedium, Taxonomy: finding.TaxDetectable,
+			Title:       "Aerostack mcp-whatsapp launched from vulnerable GitHub source",
+			Description: fmt.Sprintf("CVE-2026-15189: server %q launches aerostackdev/aerostack-mcp mcp-whatsapp code whose upload_media handler fetches attacker-controlled media_url values without sufficient SSRF protection.", s.Name),
+			Path:        doc.Path, Line: s.Line, Match: fmt.Sprintf("%s %s", s.Command, strings.Join(s.Args, " ")),
+			SuggestedFix: "Remove the Aerostack mcp-whatsapp server or pin to a reviewed commit that validates media_url schemes and blocks loopback, private, link-local, and cloud-metadata destinations before every redirect.",
+			Tags:         []string{"cve", "mcp", "whatsapp", "github-source", "ssrf"},
+		}))
+	}
+	return out
+}
+
 func (angularLanguageServiceTrustedMarkdownCommandURI) ID() string {
 	return "angular-language-service-trusted-markdown-command-uri"
 }
@@ -194,6 +222,11 @@ func isVulnerableJunoClawPluginShellVersion(raw string) bool {
 func looksLikeAiderMCPGitHubSource(s parse.NormalizedMCPServer) bool {
 	joined := strings.ToLower(s.Name + " " + s.Command + " " + strings.Join(s.Args, " "))
 	return strings.Contains(joined, "github.com/eiliyaabedini/aider-mcp") || strings.Contains(joined, "eiliyaabedini/aider-mcp")
+}
+
+func looksLikeAerostackMCPWhatsAppGitHubSource(s parse.NormalizedMCPServer) bool {
+	joined := strings.ToLower(s.Name + " " + s.Command + " " + strings.Join(s.Args, " "))
+	return strings.Contains(joined, "aerostackdev/aerostack-mcp") && strings.Contains(joined, "mcp-whatsapp")
 }
 
 func isAngularLanguageServiceVSCodeExtension(doc *parse.Document) bool {
