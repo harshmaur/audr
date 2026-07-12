@@ -58,7 +58,7 @@ func TestWalkRoot_SkipsGoStdlib(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	out := make(chan string, 64)
 	go func() {
-		walkRoot(ctx, tmp, map[string]bool{}, out, logger)
+		walkRoot(ctx, tmp, map[string]bool{}, out, logger, nil)
 		close(out)
 	}()
 	seen := map[string]bool{}

@@ -172,13 +172,14 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	findCh := make(chan finding.Finding, opts.Workers*4)
 	statCh := make(chan workerStat, opts.Workers)
 	docCh := make(chan *parse.Document, opts.Workers*2) // v0.2.0-alpha.5: retained for correlate
+	cursorPosture := newCursorSymlinkPostureCollector(opts)
 
 	// Walker
 	walkerDone := make(chan struct{})
 	go func() {
 		defer close(pathCh)
 		defer close(walkerDone)
-		walk(scanCtx, opts, pathCh, logger)
+		walk(scanCtx, opts, pathCh, logger, cursorPosture)
 	}()
 
 	// Worker pool
@@ -238,6 +239,15 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	<-collectorDone
 	<-statDone
 	<-docDone
+
+	<-walkerDone
+	for _, f := range cursorPosture.findings(opts) {
+		if opts.Suppress != nil && opts.Suppress.Suppresses(f.RuleID, f.Path) {
+			res.Suppressed++
+			continue
+		}
+		res.Findings = append(res.Findings, f)
+	}
 
 	res.FinishedAt = time.Now()
 
@@ -510,17 +520,17 @@ func worker(
 	}
 }
 
-func walk(ctx context.Context, opts Options, out chan<- string, logger *slog.Logger) {
+func walk(ctx context.Context, opts Options, out chan<- string, logger *slog.Logger, cursorPosture *cursorSymlinkPostureCollector) {
 	skipSet := map[string]bool{}
 	for _, d := range opts.SkipDirs {
 		skipSet[d] = true
 	}
 	for _, root := range opts.Roots {
-		walkRoot(ctx, root, skipSet, out, logger)
+		walkRoot(ctx, root, skipSet, out, logger, cursorPosture)
 	}
 }
 
-func walkRoot(ctx context.Context, root string, skipSet map[string]bool, out chan<- string, logger *slog.Logger) {
+func walkRoot(ctx context.Context, root string, skipSet map[string]bool, out chan<- string, logger *slog.Logger, cursorPosture *cursorSymlinkPostureCollector) {
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -548,6 +558,9 @@ func walkRoot(ctx context.Context, root string, skipSet map[string]bool, out cha
 				return fs.SkipDir
 			}
 			return nil
+		}
+		if cursorPosture != nil {
+			cursorPosture.observe(path, d, logger)
 		}
 		// Hard-skip files we know we don't care about (perf).
 		if shouldSkipFile(path) {

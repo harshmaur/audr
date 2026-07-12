@@ -67,6 +67,7 @@ func builtins() []rules.Rule {
 		// Cursor permissions.json rules.
 		cursorAllowlistTooBroad{},
 		cursorMCPWildcard{},
+		cursorWorkspaceEscapingSymlinkCVE202650549{},
 
 		// Skill (markdown) rules.
 		skillShellHijack{},

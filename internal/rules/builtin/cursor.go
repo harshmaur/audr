@@ -24,11 +24,15 @@ import (
 
 type cursorAllowlistTooBroad struct{}
 
-func (cursorAllowlistTooBroad) ID() string                 { return "cursor-allowlist-too-broad" }
-func (cursorAllowlistTooBroad) Title() string              { return "Cursor terminal allowlist permits too-broad pattern" }
+func (cursorAllowlistTooBroad) ID() string { return "cursor-allowlist-too-broad" }
+func (cursorAllowlistTooBroad) Title() string {
+	return "Cursor terminal allowlist permits too-broad pattern"
+}
 func (cursorAllowlistTooBroad) Severity() finding.Severity { return finding.SeverityHigh }
 func (cursorAllowlistTooBroad) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
-func (cursorAllowlistTooBroad) Formats() []parse.Format    { return []parse.Format{parse.FormatCursorPermissions} }
+func (cursorAllowlistTooBroad) Formats() []parse.Format {
+	return []parse.Format{parse.FormatCursorPermissions}
+}
 
 func (cursorAllowlistTooBroad) Apply(doc *parse.Document) []finding.Finding {
 	if doc.CursorPermissions == nil || !doc.CursorPermissions.HasTerminalAllowlist {
@@ -100,7 +104,9 @@ func (cursorMCPWildcard) ID() string                 { return "cursor-mcp-wildca
 func (cursorMCPWildcard) Title() string              { return "Cursor mcpAllowlist contains wildcard server" }
 func (cursorMCPWildcard) Severity() finding.Severity { return finding.SeverityHigh }
 func (cursorMCPWildcard) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
-func (cursorMCPWildcard) Formats() []parse.Format    { return []parse.Format{parse.FormatCursorPermissions} }
+func (cursorMCPWildcard) Formats() []parse.Format {
+	return []parse.Format{parse.FormatCursorPermissions}
+}
 
 func (cursorMCPWildcard) Apply(doc *parse.Document) []finding.Finding {
 	if doc.CursorPermissions == nil || !doc.CursorPermissions.HasMCPAllowlist {
@@ -169,4 +175,30 @@ func (cursorMCPWildcard) Apply(doc *parse.Document) []finding.Finding {
 		}
 	}
 	return out
+}
+
+// --- cursor-workspace-escaping-symlink-cve-2026-50549 ----------------------
+//
+// Structural scanner rule registered for policy/catalog visibility. The
+// implementation lives in internal/scan because it needs a workspace-wide
+// relationship between Cursor project evidence and symlink targets, not a
+// single parsed file.
+
+type cursorWorkspaceEscapingSymlinkCVE202650549 struct{}
+
+func (cursorWorkspaceEscapingSymlinkCVE202650549) ID() string {
+	return "cursor-workspace-escaping-symlink-cve-2026-50549"
+}
+func (cursorWorkspaceEscapingSymlinkCVE202650549) Title() string {
+	return "Cursor workspace contains symlink escaping workspace boundary"
+}
+func (cursorWorkspaceEscapingSymlinkCVE202650549) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (cursorWorkspaceEscapingSymlinkCVE202650549) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (cursorWorkspaceEscapingSymlinkCVE202650549) Formats() []parse.Format { return nil }
+func (cursorWorkspaceEscapingSymlinkCVE202650549) Apply(*parse.Document) []finding.Finding {
+	return nil
 }
