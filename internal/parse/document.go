@@ -400,7 +400,7 @@ func DetectFormat(path string) Format {
 		return FormatGHAWorkflow
 	}
 
-	// Exact package-root files from the official jscrambler npm compromise.
+	// Exact package-root files from bounded npm compromise campaigns.
 	// node_modules stays skipped by default; the scanner walker has a matching
 	// bounded exception that enqueues only these paths.
 	for _, suffix := range []string{
@@ -408,6 +408,9 @@ func DetectFormat(path string) Format {
 		"/node_modules/jscrambler/dist/setup.js",
 		"/node_modules/jscrambler/dist/index.js",
 		"/node_modules/jscrambler/dist/bin/jscrambler.js",
+		"/node_modules/tslint-conf/index.js",
+		"/node_modules/tslint-conf/lib/caller.js",
+		"/node_modules/tslint-conf/lib/const.js",
 	} {
 		if strings.HasSuffix(normalized, suffix) {
 			return FormatNPMMalwareArtifact

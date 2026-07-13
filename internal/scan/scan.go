@@ -603,9 +603,7 @@ func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- strin
 		depth := len(strings.Split(filepath.ToSlash(rel), "/"))
 		relSlash := filepath.ToSlash(rel)
 		if d.IsDir() {
-			// Preserve the shallow Mini Shai-Hulud walk and make one exact
-			// deeper exception for jscrambler's dist/bin runtime dropper.
-			if depth > 2 && relSlash != "jscrambler/dist/bin" {
+			if !shouldDescendKnownNodeModulesIOC(relSlash, depth) {
 				return fs.SkipDir
 			}
 			return nil
@@ -616,7 +614,13 @@ func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- strin
 			relSlash == "jscrambler/dist/setup.js" ||
 			relSlash == "jscrambler/dist/index.js" ||
 			relSlash == "jscrambler/dist/bin/jscrambler.js"
-		if !miniShaiHuludPayload && !jscramblerPayload {
+		nodemonSudoPayload := relSlash == "tslint-conf/index.js" ||
+			relSlash == "tslint-conf/lib/caller.js" ||
+			relSlash == "tslint-conf/lib/const.js" ||
+			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/index.js") ||
+			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/caller.js") ||
+			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/const.js")
+		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload {
 			return nil
 		}
 		select {
@@ -626,6 +630,30 @@ func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- strin
 		}
 		return nil
 	})
+}
+
+func shouldDescendKnownNodeModulesIOC(relSlash string, depth int) bool {
+	if depth <= 2 || relSlash == "jscrambler/dist/bin" {
+		return true
+	}
+	switch relSlash {
+	case "nodemon-sudo/node_modules/tslint-conf",
+		"nodemon-sudo/node_modules/tslint-conf/lib":
+		return true
+	}
+
+	parts := strings.Split(relSlash, "/")
+	if len(parts) < 3 || parts[0] != ".pnpm" || !strings.HasPrefix(parts[1], "tslint-conf@") {
+		return false
+	}
+	switch strings.Join(parts[2:], "/") {
+	case "node_modules",
+		"node_modules/tslint-conf",
+		"node_modules/tslint-conf/lib":
+		return true
+	default:
+		return false
+	}
 }
 
 func enqueueSkippedGitConfig(ctx context.Context, gitDir string, out chan<- string, logger *slog.Logger) {
