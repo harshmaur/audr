@@ -154,6 +154,41 @@ func TestScan_MiniShaiHuludRouterInitUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_JscramblerPayloadUnderNodeModules asserts the default walker keeps
+// node_modules skipped while still checking the campaign's exact package path.
+func TestScan_JscramblerPayloadUnderNodeModules(t *testing.T) {
+	root := t.TempDir()
+	payload := filepath.Join(root, "node_modules", "jscrambler", "dist", "intro.js")
+	if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(payload, []byte{0x1b, 0x43, 0x53, 0x49, 0x01}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	lookalike := filepath.Join(root, "node_modules", "other", "dist", "intro.js")
+	if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lookalike, []byte{0x1b, 0x43, 0x53, 0x49, 0x01}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	got := 0
+	for _, f := range res.Findings {
+		if f.RuleID == "jscrambler-malicious-payload-ioc" {
+			got++
+		}
+	}
+	if got != 1 {
+		t.Fatalf("jscrambler-malicious-payload-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+	}
+}
+
 // TestScan_TimeoutHonored asserts that ScanTimeout terminates a slow scan
 // gracefully and still returns the partial result.
 func TestScan_TimeoutHonored(t *testing.T) {

@@ -32,6 +32,7 @@ const (
 	FormatMiseToolVersions      Format = "mise-tool-versions"       // .tool-versions dev-tool install/version config
 	FormatDockerfile            Format = "dockerfile"               // Dockerfile build posture checks
 	FormatMiniShaiHuludArtifact Format = "mini-shai-hulud-artifact" // known local IOC/persistence files
+	FormatNPMMalwareArtifact    Format = "npm-malware-artifact"     // bounded package-root supply-chain IOCs
 	FormatUnknown               Format = ""
 )
 
@@ -397,6 +398,20 @@ func DetectFormat(path string) Format {
 	if strings.Contains(path, "/.github/workflows/") &&
 		(strings.HasSuffix(path, ".yml") || strings.HasSuffix(path, ".yaml")) {
 		return FormatGHAWorkflow
+	}
+
+	// Exact package-root files from the official jscrambler npm compromise.
+	// node_modules stays skipped by default; the scanner walker has a matching
+	// bounded exception that enqueues only these paths.
+	for _, suffix := range []string{
+		"/node_modules/jscrambler/dist/intro.js",
+		"/node_modules/jscrambler/dist/setup.js",
+		"/node_modules/jscrambler/dist/index.js",
+		"/node_modules/jscrambler/dist/bin/jscrambler.js",
+	} {
+		if strings.HasSuffix(normalized, suffix) {
+			return FormatNPMMalwareArtifact
+		}
 	}
 
 	// Mini Shai-Hulud persistence artifacts that are not otherwise parsed by

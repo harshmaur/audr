@@ -136,6 +136,7 @@ func builtins() []rules.Rule {
 		miniShaiHuludTokenMonitorPersistence{},
 		miniShaiHuludDroppedPayload{},
 		miniShaiHuludStage6GitHubC2IOC{},
+		jscramblerMaliciousPayloadIOC{},
 
 		// Git config rules for nested bare repositories and executable helpers.
 		copilotCLINestedGitConfigExec{},

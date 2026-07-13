@@ -547,7 +547,7 @@ func walkRoot(ctx context.Context, root string, skipSet map[string]bool, out cha
 		if d.IsDir() {
 			if skipSet[base] {
 				if base == "node_modules" {
-					walkMiniShaiHuludNodeModules(ctx, path, out, logger)
+					walkKnownNodeModulesIOCs(ctx, path, out, logger)
 				}
 				if base == ".git" {
 					enqueueSkippedGitConfig(ctx, path, out, logger)
@@ -580,7 +580,7 @@ func walkRoot(ctx context.Context, root string, skipSet map[string]bool, out cha
 	})
 }
 
-func walkMiniShaiHuludNodeModules(ctx context.Context, root string, out chan<- string, logger *slog.Logger) {
+func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- string, logger *slog.Logger) {
 	root = filepath.Clean(root)
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if ctx.Err() != nil {
@@ -601,17 +601,22 @@ func walkMiniShaiHuludNodeModules(ctx context.Context, root string, out chan<- s
 			return nil
 		}
 		depth := len(strings.Split(filepath.ToSlash(rel), "/"))
+		relSlash := filepath.ToSlash(rel)
 		if d.IsDir() {
-			if depth > 2 {
+			// Preserve the shallow Mini Shai-Hulud walk and make one exact
+			// deeper exception for jscrambler's dist/bin runtime dropper.
+			if depth > 2 && relSlash != "jscrambler/dist/bin" {
 				return fs.SkipDir
 			}
 			return nil
 		}
 		base := filepath.Base(path)
-		if base != "router_init.js" && base != "tanstack_runner.js" {
-			return nil
-		}
-		if depth > 3 {
+		miniShaiHuludPayload := (base == "router_init.js" || base == "tanstack_runner.js") && depth <= 3
+		jscramblerPayload := relSlash == "jscrambler/dist/intro.js" ||
+			relSlash == "jscrambler/dist/setup.js" ||
+			relSlash == "jscrambler/dist/index.js" ||
+			relSlash == "jscrambler/dist/bin/jscrambler.js"
+		if !miniShaiHuludPayload && !jscramblerPayload {
 			return nil
 		}
 		select {
