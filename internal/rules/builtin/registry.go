@@ -200,5 +200,6 @@ func builtins() []rules.Rule {
 		openclawTrustedProxyIdentityHeaderForgery{},
 		openclawRetryEndpointHostnamePrefixBypass{},
 		openclawWorkspaceDotenvCredentialOverride{},
+		openclawHostExecGitExtTransportFiltering{},
 	}
 }
