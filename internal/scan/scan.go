@@ -620,7 +620,8 @@ func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- strin
 			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/index.js") ||
 			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/caller.js") ||
 			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/const.js")
-		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload {
+		marketfrontPayload := isMarketfrontCampaignNodeModulesFile(relSlash)
+		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload {
 			return nil
 		}
 		select {
@@ -634,6 +635,9 @@ func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- strin
 
 func shouldDescendKnownNodeModulesIOC(relSlash string, depth int) bool {
 	if depth <= 2 || relSlash == "jscrambler/dist/bin" {
+		return true
+	}
+	if shouldDescendMarketfrontCampaignPath(relSlash) {
 		return true
 	}
 	switch relSlash {
@@ -654,6 +658,63 @@ func shouldDescendKnownNodeModulesIOC(relSlash string, depth int) bool {
 	default:
 		return false
 	}
+}
+
+func isMarketfrontCampaignNodeModulesFile(relSlash string) bool {
+	if relSlash == "@tqm-mfe/main/package.json" || relSlash == "@tqm-mfe/main/scripts/postinstall.js" {
+		return true
+	}
+	if strings.HasPrefix(relSlash, "@marketfront/") {
+		parts := strings.Split(relSlash, "/")
+		return (len(parts) == 3 && parts[2] == "package.json") ||
+			(len(parts) == 4 && parts[2] == "scripts" && parts[3] == "postinstall.js")
+	}
+	marker := "/node_modules/"
+	idx := strings.LastIndex(relSlash, marker)
+	if idx < 0 {
+		return false
+	}
+	return isMarketfrontCampaignNodeModulesFile(relSlash[idx+len(marker):])
+}
+
+func shouldDescendMarketfrontCampaignPath(relSlash string) bool {
+	parts := strings.Split(relSlash, "/")
+	if len(parts) >= 1 && parts[0] == "@marketfront" {
+		return len(parts) == 2 || (len(parts) == 3 && parts[2] == "scripts")
+	}
+	if len(parts) >= 1 && parts[0] == "@tqm-mfe" {
+		return (len(parts) == 2 && parts[1] == "main") ||
+			(len(parts) == 3 && parts[1] == "main" && parts[2] == "scripts")
+	}
+	if len(parts) < 3 || parts[0] != ".pnpm" || parts[2] != "node_modules" {
+		return false
+	}
+	store := parts[1]
+	if strings.HasPrefix(store, "@marketfront+") {
+		switch len(parts) {
+		case 3:
+			return true
+		case 4:
+			return parts[3] == "@marketfront"
+		case 5:
+			return parts[3] == "@marketfront"
+		case 6:
+			return parts[3] == "@marketfront" && parts[5] == "scripts"
+		}
+	}
+	if strings.HasPrefix(store, "@tqm-mfe+main@") {
+		switch len(parts) {
+		case 3:
+			return true
+		case 4:
+			return parts[3] == "@tqm-mfe"
+		case 5:
+			return parts[3] == "@tqm-mfe" && parts[4] == "main"
+		case 6:
+			return parts[3] == "@tqm-mfe" && parts[4] == "main" && parts[5] == "scripts"
+		}
+	}
+	return false
 }
 
 func enqueueSkippedGitConfig(ctx context.Context, gitDir string, out chan<- string, logger *slog.Logger) {

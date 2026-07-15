@@ -416,6 +416,9 @@ func DetectFormat(path string) Format {
 			return FormatNPMMalwareArtifact
 		}
 	}
+	if isMarketfrontCampaignPostinstallPath(normalized) {
+		return FormatNPMMalwareArtifact
+	}
 
 	// Mini Shai-Hulud persistence artifacts that are not otherwise parsed by
 	// Audr. GitHub Actions and Claude settings have dedicated formats above.
@@ -500,6 +503,19 @@ func DetectFormat(path string) Format {
 	}
 
 	return FormatUnknown
+}
+
+func isMarketfrontCampaignPostinstallPath(path string) bool {
+	if strings.HasSuffix(path, "/node_modules/@tqm-mfe/main/scripts/postinstall.js") {
+		return true
+	}
+	marker := "/node_modules/@marketfront/"
+	idx := strings.LastIndex(path, marker)
+	if idx < 0 {
+		return false
+	}
+	parts := strings.Split(path[idx+len(marker):], "/")
+	return len(parts) == 3 && parts[0] != "" && parts[1] == "scripts" && parts[2] == "postinstall.js"
 }
 
 func isGitConfigPath(path, base, dir string) bool {

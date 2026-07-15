@@ -240,6 +240,59 @@ handler(require);`)
 	}
 }
 
+// TestScan_MarketfrontCredentialHarvesterUnderNodeModules asserts that the
+// default walker stays bounded while checking the campaign's package-root
+// postinstall payload in npm and pnpm layouts.
+func TestScan_MarketfrontCredentialHarvesterUnderNodeModules(t *testing.T) {
+	raw := []byte(`
+const targets = ['.ssh', '.aws/credentials', '.kube/config', '.docker/config.json', '.npmrc'];
+const body = gzipSync(Buffer.from(JSON.stringify(collected)));
+https.request({method: 'POST', path: '/api/v1/events', headers: {'X-Secret': secret}});
+`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"hoisted", filepath.Join("node_modules", "@marketfront", "header", "scripts", "postinstall.js")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "@marketfront+header@7.0.0", "node_modules", "@marketfront", "header", "scripts", "postinstall.js")},
+		{"tqm-mfe", filepath.Join("node_modules", "@tqm-mfe", "main", "scripts", "postinstall.js")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "@other", "header", "scripts", "postinstall.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "marketfront-dependency-confusion-credential-harvester" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("marketfront findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_TimeoutHonored asserts that ScanTimeout terminates a slow scan
 // gracefully and still returns the partial result.
 func TestScan_TimeoutHonored(t *testing.T) {
