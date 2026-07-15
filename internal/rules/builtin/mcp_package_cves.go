@@ -19,6 +19,7 @@ type flowiseCustomMCPEnvCaseBypass struct{}
 type serenaDashboardUnauthFlaskAPI struct{}
 type clineDashboardBrowserOriginBypass struct{}
 type rufloMCPBridgeUnauthRCE struct{}
+type healthLakeMCPPaginationSSRF struct{}
 
 func (xhsMCPMediaPathsSSRF) ID() string { return "xhs-mcp-media-paths-ssrf" }
 func (xhsMCPMediaPathsSSRF) Title() string {
@@ -181,6 +182,19 @@ func (rufloMCPBridgeUnauthRCE) Apply(doc *parse.Document) []finding.Finding {
 	return dependencyVersionFinding(doc, isRufloPackage, func(v string) bool { return vulnerableVersionBefore(v, []int{3, 16, 3}) }, rufloMCPBridgeUnauthRCEFinding)
 }
 
+func (healthLakeMCPPaginationSSRF) ID() string { return "healthlake-mcp-pagination-ssrf" }
+func (healthLakeMCPPaginationSSRF) Title() string {
+	return "AWS HealthLake MCP Server before 0.0.14 allows pagination SSRF"
+}
+func (healthLakeMCPPaginationSSRF) Severity() finding.Severity { return finding.SeverityHigh }
+func (healthLakeMCPPaginationSSRF) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
+func (healthLakeMCPPaginationSSRF) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (healthLakeMCPPaginationSSRF) Apply(doc *parse.Document) []finding.Finding {
+	return dependencyVersionFinding(doc, isHealthLakeMCPPackage, func(v string) bool { return vulnerableVersionBefore(v, []int{0, 0, 14}) }, healthLakeMCPPaginationSSRFFinding)
+}
+
 func dependencyVersionFinding(doc *parse.Document, matchesPackage func(string) bool, vulnerable func(string) bool, makeFinding func(string, int, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -219,6 +233,10 @@ func isClinePackage(name string) bool {
 	return n == "@cline/cline" || n == "cline"
 }
 func isRufloPackage(name string) bool { return normalizePackageName(name) == "ruflo" }
+func isHealthLakeMCPPackage(name string) bool {
+	n := normalizePackageName(name)
+	return n == "awslabs-healthlake-mcp-server" || n == "awslabs.healthlake-mcp-server"
+}
 
 func normalizePackageName(name string) string {
 	n := strings.ToLower(strings.TrimSpace(name))
@@ -399,5 +417,20 @@ func rufloMCPBridgeUnauthRCEFinding(path string, line int, match string) finding
 		Match:        match,
 		SuggestedFix: "Upgrade ruflo to 3.16.3 or later, require authentication on any MCP bridge endpoint, and rotate provider keys or review AgentDB state if an unauthenticated bridge was exposed.",
 		Tags:         []string{"cve", "ruflo", "mcp", "docker-compose", "rce", "dependency-manifest"},
+	})
+}
+
+func healthLakeMCPPaginationSSRFFinding(path string, line int, match string) finding.Finding {
+	return finding.New(finding.Args{
+		RuleID:       "healthlake-mcp-pagination-ssrf",
+		Severity:     finding.SeverityHigh,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "AWS HealthLake MCP Server before 0.0.14 allows pagination SSRF",
+		Description:  "CVE-2026-15643: awslabs.healthlake-mcp-server before 0.0.14 accepts a crafted next_token pagination URL without verifying that it points to the expected AWS HealthLake endpoint, allowing a remote authenticated caller to redirect the request and exfiltrate temporary AWS credentials.",
+		Path:         path,
+		Line:         line,
+		Match:        match,
+		SuggestedFix: "Upgrade awslabs.healthlake-mcp-server to 0.0.14 or later, rotate temporary AWS credentials that may have been exposed, and review HealthLake MCP access logs for pagination requests to unexpected hosts.",
+		Tags:         []string{"cve", "aws", "healthlake", "mcp", "ssrf", "credential-exfiltration", "dependency-manifest"},
 	})
 }

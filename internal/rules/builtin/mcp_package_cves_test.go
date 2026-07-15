@@ -37,6 +37,9 @@ func TestMCPPackageCVEs_FlagVulnerablePackageAndAllowFixed(t *testing.T) {
 		{"ruflo mcp bridge unauth rce", "ruflo-mcp-bridge-unauth-rce", "ruflo", "3.16.2", "3.16.3", func(d *parse.Document) []finding.Finding {
 			return (rufloMCPBridgeUnauthRCE{}).Apply(d)
 		}},
+		{"healthlake mcp pagination ssrf", "healthlake-mcp-pagination-ssrf", "awslabs-healthlake-mcp-server", "0.0.13", "0.0.14", func(d *parse.Document) []finding.Finding {
+			return (healthLakeMCPPaginationSSRF{}).Apply(d)
+		}},
 		{"claude code worktree git confusion", "claude-code-worktree-git-confusion", "@anthropic-ai/claude-code", "2.1.162", "2.1.163", func(d *parse.Document) []finding.Finding {
 			return (claudeCodeWorktreeGitConfusion{}).Apply(d)
 		}},
@@ -60,6 +63,17 @@ func TestMCPPackageCVEs_FlagVulnerablePackageAndAllowFixed(t *testing.T) {
 				t.Fatalf("got %d findings, want 0", len(findings))
 			}
 		})
+	}
+}
+
+func TestHealthLakeMCPPaginationSSRF_FlagsVulnerableRootPackage(t *testing.T) {
+	doc := parse.Parse("package.json", []byte(`{"name":"awslabs-healthlake-mcp-server","version":"0.0.11"}`))
+	findings := (healthLakeMCPPaginationSSRF{}).Apply(doc)
+	if len(findings) != 1 {
+		t.Fatalf("got %d findings, want 1", len(findings))
+	}
+	if findings[0].RuleID != "healthlake-mcp-pagination-ssrf" {
+		t.Fatalf("rule id = %q, want healthlake-mcp-pagination-ssrf", findings[0].RuleID)
 	}
 }
 
