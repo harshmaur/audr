@@ -140,6 +140,7 @@ func builtins() []rules.Rule {
 		jscramblerMaliciousPayloadIOC{},
 		nodemonSudoTslintConfBackdoorIOC{},
 		marketfrontDependencyConfusionCredentialHarvester{},
+		asyncAPIMiasmaRATIOC{},
 
 		// Git config rules for nested bare repositories and executable helpers.
 		copilotCLINestedGitConfigExec{},

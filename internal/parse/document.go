@@ -13,27 +13,28 @@ import (
 type Format string
 
 const (
-	FormatMCPConfig             Format = "mcp-config"               // .mcp.json, .cursor/mcp.json
-	FormatClaudeSettings        Format = "claude-settings"          // .claude/settings.json, settings.local.json
-	FormatSkill                 Format = "skill"                    // .claude/skills/**/*.md
-	FormatAgentDoc              Format = "agent-doc"                // AGENTS.md, CLAUDE.md, CODEX.md, GEMINI.md, .cursorrules
-	FormatGHAWorkflow           Format = "gha-workflow"             // .github/workflows/*.yml
-	FormatShellRC               Format = "shellrc"                  // .bashrc, .zshrc, .profile, etc.
-	FormatPowerShellProfile     Format = "powershell-profile"       // Microsoft.PowerShell_profile.ps1, $PROFILE
-	FormatEnv                   Format = "env"                      // .env, .env.local, .env.example
-	FormatCodexConfig           Format = "codex-config"             // ~/.codex/config.toml, .codex/config.toml (v0.2)
-	FormatWindsurfMCP           Format = "windsurf-mcp"             // ~/.codeium/windsurf/mcp_config.json (v0.2.0-alpha.3)
-	FormatCursorPermissions     Format = "cursor-permissions"       // ~/.cursor/permissions.json (v0.2.0-alpha.4)
-	FormatPackageJSON           Format = "package-json"             // package.json manifests for agent packages
-	FormatDependencyManifest    Format = "dependency-manifest"      // language manifests/lockfiles for agent package CVEs
-	FormatReleaseAgeConfig      Format = "release-age-config"       // package-manager/dependency-bot release-age cooldown configs
-	FormatAPMPluginManifest     Format = "apm-plugin-manifest"      // Microsoft APM plugin.json component manifests
-	FormatGitConfig             Format = "git-config"               // bare/nested git config files with executable hooks/helpers
-	FormatMiseToolVersions      Format = "mise-tool-versions"       // .tool-versions dev-tool install/version config
-	FormatDockerfile            Format = "dockerfile"               // Dockerfile build posture checks
-	FormatMiniShaiHuludArtifact Format = "mini-shai-hulud-artifact" // known local IOC/persistence files
-	FormatNPMMalwareArtifact    Format = "npm-malware-artifact"     // bounded package-root supply-chain IOCs
-	FormatUnknown               Format = ""
+	FormatMCPConfig              Format = "mcp-config"               // .mcp.json, .cursor/mcp.json
+	FormatClaudeSettings         Format = "claude-settings"          // .claude/settings.json, settings.local.json
+	FormatSkill                  Format = "skill"                    // .claude/skills/**/*.md
+	FormatAgentDoc               Format = "agent-doc"                // AGENTS.md, CLAUDE.md, CODEX.md, GEMINI.md, .cursorrules
+	FormatGHAWorkflow            Format = "gha-workflow"             // .github/workflows/*.yml
+	FormatShellRC                Format = "shellrc"                  // .bashrc, .zshrc, .profile, etc.
+	FormatPowerShellProfile      Format = "powershell-profile"       // Microsoft.PowerShell_profile.ps1, $PROFILE
+	FormatEnv                    Format = "env"                      // .env, .env.local, .env.example
+	FormatCodexConfig            Format = "codex-config"             // ~/.codex/config.toml, .codex/config.toml (v0.2)
+	FormatWindsurfMCP            Format = "windsurf-mcp"             // ~/.codeium/windsurf/mcp_config.json (v0.2.0-alpha.3)
+	FormatCursorPermissions      Format = "cursor-permissions"       // ~/.cursor/permissions.json (v0.2.0-alpha.4)
+	FormatPackageJSON            Format = "package-json"             // package.json manifests for agent packages
+	FormatDependencyManifest     Format = "dependency-manifest"      // language manifests/lockfiles for agent package CVEs
+	FormatReleaseAgeConfig       Format = "release-age-config"       // package-manager/dependency-bot release-age cooldown configs
+	FormatAPMPluginManifest      Format = "apm-plugin-manifest"      // Microsoft APM plugin.json component manifests
+	FormatGitConfig              Format = "git-config"               // bare/nested git config files with executable hooks/helpers
+	FormatMiseToolVersions       Format = "mise-tool-versions"       // .tool-versions dev-tool install/version config
+	FormatDockerfile             Format = "dockerfile"               // Dockerfile build posture checks
+	FormatMiniShaiHuludArtifact  Format = "mini-shai-hulud-artifact" // known local IOC/persistence files
+	FormatNPMMalwareArtifact     Format = "npm-malware-artifact"     // bounded package-root supply-chain IOCs
+	FormatAsyncAPIMiasmaArtifact Format = "asyncapi-miasma-artifact" // AsyncAPI Miasma package/drop IOCs
+	FormatUnknown                Format = ""
 )
 
 // Document is the generic container produced by parsers and consumed by rules.
@@ -419,6 +420,9 @@ func DetectFormat(path string) Format {
 	if isMarketfrontCampaignPostinstallPath(normalized) {
 		return FormatNPMMalwareArtifact
 	}
+	if IsAsyncAPIMiasmaArtifactPath(normalized) {
+		return FormatAsyncAPIMiasmaArtifact
+	}
 
 	// Mini Shai-Hulud persistence artifacts that are not otherwise parsed by
 	// Audr. GitHub Actions and Claude settings have dedicated formats above.
@@ -516,6 +520,32 @@ func isMarketfrontCampaignPostinstallPath(path string) bool {
 	}
 	parts := strings.Split(path[idx+len(marker):], "/")
 	return len(parts) == 3 && parts[0] != "" && parts[1] == "scripts" && parts[2] == "postinstall.js"
+}
+
+// IsAsyncAPIMiasmaArtifactPath bounds the AsyncAPI Miasma campaign surface to
+// exact compromised package files and the campaign's platform-specific drop.
+func IsAsyncAPIMiasmaArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	for _, suffix := range []string{
+		"/node_modules/@asyncapi/generator/lib/templates/config/validator.js",
+		"/node_modules/@asyncapi/generator-helpers/src/utils.js",
+		"/node_modules/@asyncapi/generator-components/src/utils/errorhandling.js",
+		"/node_modules/@asyncapi/specs/index.js",
+	} {
+		if strings.HasSuffix(normalized, suffix) {
+			return true
+		}
+	}
+	return IsAsyncAPIMiasmaDropPath(normalized)
+}
+
+// IsAsyncAPIMiasmaDropPath recognizes the sync.js persistence locations used
+// by the campaign without matching arbitrary NodeJS/sync.js files elsewhere.
+func IsAsyncAPIMiasmaDropPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	return strings.HasSuffix(normalized, "/.local/share/nodejs/sync.js") ||
+		strings.HasSuffix(normalized, "/library/application support/nodejs/sync.js") ||
+		strings.HasSuffix(normalized, "/appdata/local/nodejs/sync.js")
 }
 
 func isGitConfigPath(path, base, dir string) bool {

@@ -621,7 +621,8 @@ func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- strin
 			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/caller.js") ||
 			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/const.js")
 		marketfrontPayload := isMarketfrontCampaignNodeModulesFile(relSlash)
-		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload {
+		asyncAPIMiasmaPayload := parse.IsAsyncAPIMiasmaArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
+		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload && !asyncAPIMiasmaPayload {
 			return nil
 		}
 		select {
@@ -638,6 +639,9 @@ func shouldDescendKnownNodeModulesIOC(relSlash string, depth int) bool {
 		return true
 	}
 	if shouldDescendMarketfrontCampaignPath(relSlash) {
+		return true
+	}
+	if shouldDescendAsyncAPIMiasmaPath(relSlash) {
 		return true
 	}
 	switch relSlash {
@@ -658,6 +662,46 @@ func shouldDescendKnownNodeModulesIOC(relSlash string, depth int) bool {
 	default:
 		return false
 	}
+}
+
+func shouldDescendAsyncAPIMiasmaPath(relSlash string) bool {
+	parts := strings.Split(relSlash, "/")
+	if len(parts) >= 1 && parts[0] == "@asyncapi" {
+		if len(parts) == 1 {
+			return true
+		}
+		switch parts[1] {
+		case "specs":
+			return len(parts) == 2
+		case "generator":
+			return len(parts) >= 2 && len(parts) <= 5 && equalPathPrefix(parts[2:], []string{"lib", "templates", "config"})
+		case "generator-helpers":
+			return len(parts) == 2 || (len(parts) == 3 && parts[2] == "src")
+		case "generator-components":
+			return len(parts) == 2 || (len(parts) == 3 && parts[2] == "src") ||
+				(len(parts) == 4 && parts[2] == "src" && parts[3] == "utils")
+		}
+		return false
+	}
+	if len(parts) < 3 || parts[0] != ".pnpm" || parts[2] != "node_modules" || !strings.HasPrefix(parts[1], "@asyncapi+") {
+		return false
+	}
+	if len(parts) == 3 {
+		return true
+	}
+	return shouldDescendAsyncAPIMiasmaPath(strings.Join(parts[3:], "/"))
+}
+
+func equalPathPrefix(got, want []string) bool {
+	if len(got) > len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func isMarketfrontCampaignNodeModulesFile(relSlash string) bool {

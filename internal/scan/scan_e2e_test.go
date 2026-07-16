@@ -293,6 +293,40 @@ https.request({method: 'POST', path: '/api/v1/events', headers: {'X-Secret': sec
 	}
 }
 
+// TestScan_AsyncAPIMiasmaPayloadUnderNodeModules asserts that node_modules
+// stays skipped except for exact AsyncAPI campaign paths carrying a known IOC.
+func TestScan_AsyncAPIMiasmaPayloadUnderNodeModules(t *testing.T) {
+	root := t.TempDir()
+	payload := filepath.Join(root, "node_modules", "@asyncapi", "specs", "index.js")
+	if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(payload, []byte(`const marker = "miasma-train-p1";`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lookalike := filepath.Join(root, "node_modules", "@other", "specs", "index.js")
+	if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lookalike, []byte(`const marker = "miasma-train-p1";`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	got := 0
+	for _, f := range res.Findings {
+		if f.RuleID == "asyncapi-miasma-rat-ioc" {
+			got++
+		}
+	}
+	if got != 1 {
+		t.Fatalf("asyncapi-miasma-rat-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+	}
+}
+
 // TestScan_TimeoutHonored asserts that ScanTimeout terminates a slow scan
 // gracefully and still returns the partial result.
 func TestScan_TimeoutHonored(t *testing.T) {
