@@ -29,6 +29,9 @@ func (mcpUnpinnedNPX) Apply(doc *parse.Document) []finding.Finding {
 	}
 	var out []finding.Finding
 	for _, s := range servers {
+		if s.Disabled {
+			continue
+		}
 		if s.Command != "npx" {
 			continue
 		}
@@ -306,6 +309,9 @@ func (mcpUnauthRemoteURL) Apply(doc *parse.Document) []finding.Finding {
 	}
 	var out []finding.Finding
 	for _, s := range servers {
+		if s.Disabled {
+			continue
+		}
 		// Only applies to remote (URL-based) servers.
 		if s.URL == "" {
 			continue
