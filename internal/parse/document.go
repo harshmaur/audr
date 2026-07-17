@@ -28,6 +28,7 @@ const (
 	FormatDependencyManifest     Format = "dependency-manifest"      // language manifests/lockfiles for agent package CVEs
 	FormatReleaseAgeConfig       Format = "release-age-config"       // package-manager/dependency-bot release-age cooldown configs
 	FormatAPMPluginManifest      Format = "apm-plugin-manifest"      // Microsoft APM plugin.json component manifests
+	FormatKiotaOpenAPISpec       Format = "kiota-openapi-spec"       // OpenAPI/Swagger specs used for Kiota plugin generation
 	FormatGitConfig              Format = "git-config"               // bare/nested git config files with executable hooks/helpers
 	FormatMiseToolVersions       Format = "mise-tool-versions"       // .tool-versions dev-tool install/version config
 	FormatDockerfile             Format = "dockerfile"               // Dockerfile build posture checks
@@ -495,6 +496,13 @@ func DetectFormat(path string) Format {
 	}
 	if base == "plugin.json" {
 		return FormatAPMPluginManifest
+	}
+	lowerBase := strings.ToLower(base)
+	ext := strings.ToLower(filepath.Ext(lowerBase))
+	stem := strings.TrimSuffix(lowerBase, ext)
+	if (ext == ".json" || ext == ".yaml" || ext == ".yml") &&
+		(strings.Contains(stem, "openapi") || strings.Contains(stem, "swagger")) {
+		return FormatKiotaOpenAPISpec
 	}
 	if isGitConfigPath(normalized, base, dir) {
 		return FormatGitConfig
