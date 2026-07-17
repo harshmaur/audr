@@ -94,6 +94,7 @@ func builtins() []rules.Rule {
 		microsoftAPMPluginComponentTraversal{},
 		mlflowAssistantOriginBypass{},
 		mcpPythonSDKWebSocketOriginValidation{},
+		clawVetHardcodedJWTSecret{},
 		deeptutorMCPToolGrantBypass{},
 		deepseekMCPSessionIDHijack{},
 		mcpCalculateServerEvalRCE{},

@@ -34,6 +34,7 @@ const (
 	FormatMiniShaiHuludArtifact  Format = "mini-shai-hulud-artifact" // known local IOC/persistence files
 	FormatNPMMalwareArtifact     Format = "npm-malware-artifact"     // bounded package-root supply-chain IOCs
 	FormatAsyncAPIMiasmaArtifact Format = "asyncapi-miasma-artifact" // AsyncAPI Miasma package/drop IOCs
+	FormatClawVetAuthSource      Format = "clawvet-auth-source"      // ClawVet self-hosted API authentication source
 	FormatUnknown                Format = ""
 )
 
@@ -422,6 +423,10 @@ func DetectFormat(path string) Format {
 	}
 	if IsAsyncAPIMiasmaArtifactPath(normalized) {
 		return FormatAsyncAPIMiasmaArtifact
+	}
+	if strings.HasSuffix(normalized, "/apps/api/src/routes/auth.ts") ||
+		strings.HasSuffix(normalized, "/apps/api/src/services/resolve-user.ts") {
+		return FormatClawVetAuthSource
 	}
 
 	// Mini Shai-Hulud persistence artifacts that are not otherwise parsed by
