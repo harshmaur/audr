@@ -622,7 +622,8 @@ func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- strin
 			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/const.js")
 		marketfrontPayload := isMarketfrontCampaignNodeModulesFile(relSlash)
 		asyncAPIMiasmaPayload := parse.IsAsyncAPIMiasmaArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
-		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload && !asyncAPIMiasmaPayload {
+		injectiveWalletStealerPayload := parse.IsInjectiveWalletStealerArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
+		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload && !asyncAPIMiasmaPayload && !injectiveWalletStealerPayload {
 			return nil
 		}
 		select {
@@ -642,6 +643,9 @@ func shouldDescendKnownNodeModulesIOC(relSlash string, depth int) bool {
 		return true
 	}
 	if shouldDescendAsyncAPIMiasmaPath(relSlash) {
+		return true
+	}
+	if shouldDescendInjectiveWalletStealerPath(relSlash) {
 		return true
 	}
 	switch relSlash {
@@ -690,6 +694,33 @@ func shouldDescendAsyncAPIMiasmaPath(relSlash string) bool {
 		return true
 	}
 	return shouldDescendAsyncAPIMiasmaPath(strings.Join(parts[3:], "/"))
+}
+
+func shouldDescendInjectiveWalletStealerPath(relSlash string) bool {
+	parts := strings.Split(relSlash, "/")
+	if len(parts) >= 1 && parts[0] == "@injectivelabs" {
+		switch len(parts) {
+		case 1:
+			return true
+		case 2:
+			return parts[1] == "sdk-ts"
+		case 3:
+			return parts[1] == "sdk-ts" && parts[2] == "dist"
+		case 4:
+			return parts[1] == "sdk-ts" && parts[2] == "dist" &&
+				(parts[3] == "esm" || parts[3] == "cjs")
+		default:
+			return false
+		}
+	}
+	if len(parts) < 3 || parts[0] != ".pnpm" || parts[2] != "node_modules" ||
+		!strings.HasPrefix(parts[1], "@injectivelabs+sdk-ts@") {
+		return false
+	}
+	if len(parts) == 3 {
+		return true
+	}
+	return shouldDescendInjectiveWalletStealerPath(strings.Join(parts[3:], "/"))
 }
 
 func equalPathPrefix(got, want []string) bool {

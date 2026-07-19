@@ -144,6 +144,7 @@ func builtins() []rules.Rule {
 		nodemonSudoTslintConfBackdoorIOC{},
 		marketfrontDependencyConfusionCredentialHarvester{},
 		asyncAPIMiasmaRATIOC{},
+		injectiveSDKWalletSecretExfilIOC{},
 
 		// Git config rules for nested bare repositories and executable helpers.
 		copilotCLINestedGitConfigExec{},

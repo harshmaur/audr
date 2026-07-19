@@ -403,9 +403,12 @@ func DetectFormat(path string) Format {
 		return FormatGHAWorkflow
 	}
 
-	// Exact package-root files from bounded npm compromise campaigns.
+	// Exact package-root/source files from bounded npm compromise campaigns.
 	// node_modules stays skipped by default; the scanner walker has a matching
 	// bounded exception that enqueues only these paths.
+	if IsInjectiveWalletStealerArtifactPath(normalized) {
+		return FormatNPMMalwareArtifact
+	}
 	for _, suffix := range []string{
 		"/node_modules/jscrambler/dist/intro.js",
 		"/node_modules/jscrambler/dist/setup.js",
@@ -559,6 +562,28 @@ func IsAsyncAPIMiasmaDropPath(path string) bool {
 	return strings.HasSuffix(normalized, "/.local/share/nodejs/sync.js") ||
 		strings.HasSuffix(normalized, "/library/application support/nodejs/sync.js") ||
 		strings.HasSuffix(normalized, "/appdata/local/nodejs/sync.js")
+}
+
+// IsInjectiveWalletStealerArtifactPath bounds the Injective SDK wallet-stealer
+// surface to the compromised source file and the two generated account bundles
+// shipped in @injectivelabs/sdk-ts 1.20.21. The generated bundle hash suffix is
+// intentionally variable so npm and pnpm layouts are both covered.
+func IsInjectiveWalletStealerArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	if strings.HasSuffix(normalized, "/packages/sdk-ts/src/utils/key-derivation-telemetry.ts") {
+		return true
+	}
+	marker := "/node_modules/@injectivelabs/sdk-ts/dist/"
+	idx := strings.LastIndex(normalized, marker)
+	if idx < 0 {
+		return false
+	}
+	parts := strings.Split(normalized[idx+len(marker):], "/")
+	if len(parts) != 2 || (parts[0] != "esm" && parts[0] != "cjs") {
+		return false
+	}
+	return strings.HasPrefix(parts[1], "accounts-") &&
+		(strings.HasSuffix(parts[1], ".js") || strings.HasSuffix(parts[1], ".cjs"))
 }
 
 func isGitConfigPath(path, base, dir string) bool {

