@@ -93,6 +93,7 @@ func builtins() []rules.Rule {
 		// OSV lacks coverage for a locally auditable agent/MCP package surface.
 		microsoftAPMPluginComponentTraversal{},
 		kiotaPluginStaticTemplateTraversal{},
+		langflowToolGuardCodeInjection{},
 		mlflowAssistantOriginBypass{},
 		mcpPythonSDKWebSocketOriginValidation{},
 		clawVetHardcodedJWTSecret{},

@@ -57,7 +57,7 @@ func packageJSONDependencyManifest(pkg *PackageJSON, raw []byte) *DependencyMani
 	return m
 }
 
-var requirementLineRE = regexp.MustCompile(`^\s*([A-Za-z0-9_.-]+)\s*(?:\[[^\]]+\])?\s*([<>=!~]{1,3})?\s*([^;#\s]+)?`)
+var requirementLineRE = regexp.MustCompile(`^\s*([A-Za-z0-9_.-]+)\s*(?:\[[^\]]+\])?\s*([<>=!~]{1,3})?\s*([^;#]+)?`)
 
 func parseRequirementsTXT(raw []byte) *DependencyManifest {
 	m := &DependencyManifest{Ecosystem: "pypi"}

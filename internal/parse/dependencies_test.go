@@ -52,6 +52,13 @@ func TestParseRequirementsTXT(t *testing.T) {
 	}
 }
 
+func TestParseRequirementsTXT_PreservesSpacedVersionConstraints(t *testing.T) {
+	doc := Parse("requirements.txt", []byte("langflow>=1.0.0, <1.10.1\n"))
+	if !hasDependency(doc.DependencyManifest, "langflow", ">=1.0.0, <1.10.1") {
+		t.Fatalf("spaced requirement constraint not preserved: %#v", doc.DependencyManifest.Dependencies)
+	}
+}
+
 func TestParsePyprojectTOML(t *testing.T) {
 	doc := Parse("pyproject.toml", []byte(`[project]
 name = "mcp-url-downloader"
