@@ -327,6 +327,45 @@ func TestScan_AsyncAPIMiasmaPayloadUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_Ada8877SentryPayloadUnderNodeModules proves the bounded
+// node_modules exception reaches the campaign's exact verify.js package path.
+func TestScan_Ada8877SentryPayloadUnderNodeModules(t *testing.T) {
+	root := t.TempDir()
+	payload := filepath.Join(root, "node_modules", "@edgecommons", "edgecommons", "examples", "verify.js")
+	if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	raw := []byte(`
+const Sentry = require("@sentry/node");
+Sentry.init({dsn: "https://example@o4510485815754752.ingest.us.sentry.io/4511632673275909", sendDefaultPii: true});
+fetch("https://www.cloudflare.com/cdn-cgi/trace");
+`)
+	if err := os.WriteFile(payload, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lookalike := filepath.Join(root, "node_modules", "@other", "edgecommons", "examples", "verify.js")
+	if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	got := 0
+	for _, f := range res.Findings {
+		if f.RuleID == "ada8877-sentry-dependency-confusion-ioc" {
+			got++
+		}
+	}
+	if got != 1 {
+		t.Fatalf("ada8877-sentry-dependency-confusion-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+	}
+}
+
 // TestScan_InjectiveWalletStealerUnderNodeModules proves the bounded
 // node_modules exception reaches the compromised generated bundle without
 // broad-scanning unrelated package files.

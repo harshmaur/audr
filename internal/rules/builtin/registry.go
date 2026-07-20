@@ -143,6 +143,7 @@ func builtins() []rules.Rule {
 		jscramblerMaliciousPayloadIOC{},
 		nodemonSudoTslintConfBackdoorIOC{},
 		marketfrontDependencyConfusionCredentialHarvester{},
+		ada8877SentryDependencyConfusionIOC{},
 		asyncAPIMiasmaRATIOC{},
 		injectiveSDKWalletSecretExfilIOC{},
 

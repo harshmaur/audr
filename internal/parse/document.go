@@ -425,6 +425,9 @@ func DetectFormat(path string) Format {
 	if isMarketfrontCampaignPostinstallPath(normalized) {
 		return FormatNPMMalwareArtifact
 	}
+	if IsAda8877SentryVerifyArtifactPath(normalized) {
+		return FormatNPMMalwareArtifact
+	}
 	if IsAsyncAPIMiasmaArtifactPath(normalized) {
 		return FormatAsyncAPIMiasmaArtifact
 	}
@@ -536,6 +539,29 @@ func isMarketfrontCampaignPostinstallPath(path string) bool {
 	}
 	parts := strings.Split(path[idx+len(marker):], "/")
 	return len(parts) == 3 && parts[0] != "" && parts[1] == "scripts" && parts[2] == "postinstall.js"
+}
+
+// IsAda8877SentryVerifyArtifactPath bounds the ada8877 campaign payload to
+// examples/verify.js under one of the five known dependency-confusion package
+// roots. The final node_modules segment makes npm and pnpm layouts equivalent.
+func IsAda8877SentryVerifyArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	marker := "/node_modules/"
+	idx := strings.LastIndex(normalized, marker)
+	if idx < 0 {
+		return false
+	}
+	rel := normalized[idx+len(marker):]
+	switch rel {
+	case "syft-acp-atoms/examples/verify.js",
+		"syft-acp-uikit/examples/verify.js",
+		"syft-acp-core/examples/verify.js",
+		"@edgecommons/streamlog-node/examples/verify.js",
+		"@edgecommons/edgecommons/examples/verify.js":
+		return true
+	default:
+		return false
+	}
 }
 
 // IsAsyncAPIMiasmaArtifactPath bounds the AsyncAPI Miasma campaign surface to

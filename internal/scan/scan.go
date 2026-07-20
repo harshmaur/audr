@@ -621,9 +621,10 @@ func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- strin
 			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/caller.js") ||
 			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/const.js")
 		marketfrontPayload := isMarketfrontCampaignNodeModulesFile(relSlash)
+		ada8877SentryPayload := isAda8877SentryNodeModulesFile(relSlash)
 		asyncAPIMiasmaPayload := parse.IsAsyncAPIMiasmaArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
 		injectiveWalletStealerPayload := parse.IsInjectiveWalletStealerArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
-		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload && !asyncAPIMiasmaPayload && !injectiveWalletStealerPayload {
+		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload && !ada8877SentryPayload && !asyncAPIMiasmaPayload && !injectiveWalletStealerPayload {
 			return nil
 		}
 		select {
@@ -640,6 +641,9 @@ func shouldDescendKnownNodeModulesIOC(relSlash string, depth int) bool {
 		return true
 	}
 	if shouldDescendMarketfrontCampaignPath(relSlash) {
+		return true
+	}
+	if shouldDescendAda8877SentryPath(relSlash) {
 		return true
 	}
 	if shouldDescendAsyncAPIMiasmaPath(relSlash) {
@@ -790,6 +794,52 @@ func shouldDescendMarketfrontCampaignPath(relSlash string) bool {
 		}
 	}
 	return false
+}
+
+func isAda8877SentryNodeModulesFile(relSlash string) bool {
+	fullPath := filepath.ToSlash(filepath.Join("/node_modules", relSlash))
+	if parse.IsAda8877SentryVerifyArtifactPath(fullPath) {
+		return true
+	}
+	marker := "/node_modules/"
+	idx := strings.LastIndex(relSlash, marker)
+	if idx >= 0 {
+		relSlash = relSlash[idx+len(marker):]
+	}
+	for _, packagePath := range []string{
+		"syft-acp-atoms", "syft-acp-uikit", "syft-acp-core",
+		"@edgecommons/streamlog-node", "@edgecommons/edgecommons",
+	} {
+		if relSlash == packagePath+"/package.json" {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldDescendAda8877SentryPath(relSlash string) bool {
+	parts := strings.Split(relSlash, "/")
+	if len(parts) >= 1 && (parts[0] == "syft-acp-atoms" || parts[0] == "syft-acp-uikit" || parts[0] == "syft-acp-core") {
+		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "examples")
+	}
+	if len(parts) >= 1 && parts[0] == "@edgecommons" {
+		if len(parts) == 1 {
+			return true
+		}
+		knownPackage := parts[1] == "streamlog-node" || parts[1] == "edgecommons"
+		return knownPackage && (len(parts) == 2 || (len(parts) == 3 && parts[2] == "examples"))
+	}
+	if len(parts) < 3 || parts[0] != ".pnpm" || parts[2] != "node_modules" {
+		return false
+	}
+	if len(parts) == 3 {
+		return strings.HasPrefix(parts[1], "syft-acp-atoms@") ||
+			strings.HasPrefix(parts[1], "syft-acp-uikit@") ||
+			strings.HasPrefix(parts[1], "syft-acp-core@") ||
+			strings.HasPrefix(parts[1], "@edgecommons+streamlog-node@") ||
+			strings.HasPrefix(parts[1], "@edgecommons+edgecommons@")
+	}
+	return shouldDescendAda8877SentryPath(strings.Join(parts[3:], "/"))
 }
 
 func enqueueSkippedGitConfig(ctx context.Context, gitDir string, out chan<- string, logger *slog.Logger) {
