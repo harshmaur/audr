@@ -34,6 +34,7 @@ const (
 	FormatDockerfile             Format = "dockerfile"               // Dockerfile build posture checks
 	FormatMiniShaiHuludArtifact  Format = "mini-shai-hulud-artifact" // known local IOC/persistence files
 	FormatNPMMalwareArtifact     Format = "npm-malware-artifact"     // bounded package-root supply-chain IOCs
+	FormatPyPIMalwareArtifact    Format = "pypi-malware-artifact"    // bounded PyPI package/drop supply-chain IOCs
 	FormatAsyncAPIMiasmaArtifact Format = "asyncapi-miasma-artifact" // AsyncAPI Miasma package/drop IOCs
 	FormatClawVetAuthSource      Format = "clawvet-auth-source"      // ClawVet self-hosted API authentication source
 	FormatUnknown                Format = ""
@@ -428,6 +429,9 @@ func DetectFormat(path string) Format {
 	if IsAda8877SentryVerifyArtifactPath(normalized) {
 		return FormatNPMMalwareArtifact
 	}
+	if IsXYQDramaSkillArtifactPath(normalized) {
+		return FormatPyPIMalwareArtifact
+	}
 	if IsAsyncAPIMiasmaArtifactPath(normalized) {
 		return FormatAsyncAPIMiasmaArtifact
 	}
@@ -562,6 +566,36 @@ func IsAda8877SentryVerifyArtifactPath(path string) bool {
 	default:
 		return false
 	}
+}
+
+// IsXYQDramaSkillArtifactPath bounds the xyq-drama-skill malware surface to
+// the campaign's exact hidden home-directory drop, package helper, and
+// installer filename. setup.py is content-gated by the rule before a finding
+// is emitted.
+func IsXYQDramaSkillArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	return IsXYQDramaSkillDropPath(normalized) ||
+		strings.HasSuffix(normalized, "/xyq_drama_skill/_helper.py") ||
+		strings.HasSuffix(normalized, "/setup.py")
+}
+
+// IsXYQDramaSkillDropPath recognizes the campaign's ~/.log-helper drop only at
+// conventional Linux, macOS, and Windows home-directory locations. This avoids
+// treating an unrelated project-local .log-helper file as critical malware.
+func IsXYQDramaSkillDropPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	parts := strings.Split(strings.Trim(normalized, "/"), "/")
+	if len(parts) < 2 || parts[len(parts)-1] != ".log-helper" {
+		return false
+	}
+	if len(parts) == 2 && parts[0] == "root" {
+		return true
+	}
+	if len(parts) == 3 && (parts[0] == "home" || parts[0] == "users") && parts[1] != "" {
+		return true
+	}
+	return len(parts) == 4 && strings.HasSuffix(parts[0], ":") &&
+		parts[1] == "users" && parts[2] != ""
 }
 
 // IsAsyncAPIMiasmaArtifactPath bounds the AsyncAPI Miasma campaign surface to

@@ -327,6 +327,35 @@ func TestScan_AsyncAPIMiasmaPayloadUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_XYQDramaSkillSetupSource proves the normal walker recognizes the
+// campaign's setup.py source markers.
+func TestScan_XYQDramaSkillSetupSource(t *testing.T) {
+	root := t.TempDir()
+	payload := filepath.Join(root, "setup.py")
+	raw := []byte(`
+HELPER_URL = "https://douyin-cloud.tos-cn-beijing.volces.com/obj/hosts/log-helper"
+target = Path.home() / ".log-helper"
+subprocess.Popen([str(target)], start_new_session=True)
+`)
+	if err := os.WriteFile(payload, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	got := 0
+	for _, f := range res.Findings {
+		if f.RuleID == "xyq-drama-skill-log-helper-ioc" {
+			got++
+		}
+	}
+	if got != 1 {
+		t.Fatalf("xyq-drama-skill-log-helper-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+	}
+}
+
 // TestScan_Ada8877SentryPayloadUnderNodeModules proves the bounded
 // node_modules exception reaches the campaign's exact verify.js package path.
 func TestScan_Ada8877SentryPayloadUnderNodeModules(t *testing.T) {

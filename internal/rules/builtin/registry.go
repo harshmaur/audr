@@ -147,6 +147,7 @@ func builtins() []rules.Rule {
 		ada8877SentryDependencyConfusionIOC{},
 		asyncAPIMiasmaRATIOC{},
 		injectiveSDKWalletSecretExfilIOC{},
+		xyqDramaSkillLogHelperIOC{},
 
 		// Git config rules for nested bare repositories and executable helpers.
 		copilotCLINestedGitConfigExec{},
