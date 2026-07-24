@@ -622,9 +622,10 @@ func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- strin
 			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/const.js")
 		marketfrontPayload := isMarketfrontCampaignNodeModulesFile(relSlash)
 		ada8877SentryPayload := isAda8877SentryNodeModulesFile(relSlash)
+		apexCopilotPayload := isApexCopilotNodeModulesFile(relSlash)
 		asyncAPIMiasmaPayload := parse.IsAsyncAPIMiasmaArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
 		injectiveWalletStealerPayload := parse.IsInjectiveWalletStealerArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
-		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload && !ada8877SentryPayload && !asyncAPIMiasmaPayload && !injectiveWalletStealerPayload {
+		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload && !ada8877SentryPayload && !apexCopilotPayload && !asyncAPIMiasmaPayload && !injectiveWalletStealerPayload {
 			return nil
 		}
 		select {
@@ -644,6 +645,9 @@ func shouldDescendKnownNodeModulesIOC(relSlash string, depth int) bool {
 		return true
 	}
 	if shouldDescendAda8877SentryPath(relSlash) {
+		return true
+	}
+	if shouldDescendApexCopilotPath(relSlash) {
 		return true
 	}
 	if shouldDescendAsyncAPIMiasmaPath(relSlash) {
@@ -842,6 +846,38 @@ func shouldDescendAda8877SentryPath(relSlash string) bool {
 	return shouldDescendAda8877SentryPath(strings.Join(parts[3:], "/"))
 }
 
+func isApexCopilotNodeModulesFile(relSlash string) bool {
+	marker := "/node_modules/"
+	idx := strings.LastIndex(relSlash, marker)
+	if idx >= 0 {
+		relSlash = relSlash[idx+len(marker):]
+	}
+	for _, packagePath := range []string{"@apexfdn/apex/", "@copilot-mcp/apex/"} {
+		if !strings.HasPrefix(relSlash, packagePath) {
+			continue
+		}
+		switch strings.TrimPrefix(relSlash, packagePath) {
+		case "package.json", "install.cjs", "loader.sh", "payload.enc":
+			return true
+		}
+	}
+	return false
+}
+
+func shouldDescendApexCopilotPath(relSlash string) bool {
+	parts := strings.Split(relSlash, "/")
+	if len(parts) >= 1 && (parts[0] == "@apexfdn" || parts[0] == "@copilot-mcp") {
+		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "apex")
+	}
+	if len(parts) < 3 || parts[0] != ".pnpm" || parts[2] != "node_modules" {
+		return false
+	}
+	if len(parts) == 3 {
+		return strings.HasPrefix(parts[1], "@apexfdn+apex@") || strings.HasPrefix(parts[1], "@copilot-mcp+apex@")
+	}
+	return shouldDescendApexCopilotPath(strings.Join(parts[3:], "/"))
+}
+
 func enqueueSkippedGitConfig(ctx context.Context, gitDir string, out chan<- string, logger *slog.Logger) {
 	configPath := filepath.Join(gitDir, "config")
 	info, err := os.Lstat(configPath)
@@ -860,6 +896,9 @@ func enqueueSkippedGitConfig(ctx context.Context, gitDir string, out chan<- stri
 // shouldSkipFile is a fast-path filter based on extension/basename to avoid
 // invoking DetectFormat on giant files we know we don't care about.
 func shouldSkipFile(path string) bool {
+	if parse.IsApexCopilotMalwareArtifactPath(path) {
+		return false
+	}
 	// Files we'll never scan even though they might match by basename.
 	for _, suf := range []string{".log", ".png", ".jpg", ".jpeg", ".gif", ".pdf", ".mp4", ".zip", ".tar", ".gz"} {
 		if strings.HasSuffix(path, suf) {

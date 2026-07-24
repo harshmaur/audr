@@ -145,6 +145,7 @@ func builtins() []rules.Rule {
 		nodemonSudoTslintConfBackdoorIOC{},
 		marketfrontDependencyConfusionCredentialHarvester{},
 		ada8877SentryDependencyConfusionIOC{},
+		apexCopilotMCPInfostealerIOC{},
 		asyncAPIMiasmaRATIOC{},
 		injectiveSDKWalletSecretExfilIOC{},
 		xyqDramaSkillLogHelperIOC{},

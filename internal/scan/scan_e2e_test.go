@@ -449,6 +449,51 @@ fetch(endpoint, {method: "POST", headers: {
 	}
 }
 
+func TestScan_ApexCopilotInfostealerUnderNodeModules(t *testing.T) {
+	raw := []byte(`const url = "https://github.com/Apex-Foundation/copilot/releases/download/v1.0.0/apex-darwin-arm64";
+chmodSync(target, 0o755);`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "@copilot-mcp", "apex", "install.cjs")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "@apexfdn+apex@1.0.32", "node_modules", "@apexfdn", "apex", "install.cjs")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			lookalike := filepath.Join(root, "node_modules", "@other", "apex", "install.cjs")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "apex-copilot-mcp-infostealer-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("apex-copilot-mcp-infostealer-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_TimeoutHonored asserts that ScanTimeout terminates a slow scan
 // gracefully and still returns the partial result.
 func TestScan_TimeoutHonored(t *testing.T) {

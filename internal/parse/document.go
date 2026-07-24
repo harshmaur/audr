@@ -429,6 +429,9 @@ func DetectFormat(path string) Format {
 	if IsAda8877SentryVerifyArtifactPath(normalized) {
 		return FormatNPMMalwareArtifact
 	}
+	if IsApexCopilotMalwareArtifactPath(normalized) {
+		return FormatNPMMalwareArtifact
+	}
 	if IsXYQDramaSkillArtifactPath(normalized) {
 		return FormatPyPIMalwareArtifact
 	}
@@ -566,6 +569,41 @@ func IsAda8877SentryVerifyArtifactPath(path string) bool {
 	default:
 		return false
 	}
+}
+
+// IsApexCopilotMalwareArtifactPath recognizes only the package-root source,
+// exact macOS persistence, and staging paths published for the July 2026
+// @apexfdn/apex and @copilot-mcp/apex infostealer campaign.
+func IsApexCopilotMalwareArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	if apexCopilotPackageArtifactRelativePath(normalized) != "" {
+		return true
+	}
+	if normalized == "/tmp/osalogging.zip" {
+		return true
+	}
+	return strings.HasSuffix(normalized, "/library/launchagents/com.system.notifications.agent.plist") ||
+		strings.HasSuffix(normalized, "/library/application support/system/system notifications.app/contents/macos/system notifications")
+}
+
+func apexCopilotPackageArtifactRelativePath(path string) string {
+	marker := "/node_modules/"
+	idx := strings.LastIndex(path, marker)
+	if idx < 0 {
+		return ""
+	}
+	rel := path[idx+len(marker):]
+	for _, packagePath := range []string{"@apexfdn/apex/", "@copilot-mcp/apex/"} {
+		if !strings.HasPrefix(rel, packagePath) {
+			continue
+		}
+		leaf := strings.TrimPrefix(rel, packagePath)
+		switch leaf {
+		case "install.cjs", "loader.sh", "payload.enc":
+			return leaf
+		}
+	}
+	return ""
 }
 
 // IsXYQDramaSkillArtifactPath bounds the xyq-drama-skill malware surface to
