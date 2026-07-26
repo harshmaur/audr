@@ -150,6 +150,7 @@ func builtins() []rules.Rule {
 		asyncAPIMiasmaRATIOC{},
 		injectiveSDKWalletSecretExfilIOC{},
 		xyqDramaSkillLogHelperIOC{},
+		mrMustardCredentialStealerIOC{},
 
 		// Git config rules for nested bare repositories and executable helpers.
 		copilotCLINestedGitConfigExec{},

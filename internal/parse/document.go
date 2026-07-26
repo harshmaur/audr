@@ -435,6 +435,9 @@ func DetectFormat(path string) Format {
 	if IsXYQDramaSkillArtifactPath(normalized) {
 		return FormatPyPIMalwareArtifact
 	}
+	if IsMrMustardMalwareArtifactPath(normalized) {
+		return FormatPyPIMalwareArtifact
+	}
 	if IsAsyncAPIMiasmaArtifactPath(normalized) {
 		return FormatAsyncAPIMiasmaArtifact
 	}
@@ -633,6 +636,41 @@ func IsXYQDramaSkillDropPath(path string) bool {
 		return true
 	}
 	return len(parts) == 4 && strings.HasSuffix(parts[0], ":") &&
+		parts[1] == "users" && parts[2] != ""
+}
+
+// IsMrMustardMalwareArtifactPath recognizes only the package source,
+// Python-startup launcher, and exact hidden payload path published for the
+// July 2026 mrmustard 0.7.4 credential-stealer campaign. The source and .pth
+// files are content-gated by the rule before a finding is emitted.
+func IsMrMustardMalwareArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	return IsMrMustardPayloadDropPath(normalized) ||
+		strings.HasSuffix(normalized, "/mrmustard/__init__.py") ||
+		strings.HasSuffix(normalized, "/site-packages/mmcompat.pth") ||
+		strings.HasSuffix(normalized, "/dist-packages/mmcompat.pth")
+}
+
+// IsMrMustardPayloadDropPath bounds the compiled hw_probe.pyc payload to a
+// conventional user home. Mounted home-directory backups are intentionally
+// supported, so /home/<user>/ and /Users/<user>/ may occur below a scan root.
+func IsMrMustardPayloadDropPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	const suffix = "/.cache/.tf_cache/hw_probe.pyc"
+	if !strings.HasSuffix(normalized, suffix) {
+		return false
+	}
+	prefix := strings.TrimSuffix(normalized, suffix)
+	if prefix == "/root" {
+		return true
+	}
+	parts := strings.Split(strings.Trim(prefix, "/"), "/")
+	for i := 0; i+1 < len(parts); i++ {
+		if (parts[i] == "home" || parts[i] == "users") && parts[i+1] != "" {
+			return i+2 == len(parts)
+		}
+	}
+	return len(parts) == 3 && strings.HasSuffix(parts[0], ":") &&
 		parts[1] == "users" && parts[2] != ""
 }
 

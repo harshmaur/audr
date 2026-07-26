@@ -549,6 +549,9 @@ func walkRoot(ctx context.Context, root string, skipSet map[string]bool, out cha
 				if base == "node_modules" {
 					walkKnownNodeModulesIOCs(ctx, path, out, logger)
 				}
+				if base == ".cache" {
+					enqueueMrMustardCacheIOC(ctx, path, out, logger)
+				}
 				if base == ".git" {
 					enqueueSkippedGitConfig(ctx, path, out, logger)
 				}
@@ -889,6 +892,21 @@ func enqueueSkippedGitConfig(ctx context.Context, gitDir string, out chan<- stri
 	}
 	select {
 	case out <- configPath:
+	case <-ctx.Done():
+	}
+}
+
+func enqueueMrMustardCacheIOC(ctx context.Context, cacheDir string, out chan<- string, logger *slog.Logger) {
+	payloadPath := filepath.Join(cacheDir, ".tf_cache", "hw_probe.pyc")
+	info, err := os.Lstat(payloadPath)
+	if err != nil || !info.Mode().IsRegular() || !parse.IsMrMustardPayloadDropPath(payloadPath) {
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			logger.Debug("mrmustard-cache-ioc-stat-error", "path", payloadPath, "err", err)
+		}
+		return
+	}
+	select {
+	case out <- payloadPath:
 	case <-ctx.Done():
 	}
 }
