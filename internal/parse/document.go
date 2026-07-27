@@ -37,6 +37,7 @@ const (
 	FormatPyPIMalwareArtifact    Format = "pypi-malware-artifact"    // bounded PyPI package/drop supply-chain IOCs
 	FormatAsyncAPIMiasmaArtifact Format = "asyncapi-miasma-artifact" // AsyncAPI Miasma package/drop IOCs
 	FormatClawVetAuthSource      Format = "clawvet-auth-source"      // ClawVet self-hosted API authentication source
+	FormatSiYuanConfig           Format = "siyuan-config"            // SiYuan workspace conf/conf.json or ~/.siyuan/conf.json
 	FormatUnknown                Format = ""
 )
 
@@ -61,6 +62,7 @@ type Document struct {
 	CursorPermissions  *CursorPermissions // v0.2.0-alpha.4
 	PackageJSON        *PackageJSON
 	DependencyManifest *DependencyManifest
+	SiYuanConfig       *SiYuanConfig
 
 	// ParseError is set if parsing failed; rules treat this as an advisory
 	// finding, the scan continues.
@@ -385,6 +387,12 @@ func DetectFormat(path string) Format {
 	// FormatMCPConfig). Holds mcpAllowlist + terminalAllowlist arrays.
 	if base == "permissions.json" && strings.Contains(dir, "/.cursor") {
 		return FormatCursorPermissions
+	}
+
+	// SiYuan's persisted application configuration. The workspace layout uses
+	// conf/conf.json; desktop installs can also expose it under ~/.siyuan/.
+	if base == "conf.json" && (strings.HasSuffix(dir, "/conf") || strings.HasSuffix(dir, "/.siyuan")) {
+		return FormatSiYuanConfig
 	}
 
 	// Skill files: anything under .claude/skills/ ending in .md.

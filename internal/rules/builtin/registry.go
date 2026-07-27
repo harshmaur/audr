@@ -214,5 +214,6 @@ func builtins() []rules.Rule {
 		openclawRetryEndpointHostnamePrefixBypass{},
 		openclawWorkspaceDotenvCredentialOverride{},
 		openclawHostExecGitExtTransportFiltering{},
+		siYuanAnonymousPublishMCPAdminBypass{},
 	}
 }

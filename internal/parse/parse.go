@@ -68,6 +68,10 @@ func Parse(path string, raw []byte) *Document {
 		deps, err := parseDependencyManifest(path, raw)
 		doc.DependencyManifest = deps
 		doc.ParseError = err
+	case FormatSiYuanConfig:
+		cfg, err := parseSiYuanConfig(raw)
+		doc.SiYuanConfig = cfg
+		doc.ParseError = err
 	}
 	return doc
 }
