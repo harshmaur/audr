@@ -145,6 +145,7 @@ func builtins() []rules.Rule {
 		jscramblerMaliciousPayloadIOC{},
 		nodemonSudoTslintConfBackdoorIOC{},
 		marketfrontDependencyConfusionCredentialHarvester{},
+		amazonInspectorNPMMalwareIOC{},
 		ada8877SentryDependencyConfusionIOC{},
 		apexCopilotMCPInfostealerIOC{},
 		asyncAPIMiasmaRATIOC{},

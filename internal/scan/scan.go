@@ -624,11 +624,12 @@ func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- strin
 			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/caller.js") ||
 			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/const.js")
 		marketfrontPayload := isMarketfrontCampaignNodeModulesFile(relSlash)
+		amazonInspectorPayload := isAmazonInspectorNPMMalwareNodeModulesFile(relSlash)
 		ada8877SentryPayload := isAda8877SentryNodeModulesFile(relSlash)
 		apexCopilotPayload := isApexCopilotNodeModulesFile(relSlash)
 		asyncAPIMiasmaPayload := parse.IsAsyncAPIMiasmaArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
 		injectiveWalletStealerPayload := parse.IsInjectiveWalletStealerArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
-		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload && !ada8877SentryPayload && !apexCopilotPayload && !asyncAPIMiasmaPayload && !injectiveWalletStealerPayload {
+		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload && !amazonInspectorPayload && !ada8877SentryPayload && !apexCopilotPayload && !asyncAPIMiasmaPayload && !injectiveWalletStealerPayload {
 			return nil
 		}
 		select {
@@ -645,6 +646,9 @@ func shouldDescendKnownNodeModulesIOC(relSlash string, depth int) bool {
 		return true
 	}
 	if shouldDescendMarketfrontCampaignPath(relSlash) {
+		return true
+	}
+	if shouldDescendAmazonInspectorNPMMalwarePath(relSlash) {
 		return true
 	}
 	if shouldDescendAda8877SentryPath(relSlash) {
@@ -801,6 +805,46 @@ func shouldDescendMarketfrontCampaignPath(relSlash string) bool {
 		}
 	}
 	return false
+}
+
+func isAmazonInspectorNPMMalwareNodeModulesFile(relSlash string) bool {
+	fullPath := filepath.ToSlash(filepath.Join("/node_modules", relSlash))
+	return parse.IsAmazonInspectorNPMMalwareArtifactPath(fullPath)
+}
+
+func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
+	parts := strings.Split(relSlash, "/")
+	if len(parts) >= 3 && parts[0] == ".pnpm" && parts[2] == "node_modules" {
+		if len(parts) == 3 {
+			for _, prefix := range []string{
+				"chalk-utils@", "joi-pack@", "rimraf-utils@", "nock-helper@",
+				"glob-helper@", "solc-helper@", "ethers-common@", "hardhat-core@",
+				"sysbin@", "env-threads@", "typography-stylecss@",
+				"hello-world-pkg-value-value-p@",
+			} {
+				if strings.HasPrefix(parts[1], prefix) {
+					return true
+				}
+			}
+			return false
+		}
+		return shouldDescendAmazonInspectorNPMMalwarePath(strings.Join(parts[3:], "/"))
+	}
+	if len(parts) == 0 {
+		return false
+	}
+	switch parts[0] {
+	case "chalk-utils", "joi-pack", "rimraf-utils", "nock-helper",
+		"glob-helper", "solc-helper", "ethers-common", "hardhat-core",
+		"sysbin", "hello-world-pkg-value-value-p":
+		return len(parts) == 1
+	case "env-threads":
+		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "lib")
+	case "typography-stylecss":
+		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "src")
+	default:
+		return false
+	}
 }
 
 func isAda8877SentryNodeModulesFile(relSlash string) bool {

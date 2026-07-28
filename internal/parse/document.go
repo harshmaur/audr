@@ -434,6 +434,9 @@ func DetectFormat(path string) Format {
 	if isMarketfrontCampaignPostinstallPath(normalized) {
 		return FormatNPMMalwareArtifact
 	}
+	if IsAmazonInspectorNPMMalwareArtifactPath(normalized) {
+		return FormatNPMMalwareArtifact
+	}
 	if IsAda8877SentryVerifyArtifactPath(normalized) {
 		return FormatNPMMalwareArtifact
 	}
@@ -560,6 +563,38 @@ func isMarketfrontCampaignPostinstallPath(path string) bool {
 	}
 	parts := strings.Split(path[idx+len(marker):], "/")
 	return len(parts) == 3 && parts[0] != "" && parts[1] == "scripts" && parts[2] == "postinstall.js"
+}
+
+// IsAmazonInspectorNPMMalwareArtifactPath bounds the July 2026 Amazon
+// Inspector advisory backfill to exact package-root files carrying native IOCs.
+// Package/version exposure remains delegated to OSV-Scanner.
+func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	marker := "/node_modules/"
+	idx := strings.LastIndex(normalized, marker)
+	if idx < 0 {
+		return false
+	}
+	rel := normalized[idx+len(marker):]
+	credentialPackages := []string{
+		"chalk-utils", "joi-pack", "rimraf-utils", "nock-helper",
+		"glob-helper", "solc-helper", "ethers-common", "hardhat-core",
+	}
+	for _, packageName := range credentialPackages {
+		if rel == packageName+"/postinstall.js" {
+			return true
+		}
+	}
+	switch rel {
+	case "solc-helper/package.json",
+		"sysbin/pointer.py",
+		"env-threads/lib/main.js",
+		"typography-stylecss/src/index.js",
+		"hello-world-pkg-value-value-p/index.js":
+		return true
+	default:
+		return false
+	}
 }
 
 // IsAda8877SentryVerifyArtifactPath bounds the ada8877 campaign payload to

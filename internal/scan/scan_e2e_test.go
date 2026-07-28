@@ -293,6 +293,57 @@ https.request({method: 'POST', path: '/api/v1/events', headers: {'X-Secret': sec
 	}
 }
 
+// TestScan_AmazonInspectorNPMMalwareUnderNodeModules proves the bounded
+// node_modules exception reaches exact campaign package roots in npm and pnpm
+// layouts without scanning a lookalike package carrying the same text.
+func TestScan_AmazonInspectorNPMMalwareUnderNodeModules(t *testing.T) {
+	raw := []byte(`
+// Token harvester + Crypto wallet scanner. Runs on npm install. Silent. Zero trace.
+const C2_URL = process.env.C2_URL || "http://149.28.127.35:8888";
+`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "chalk-utils", "postinstall.js")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "chalk-utils@2.0.0", "node_modules", "chalk-utils", "postinstall.js")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", "postinstall.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AsyncAPIMiasmaPayloadUnderNodeModules asserts that node_modules
 // stays skipped except for exact AsyncAPI campaign paths carrying a known IOC.
 func TestScan_AsyncAPIMiasmaPayloadUnderNodeModules(t *testing.T) {
