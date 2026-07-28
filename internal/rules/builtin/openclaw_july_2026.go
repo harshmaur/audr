@@ -42,3 +42,41 @@ func openclawHostExecGitExtTransportFilteringFinding(path, match string) finding
 		[]string{"cve", "openclaw", "dependency-manifest", "host-exec", "git-ext", "authorization-bypass"},
 	)
 }
+
+type openclawInterpreterStartupEnvFiltering struct{}
+
+func (openclawInterpreterStartupEnvFiltering) ID() string {
+	return "openclaw-interpreter-startup-env-filtering"
+}
+func (openclawInterpreterStartupEnvFiltering) Title() string {
+	return "OpenClaw host exec filtering misses interpreter startup variables"
+}
+func (openclawInterpreterStartupEnvFiltering) Severity() finding.Severity {
+	return finding.SeverityHigh
+}
+func (openclawInterpreterStartupEnvFiltering) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (openclawInterpreterStartupEnvFiltering) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (openclawInterpreterStartupEnvFiltering) Apply(doc *parse.Document) []finding.Finding {
+	return openclawPackageVersionFindings(
+		doc,
+		func(raw string) bool { return vulnerableOpenClawVersionBefore(raw, []int{2026, 6, 6}) },
+		openclawInterpreterStartupEnvFilteringFinding,
+	)
+}
+
+func openclawInterpreterStartupEnvFilteringFinding(path, match string) finding.Finding {
+	return openclawBacklogFinding(
+		path,
+		match,
+		"openclaw-interpreter-startup-env-filtering",
+		finding.SeverityHigh,
+		"OpenClaw before 2026.6.6 can pass unsafe interpreter startup variables to host exec",
+		"CVE-2026-62199: OpenClaw before 2026.6.6 incompletely filters interpreter startup environment variables, allowing lower-trust input to execute or persist actions beyond the caller's intended authorization.",
+		"Upgrade OpenClaw to 2026.6.6 or later and review host exec environment policy and recent interpreter startup activity.",
+		[]string{"cve", "openclaw", "dependency-manifest", "host-exec", "environment", "command-injection"},
+	)
+}
