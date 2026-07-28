@@ -446,6 +446,9 @@ func DetectFormat(path string) Format {
 	if IsMrMustardMalwareArtifactPath(normalized) {
 		return FormatPyPIMalwareArtifact
 	}
+	if IsCfgzenMalwareArtifactPath(normalized) {
+		return FormatPyPIMalwareArtifact
+	}
 	if IsAsyncAPIMiasmaArtifactPath(normalized) {
 		return FormatAsyncAPIMiasmaArtifact
 	}
@@ -680,6 +683,35 @@ func IsMrMustardPayloadDropPath(path string) bool {
 	}
 	return len(parts) == 3 && strings.HasSuffix(parts[0], ":") &&
 		parts[1] == "users" && parts[2] != ""
+}
+
+// IsCfgzenMalwareArtifactPath recognizes the Python-startup and package-root
+// surfaces published for the July 2026 cfgzen infostealer campaign. Generic
+// .pth files are limited to Python package directories and all candidate files
+// remain content- or hash-gated by the rule.
+func IsCfgzenMalwareArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	if strings.HasSuffix(normalized, "/7t4wyu.bin") {
+		return true
+	}
+	if strings.HasSuffix(normalized, ".pth") &&
+		(strings.Contains(normalized, "/site-packages/") || strings.Contains(normalized, "/dist-packages/")) {
+		return true
+	}
+	if strings.Contains(normalized, "/site-packages/cfgzen/") ||
+		strings.Contains(normalized, "/dist-packages/cfgzen/") {
+		return true
+	}
+	if !strings.Contains(normalized, "/cfgzen/") {
+		return false
+	}
+	ext := strings.ToLower(filepath.Ext(normalized))
+	switch ext {
+	case ".py", ".pyc", ".so", ".pyd", ".dll", ".dylib", ".c", ".cc", ".cpp", ".h", ".hpp", ".rs":
+		return true
+	default:
+		return false
+	}
 }
 
 // IsAsyncAPIMiasmaArtifactPath bounds the AsyncAPI Miasma campaign surface to
