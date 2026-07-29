@@ -590,7 +590,10 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"sysbin/pointer.py",
 		"env-threads/lib/main.js",
 		"typography-stylecss/src/index.js",
-		"hello-world-pkg-value-value-p/index.js":
+		"hello-world-pkg-value-value-p/index.js",
+		"streak-core-math/index.mjs",
+		"api-node-sdk/test.js",
+		"react-puller/index.js":
 		return true
 	default:
 		return false

@@ -820,7 +820,8 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 				"chalk-utils@", "joi-pack@", "rimraf-utils@", "nock-helper@",
 				"glob-helper@", "solc-helper@", "ethers-common@", "hardhat-core@",
 				"sysbin@", "env-threads@", "typography-stylecss@",
-				"hello-world-pkg-value-value-p@",
+				"hello-world-pkg-value-value-p@", "streak-core-math@",
+				"api-node-sdk@", "react-puller@",
 			} {
 				if strings.HasPrefix(parts[1], prefix) {
 					return true
@@ -836,7 +837,8 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 	switch parts[0] {
 	case "chalk-utils", "joi-pack", "rimraf-utils", "nock-helper",
 		"glob-helper", "solc-helper", "ethers-common", "hardhat-core",
-		"sysbin", "hello-world-pkg-value-value-p":
+		"sysbin", "hello-world-pkg-value-value-p", "streak-core-math",
+		"api-node-sdk", "react-puller":
 		return len(parts) == 1
 	case "env-threads":
 		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "lib")

