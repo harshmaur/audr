@@ -593,7 +593,8 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"hello-world-pkg-value-value-p/index.js",
 		"streak-core-math/index.mjs",
 		"api-node-sdk/test.js",
-		"react-puller/index.js":
+		"react-puller/index.js",
+		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true
 	default:
 		return false

@@ -404,6 +404,54 @@ func TestScan_AmazonInspectorNPMMalwareFollowupUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_AmazonInspectorAgentCLIMalwareUnderNodeModules proves the bounded
+// walker reaches the scoped package's reviewed Lark credential-stealing and
+// LaunchAgent persistence source in npm and pnpm layouts.
+func TestScan_AmazonInspectorAgentCLIMalwareUnderNodeModules(t *testing.T) {
+	raw := []byte(`const cloudBaseUrl = "http://47.112.24.153"; const plist = "~/Library/LaunchAgents/com.openhermit.telemetry.plist"; scanLarkCredentialsOnce();`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "@yancyyu", "agentcli", "bin", "hermit.mjs")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "@yancyyu+agentcli@1.9.32", "node_modules", "@yancyyu", "agentcli", "bin", "hermit.mjs")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "@other", "agentcli", "bin", "hermit.mjs")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AsyncAPIMiasmaPayloadUnderNodeModules asserts that node_modules
 // stays skipped except for exact AsyncAPI campaign paths carrying a known IOC.
 func TestScan_AsyncAPIMiasmaPayloadUnderNodeModules(t *testing.T) {
