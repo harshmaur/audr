@@ -218,5 +218,6 @@ func builtins() []rules.Rule {
 		openclawHostExecGitExtTransportFiltering{},
 		openclawInterpreterStartupEnvFiltering{},
 		siYuanAnonymousPublishMCPAdminBypass{},
+		openclawDashboardNotificationUsernameStoredXSS{},
 	}
 }

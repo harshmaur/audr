@@ -35,6 +35,10 @@ func TestDetectFormat(t *testing.T) {
 		{"/repo/.tool-versions", FormatMiseToolVersions},
 		{"/repo/Dockerfile", FormatDockerfile},
 		{"/repo/docker/Dockerfile.gpu", FormatDockerfile},
+		{"/repo/openclaw-dashboard/index.html", FormatOpenClawDashboardSource},
+		{`C:\\Users\\harsh\\openclaw-dashboard\\index.html`, FormatOpenClawDashboardSource},
+		{"/repo/index.html", FormatUnknown},
+		{"/tmp/not-openclaw-dashboard-copy/index.html", FormatUnknown},
 		{"/repo/random.txt", FormatUnknown},
 		{"/repo/README.md", FormatUnknown},
 	}

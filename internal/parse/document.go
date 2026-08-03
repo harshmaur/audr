@@ -41,6 +41,9 @@ const (
 	FormatUnknown                Format = ""
 )
 
+// FormatOpenClawDashboardSource identifies canonical OpenClaw Dashboard browser source.
+const FormatOpenClawDashboardSource Format = "openclaw-dashboard-source"
+
 // Document is the generic container produced by parsers and consumed by rules.
 type Document struct {
 	Path   string // absolute or scan-relative path
@@ -393,6 +396,21 @@ func DetectFormat(path string) Format {
 	// conf/conf.json; desktop installs can also expose it under ~/.siyuan/.
 	if base == "conf.json" && (strings.HasSuffix(dir, "/conf") || strings.HasSuffix(dir, "/.siyuan")) {
 		return FormatSiYuanConfig
+	}
+
+	// OpenClaw Dashboard ships as a standalone index.html. Keep path routing
+	// bounded to canonical checkout/install directory names; content-level rules
+	// additionally require product markers and the vulnerable data flow.
+	lowerDir := strings.ToLower(dir)
+	canonicalDashboardDir := false
+	for _, component := range strings.Split(lowerDir, "/") {
+		if component == "openclaw-dashboard" || component == "agent-dashboard" {
+			canonicalDashboardDir = true
+			break
+		}
+	}
+	if strings.EqualFold(base, "index.html") && canonicalDashboardDir {
+		return FormatOpenClawDashboardSource
 	}
 
 	// Skill files: anything under .claude/skills/ ending in .md.
