@@ -596,6 +596,9 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"streak-core-lib/index.mjs",
 		"api-node-sdk/test.js",
 		"app-soda-layer/test.js",
+		"sigchain-js/dist/sigchain-js.cjs.js",
+		"sigchain-js/dist/sigchain-js.esm.js",
+		"sigchain-js/dist/sigchain-js.umd.js",
 		"react-puller/index.js",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true

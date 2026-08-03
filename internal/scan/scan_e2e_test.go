@@ -510,6 +510,54 @@ func TestScan_AmazonInspectorAppSodaLayerMalwareUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_AmazonInspectorSigchainJSMalwareUnderNodeModules proves the
+// bounded walker reaches the tampered published bundle in npm and pnpm layouts
+// without scanning the same source markers under an unrelated package root.
+func TestScan_AmazonInspectorSigchainJSMalwareUnderNodeModules(t *testing.T) {
+	raw := []byte(`import { desKey } from "thedata"; const payload = CryptoJS.DES.decrypt(desKey, "hydra"); const child = spawn("node", [], { detached: true }); child.stdin.write(payload);`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "sigchain-js", "dist", "sigchain-js.esm.js")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "sigchain-js@1.0.5", "node_modules", "sigchain-js", "dist", "sigchain-js.esm.js")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", "dist", "sigchain-js.esm.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AsyncAPIMiasmaPayloadUnderNodeModules asserts that node_modules
 // stays skipped except for exact AsyncAPI campaign paths carrying a known IOC.
 func TestScan_AsyncAPIMiasmaPayloadUnderNodeModules(t *testing.T) {
