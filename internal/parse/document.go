@@ -618,6 +618,9 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"sigchain-js/dist/sigchain-js.cjs.js",
 		"sigchain-js/dist/sigchain-js.esm.js",
 		"sigchain-js/dist/sigchain-js.umd.js",
+		"chain-analyze/dist/sigchain-js.cjs.js",
+		"chain-analyze/dist/sigchain-js.esm.js",
+		"chain-analyze/dist/sigchain-js.umd.js",
 		"react-puller/index.js",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true
