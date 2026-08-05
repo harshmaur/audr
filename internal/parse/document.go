@@ -612,6 +612,7 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"streak-core-math/index.mjs",
 		"streak-daily-lib/index.mjs",
 		"streak-core-lib/index.mjs",
+		"streak-day-utils/index.mjs",
 		"api-node-sdk/test.js",
 		"app-soda-layer/test.js",
 		"sigchain-js/dist/sigchain-js.cjs.js",

