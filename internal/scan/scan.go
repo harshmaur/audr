@@ -822,7 +822,7 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 				"sysbin@", "env-threads@", "typography-stylecss@",
 				"hello-world-pkg-value-value-p@", "streak-core-math@",
 				"streak-daily-lib@", "streak-core-lib@", "streak-day-utils@",
-				"api-node-sdk@", "app-soda-layer@", "sigchain-js@", "chain-analyze@", "react-puller@", "@yancyyu+agentcli@",
+				"api-node-sdk@", "app-soda-layer@", "sigchain-js@", "chain-analyze@", "react-puller@", "claude-remote-agent@", "@yancyyu+agentcli@",
 			} {
 				if strings.HasPrefix(parts[1], prefix) {
 					return true
@@ -840,7 +840,7 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 		"glob-helper", "solc-helper", "ethers-common", "hardhat-core",
 		"sysbin", "hello-world-pkg-value-value-p", "streak-core-math",
 		"streak-daily-lib", "streak-core-lib", "streak-day-utils",
-		"api-node-sdk", "app-soda-layer", "react-puller":
+		"api-node-sdk", "app-soda-layer", "react-puller", "claude-remote-agent":
 		return len(parts) == 1
 	case "sigchain-js", "chain-analyze":
 		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "dist")

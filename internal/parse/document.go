@@ -622,6 +622,7 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"chain-analyze/dist/sigchain-js.esm.js",
 		"chain-analyze/dist/sigchain-js.umd.js",
 		"react-puller/index.js",
+		"claude-remote-agent/agent.js",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true
 	default:
