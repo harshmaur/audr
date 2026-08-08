@@ -624,6 +624,10 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"react-puller/index.js",
 		"claude-remote-agent/agent.js",
 		"llm-interceptor/defaults.json",
+		"map-streak-kit/dist/index.mjs",
+		"map-streak-kit/dist/internal/calc-math.dat",
+		"streak-map-kit/dist/index.mjs",
+		"streak-map-kit/dist/internal/calc-mapping.bin",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true
 	default:

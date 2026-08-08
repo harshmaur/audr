@@ -344,6 +344,72 @@ const C2_URL = process.env.C2_URL || "http://149.28.127.35:8888";
 	}
 }
 
+// TestScan_AmazonInspectorRedShellUnderNodeModules proves the bounded walker
+// reaches the map-streak-kit and streak-map-kit source loaders and bundled ELF
+// payload paths in npm and pnpm layouts without scanning a lookalike package.
+func TestScan_AmazonInspectorRedShellUnderNodeModules(t *testing.T) {
+	tests := []struct {
+		name string
+		rel  string
+		raw  []byte
+	}{
+		{
+			name: "map streak source npm",
+			rel:  filepath.Join("node_modules", "map-streak-kit", "dist", "index.mjs"),
+			raw:  []byte(`const binaryPath = join(__dirname, "internal/calc-math.dat"); await chmod(binaryPath, 0o755); spawn(binaryPath, [], { detached: true, stdio: "ignore" });`),
+		},
+		{
+			name: "streak map source pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "streak-map-kit@1.0.0", "node_modules", "streak-map-kit", "dist", "index.mjs"),
+			raw:  []byte(`const binaryPath = join(__dirname, "internal/calc-mapping.bin"); await chmod(binaryPath, 0o755); spawn(binaryPath, [], { detached: true, stdio: "ignore" });`),
+		},
+		{
+			name: "map streak bundled ELF npm",
+			rel:  filepath.Join("node_modules", "map-streak-kit", "dist", "internal", "calc-math.dat"),
+			raw:  []byte("\x7fELF http://217.60.77.63/api/extract-receive ~/.config/systemd/user/svc-update.service"),
+		},
+		{
+			name: "streak map bundled ELF pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "streak-map-kit@1.0.0", "node_modules", "streak-map-kit", "dist", "internal", "calc-mapping.bin"),
+			raw:  []byte("\x7fELF http://217.60.77.63/api/extract-receive ~/.config/systemd/user/svc-update.service"),
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, tc.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, tc.raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", "dist", "internal", filepath.Base(payload))
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, tc.raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AmazonInspectorNPMMalwareFollowupUnderNodeModules proves the
 // bounded walker reaches the campaign's reviewed follow-up persistence files
 // in npm and pnpm layouts without broad-scanning unrelated package roots.
