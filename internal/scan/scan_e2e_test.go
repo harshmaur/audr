@@ -410,6 +410,54 @@ func TestScan_AmazonInspectorRedShellUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_AmazonInspectorWScreenctlUnderNodeModules proves the bounded walker
+// reaches the unauthenticated desktop-control source in npm and pnpm layouts
+// without scanning a lookalike package carrying the same source markers.
+func TestScan_AmazonInspectorWScreenctlUnderNodeModules(t *testing.T) {
+	raw := []byte(`import Hapi from '@hapi/hapi'; const server = Hapi.server({ port: 7000, host: '0.0.0.0', routes: { cors: true } }); server.route({ method: 'POST', path: '/chrome/evaluate', handler: async (_req) => inst.page.evaluate(p.script) });`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "w-screenctl", "src", "WScreenctl.mjs")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "w-screenctl@1.0.6", "node_modules", "w-screenctl", "src", "WScreenctl.mjs")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", "src", "WScreenctl.mjs")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AmazonInspectorNPMMalwareFollowupUnderNodeModules proves the
 // bounded walker reaches the campaign's reviewed follow-up persistence files
 // in npm and pnpm layouts without broad-scanning unrelated package roots.
