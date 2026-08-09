@@ -629,6 +629,7 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"streak-map-kit/dist/index.mjs",
 		"streak-map-kit/dist/internal/calc-mapping.bin",
 		"w-screenctl/src/wscreenctl.mjs",
+		"aclade-agent/dist/index.js",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true
 	default:
