@@ -631,6 +631,7 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"w-screenctl/src/wscreenctl.mjs",
 		"aclade-agent/dist/index.js",
 		"agenthub-ai/dist-publish/main.js",
+		"uibabai/index.js",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true
 	default:
