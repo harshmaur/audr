@@ -632,6 +632,10 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"aclade-agent/dist/index.js",
 		"agenthub-ai/dist-publish/main.js",
 		"uibabai/index.js",
+		"simple-date-formatter-new-9/package.json",
+		"simple-date-formatter-new-9/postinstall.js",
+		"simple-date-formatter-new-10/package.json",
+		"simple-date-formatter-new-10/postinstall.js",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true
 	default:

