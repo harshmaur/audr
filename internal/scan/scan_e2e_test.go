@@ -702,6 +702,55 @@ func TestScan_AmazonInspectorTokocrytodevUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_AmazonInspectorCryptostockUnderNodeModules proves the bounded
+// walker reaches cryptostock's reviewed obfuscated remote-command and
+// private-key theft source in npm and pnpm layouts without broad-scanning a
+// lookalike package.
+func TestScan_AmazonInspectorCryptostockUnderNodeModules(t *testing.T) {
+	raw := []byte(`const strings = ["YmFkYWkucnVuLnBsYWNl", "L2Nla2FwcGFwaWFwaS5waHA=", "L2ZhbGxiYWNrLnBocA==", "Y2hpbGRfcHJvY2Vzcw==", "LmV0aGVyZXVtL2tleXN0b3Jl", "UFJJVkFURSBLRVk=", "U3RlYWx0aEMy"];`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "cryptostock", "index.js")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "cryptostock@1.0.1", "node_modules", "cryptostock", "index.js")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", "index.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AmazonInspectorNPMMalwareFollowupUnderNodeModules proves the
 // bounded walker reaches the campaign's reviewed follow-up persistence files
 // in npm and pnpm layouts without broad-scanning unrelated package roots.
