@@ -822,7 +822,7 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 				"sysbin@", "env-threads@", "typography-stylecss@",
 				"hello-world-pkg-value-value-p@", "streak-core-math@",
 				"streak-daily-lib@", "streak-core-lib@", "streak-day-utils@",
-				"api-node-sdk@", "app-soda-layer@", "sigchain-js@", "chain-analyze@", "react-puller@", "claude-remote-agent@", "llm-interceptor@", "map-streak-kit@", "streak-map-kit@", "w-screenctl@", "aclade-agent@", "agenthub-ai@", "uibabai@", "simple-date-formatter-new-9@", "simple-date-formatter-new-10@", "tokocrytodev@", "cryptostock@", "@yancyyu+agentcli@",
+				"api-node-sdk@", "app-soda-layer@", "sigchain-js@", "chain-analyze@", "react-puller@", "claude-remote-agent@", "llm-interceptor@", "map-streak-kit@", "streak-map-kit@", "kit-vim-map@", "w-screenctl@", "aclade-agent@", "agenthub-ai@", "uibabai@", "simple-date-formatter-new-9@", "simple-date-formatter-new-10@", "tokocrytodev@", "cryptostock@", "@yancyyu+agentcli@",
 			} {
 				if strings.HasPrefix(parts[1], prefix) {
 					return true
@@ -855,7 +855,7 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "dist")
 	case "agenthub-ai":
 		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "dist-publish")
-	case "map-streak-kit", "streak-map-kit":
+	case "map-streak-kit", "streak-map-kit", "kit-vim-map":
 		return len(parts) == 1 ||
 			(len(parts) == 2 && parts[1] == "dist") ||
 			(len(parts) == 3 && parts[1] == "dist" && parts[2] == "internal")

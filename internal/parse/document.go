@@ -628,6 +628,7 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"map-streak-kit/dist/internal/calc-math.dat",
 		"streak-map-kit/dist/index.mjs",
 		"streak-map-kit/dist/internal/calc-mapping.bin",
+		"kit-vim-map/dist/internal/calc-math.dat",
 		"w-screenctl/src/wscreenctl.mjs",
 		"aclade-agent/dist/index.js",
 		"agenthub-ai/dist-publish/main.js",
