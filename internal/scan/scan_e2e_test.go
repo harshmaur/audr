@@ -345,7 +345,7 @@ const C2_URL = process.env.C2_URL || "http://149.28.127.35:8888";
 }
 
 // TestScan_AmazonInspectorRedShellUnderNodeModules proves the bounded walker
-// reaches the map-streak-kit, streak-map-kit, and kit-vim-map source loaders
+// reaches the map-streak-kit, streak-map-kit, kit-vim-map, and kit-map-vim source loaders
 // and bundled ELF payload paths in npm and pnpm layouts without scanning a
 // lookalike package.
 func TestScan_AmazonInspectorRedShellUnderNodeModules(t *testing.T) {
@@ -382,6 +382,16 @@ func TestScan_AmazonInspectorRedShellUnderNodeModules(t *testing.T) {
 		{
 			name: "kit vim map bundled ELF pnpm",
 			rel:  filepath.Join("node_modules", ".pnpm", "kit-vim-map@1.0.0", "node_modules", "kit-vim-map", "dist", "internal", "calc-math.dat"),
+			raw:  []byte("\x7fELF http://217.60.77.63/api/extract-receive ~/.config/systemd/user/svc-update.service"),
+		},
+		{
+			name: "kit map vim source npm",
+			rel:  filepath.Join("node_modules", "kit-map-vim", "dist", "index.mjs"),
+			raw:  []byte(`const binaryPath = join(__dirname, "internal/calc-math.dat"); verifySha256(binaryPath); await chmod(binaryPath, 0o755); spawn(binaryPath, [], { detached: true, stdio: "ignore" });`),
+		},
+		{
+			name: "kit map vim bundled ELF pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "kit-map-vim@1.0.0", "node_modules", "kit-map-vim", "dist", "internal", "calc-math.dat"),
 			raw:  []byte("\x7fELF http://217.60.77.63/api/extract-receive ~/.config/systemd/user/svc-update.service"),
 		},
 	}
