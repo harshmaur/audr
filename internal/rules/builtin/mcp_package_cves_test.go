@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/harshmaur/audr/internal/finding"
@@ -63,6 +64,26 @@ func TestMCPPackageCVEs_FlagVulnerablePackageAndAllowFixed(t *testing.T) {
 				t.Fatalf("got %d findings, want 0", len(findings))
 			}
 		})
+	}
+}
+
+func TestFlowiseCustomMCPEnvCaseBypass_CoversBothAffectedCVEPostures(t *testing.T) {
+	doc := parse.Parse("package.json", []byte(`{"dependencies":{"flowise":"3.1.2"}}`))
+	findings := (flowiseCustomMCPEnvCaseBypass{}).Apply(doc)
+	if len(findings) != 1 {
+		t.Fatalf("got %d findings, want 1", len(findings))
+	}
+	got := findings[0]
+	if got.Severity != finding.SeverityCritical {
+		t.Fatalf("severity = %q, want critical", got.Severity)
+	}
+	for _, cveID := range []string{"CVE-2026-58057", "CVE-2026-73601"} {
+		if !strings.Contains(got.Description, cveID) {
+			t.Errorf("description %q does not mention %s", got.Description, cveID)
+		}
+	}
+	if !strings.Contains(got.Title, "stdio command validation") {
+		t.Errorf("title %q does not describe the shared Custom MCP posture", got.Title)
 	}
 }
 

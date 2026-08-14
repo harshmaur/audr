@@ -128,9 +128,9 @@ func (flowiseCustomMCPEnvCaseBypass) ID() string {
 	return "flowise-custom-mcp-env-case-bypass"
 }
 func (flowiseCustomMCPEnvCaseBypass) Title() string {
-	return "Flowise version is vulnerable to Custom MCP env denylist case bypass"
+	return "Flowise version is vulnerable to Custom MCP stdio command validation bypasses"
 }
-func (flowiseCustomMCPEnvCaseBypass) Severity() finding.Severity { return finding.SeverityMedium }
+func (flowiseCustomMCPEnvCaseBypass) Severity() finding.Severity { return finding.SeverityCritical }
 func (flowiseCustomMCPEnvCaseBypass) Taxonomy() finding.Taxonomy { return finding.TaxDetectable }
 func (flowiseCustomMCPEnvCaseBypass) Formats() []parse.Format {
 	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
@@ -363,15 +363,15 @@ func rtkPermissionSplitterShellBoundaryBypassFinding(path string, line int, matc
 func flowiseCustomMCPEnvCaseBypassFinding(path string, line int, match string) finding.Finding {
 	return finding.New(finding.Args{
 		RuleID:       "flowise-custom-mcp-env-case-bypass",
-		Severity:     finding.SeverityMedium,
+		Severity:     finding.SeverityCritical,
 		Taxonomy:     finding.TaxDetectable,
-		Title:        "Flowise before 3.1.3 allows Custom MCP NODE_OPTIONS denylist case bypass",
-		Description:  "CVE-2026-58057: Flowise before 3.1.3 compared Custom MCP stdio environment variable names case-sensitively, so Windows deployments could accept node_options and bypass the NODE_OPTIONS denylist to inject --require code into the Flowise server process.",
+		Title:        "Flowise before 3.1.3 allows Custom MCP stdio command validation bypasses",
+		Description:  "CVE-2026-58057 and CVE-2026-73601: Flowise before 3.1.3 allowed authenticated Custom MCP editors to bypass stdio command validation. Affected paths include case-variant NODE_OPTIONS on Windows, Python PYTHONWARNINGS/BROWSER environment handling, and Node working-directory behavior, which can execute commands in the Flowise server process.",
 		Path:         path,
 		Line:         line,
 		Match:        match,
-		SuggestedFix: "Upgrade Flowise to 3.1.3 or later and review Custom MCP node environment entries for case variants of NODE_OPTIONS before allowing untrusted users to configure MCP servers.",
-		Tags:         []string{"cve", "flowise", "mcp", "dependency-manifest", "node-options", "rce"},
+		SuggestedFix: "Upgrade Flowise to 3.1.3 or later and review Custom MCP stdio environment variables, command arguments, and working-directory settings configured by untrusted users.",
+		Tags:         []string{"cve", "flowise", "mcp", "dependency-manifest", "environment", "command-arguments", "rce"},
 	})
 }
 
