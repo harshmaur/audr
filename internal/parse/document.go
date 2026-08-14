@@ -641,6 +641,7 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"simple-date-formatter-new-10/postinstall.js",
 		"tokocrytodev/index.js",
 		"cryptostock/index.js",
+		"notafollower/package.json",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true
 	default:

