@@ -1278,3 +1278,65 @@ func TestRule_AwesomeMCPWikiSummarySSRF(t *testing.T) {
 		})
 	}
 }
+
+// --- mcp-memory-service-document-api-unauth ---------------------------------
+
+func TestRule_MCPMemoryServiceDocumentAPIUnauth(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+		want bool
+	}{
+		{
+			name: "vulnerable pinned package in HTTP REST mode fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"memory":{"command":"uvx","args":["--from","mcp-memory-service==10.67.0","memory","server","--http","--http-host","0.0.0.0"],"env":{"MCP_API_KEY":"${MCP_API_KEY}"}}}}`,
+			want: true,
+		},
+		{
+			name: "vulnerable pinned package launched as HTTP service fires",
+			path: "/test/.codex/config.toml",
+			body: `[mcp_servers.memory]` + "\n" + `command = "uvx"` + "\n" + `args = ["--from", "mcp-memory-service@10.66.0", "memory", "launch", "--host", "127.0.0.1"]`,
+			want: true,
+		},
+		{
+			name: "HTTP auto-start env fires",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"memory":{"command":"uvx","args":["--from","mcp_memory_service==10.60.0","memory","server"],"env":{"MCP_HTTP_ENABLED":"true"}}}}`,
+			want: true,
+		},
+		{
+			name: "fixed version does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"memory":{"command":"uvx","args":["--from","mcp-memory-service==10.67.1","memory","server","--http"]}}}`,
+			want: false,
+		},
+		{
+			name: "stdio mode does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"memory":{"command":"uvx","args":["--from","mcp-memory-service==10.67.0","memory","server"]}}}`,
+			want: false,
+		},
+		{
+			name: "disabled server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"memory":{"command":"uvx","args":["--from","mcp-memory-service==10.67.0","memory","server","--http"],"disabled":true}}}`,
+			want: false,
+		},
+		{
+			name: "unrelated memory package does not fire",
+			path: "/test/.cursor/mcp.json",
+			body: `{"mcpServers":{"memory":{"command":"uvx","args":["--from","memory-service==10.67.0","memory","server","--http"]}}}`,
+			want: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			doc := parse.Parse(c.path, []byte(c.body))
+			if got := fired(doc, "mcp-memory-service-document-api-unauth"); got != c.want {
+				t.Errorf("fired = %v, want %v (rules: %v)", got, c.want, applyRule(doc))
+			}
+		})
+	}
+}

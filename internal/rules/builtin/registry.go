@@ -52,6 +52,7 @@ func builtins() []rules.Rule {
 		googleapisMCPToolboxLegacyProtocolScopeBypass{},
 		networkAIMCPSSEEmptySecret{},
 		awesomeMCPWikiSummarySSRF{},
+		mcpMemoryServiceDocumentAPIUnauth{},
 
 		// Claude Code rules.
 		claudeHookShellRCE{},

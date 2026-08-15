@@ -1926,3 +1926,110 @@ func isWildcardList(value string) bool {
 	}
 	return false
 }
+
+// --- mcp-memory-service-document-api-unauth ---------------------------------
+
+type mcpMemoryServiceDocumentAPIUnauth struct{}
+
+func (mcpMemoryServiceDocumentAPIUnauth) ID() string {
+	return "mcp-memory-service-document-api-unauth"
+}
+func (mcpMemoryServiceDocumentAPIUnauth) Title() string {
+	return "MCP Memory Service exposes unauthenticated document API routes"
+}
+func (mcpMemoryServiceDocumentAPIUnauth) Severity() finding.Severity {
+	return finding.SeverityCritical
+}
+func (mcpMemoryServiceDocumentAPIUnauth) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (mcpMemoryServiceDocumentAPIUnauth) Formats() []parse.Format {
+	return parse.AllMCPFormats()
+}
+
+func (mcpMemoryServiceDocumentAPIUnauth) Apply(doc *parse.Document) []finding.Finding {
+	servers := parse.NormalizeMCPServers(doc)
+	if len(servers) == 0 {
+		return nil
+	}
+	var out []finding.Finding
+	for _, s := range servers {
+		if s.Disabled {
+			continue
+		}
+		pkg, version, ok := mcpMemoryServicePackageSpec(s)
+		if !ok || !vulnerableVersionBefore(version, []int{10, 67, 1}) {
+			continue
+		}
+		if !mcpMemoryServiceUsesDocumentHTTPAPI(s) {
+			continue
+		}
+		out = append(out, finding.New(finding.Args{
+			RuleID:       "mcp-memory-service-document-api-unauth",
+			Severity:     finding.SeverityCritical,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "MCP Memory Service before 10.67.1 exposes unauthenticated document routes",
+			Description:  fmt.Sprintf("CVE-2026-50027: server %q launches %s %s with the HTTP REST API enabled. In mcp-memory-service before 10.67.1, /api/documents upload, read, history, and delete routes omitted the authentication dependency used by the memory routes, even when MCP_API_KEY or OAuth was configured.", s.Name, pkg, version),
+			Path:         doc.Path,
+			Line:         s.Line,
+			Match:        fmt.Sprintf("%s %s", s.Command, strings.Join(s.Args, " ")),
+			SuggestedFix: "Upgrade mcp-memory-service to 10.67.1 or later before enabling its HTTP REST API. Until upgraded, disable --http/MCP_HTTP_ENABLED and block all access to /api/documents at a trusted reverse proxy; setting MCP_API_KEY alone does not protect the affected routes.",
+			Tags:         []string{"cve", "mcp-memory-service", "mcp", "http", "missing-auth", "document-api"},
+		}))
+	}
+	return out
+}
+
+func mcpMemoryServicePackageSpec(s parse.NormalizedMCPServer) (pkg string, version string, ok bool) {
+	candidates := append([]string{s.Command}, s.Args...)
+	for _, raw := range candidates {
+		name, ver, matched := splitMCPMemoryServicePackageSpec(raw)
+		if matched {
+			return name, ver, true
+		}
+	}
+	return "", "", false
+}
+
+func splitMCPMemoryServicePackageSpec(raw string) (pkg string, version string, ok bool) {
+	s := strings.TrimSpace(strings.Trim(raw, "'\""))
+	for strings.HasPrefix(s, "pip:") || strings.HasPrefix(s, "pypi:") {
+		s = strings.TrimPrefix(strings.TrimPrefix(s, "pip:"), "pypi:")
+	}
+	name := s
+	ver := ""
+	if strings.Contains(s, "==") {
+		parts := strings.SplitN(s, "==", 2)
+		name, ver = parts[0], parts[1]
+	} else if i := strings.LastIndex(s, "@"); i > 0 {
+		name, ver = s[:i], s[i+1:]
+	}
+	normalized := strings.ToLower(strings.ReplaceAll(name, "_", "-"))
+	if normalized == "mcp-memory-service" {
+		return normalized, ver, true
+	}
+	return "", "", false
+}
+
+func mcpMemoryServiceUsesDocumentHTTPAPI(s parse.NormalizedMCPServer) bool {
+	for _, raw := range s.Args {
+		arg := strings.ToLower(strings.TrimSpace(strings.Trim(raw, "'\"")))
+		if arg == "--http" || arg == "launch" {
+			return true
+		}
+		if strings.HasPrefix(arg, "--http=") {
+			value := strings.TrimSpace(strings.TrimPrefix(arg, "--http="))
+			return value == "true" || value == "1" || value == "yes" || value == "on"
+		}
+	}
+	for k, value := range s.Env {
+		if !strings.EqualFold(k, "MCP_HTTP_ENABLED") {
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(value)) {
+		case "true", "1", "yes", "on":
+			return true
+		}
+	}
+	return false
+}
