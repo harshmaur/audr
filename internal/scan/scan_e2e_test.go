@@ -392,6 +392,54 @@ func TestScan_AmazonInspectorNotafollowerUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_AmazonInspectorDepcruiseUnderNodeModules proves the bounded walker
+// reaches the malicious off-registry dependency manifest in npm and pnpm
+// layouts without scanning a lookalike package carrying the same URL.
+func TestScan_AmazonInspectorDepcruiseUnderNodeModules(t *testing.T) {
+	raw := []byte(`{"name":"depcruise-wrap-stream-in-html","version":"99.9.1","dependencies":{"ltidisafe":"https://ltidi.storage.googleapis.com/depenconf/ltidisafe-3.7.5.tgz"}}`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "depcruise-wrap-stream-in-html", "package.json")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "depcruise-wrap-stream-in-html@99.9.1", "node_modules", "depcruise-wrap-stream-in-html", "package.json")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", "package.json")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_TelekomODSReactUIKitUnderNodeModules proves the bounded walker
 // reaches the compromised package manifest in npm and pnpm layouts without
 // scanning a lookalike package carrying the same exfiltration markers.

@@ -642,6 +642,7 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"tokocrytodev/index.js",
 		"cryptostock/index.js",
 		"notafollower/package.json",
+		"depcruise-wrap-stream-in-html/package.json",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true
 	default:
