@@ -440,6 +440,52 @@ func TestScan_AmazonInspectorDepcruiseUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_AmazonInspectorPlatformLoadersUnderNodeModules proves the bounded
+// walker reaches both import-time platform loaders in npm and pnpm layouts.
+func TestScan_AmazonInspectorPlatformLoadersUnderNodeModules(t *testing.T) {
+	tests := []struct {
+		name string
+		rel  string
+		raw  []byte
+	}{
+		{
+			name: "pfp forms npm",
+			rel:  filepath.Join("node_modules", "pfp-forms-sme-loan", "_bridge.js"),
+			raw:  []byte(`const host = ["oob-worker.cf100-416.workers.de", "v"].join(""); const dns = ["tin.dl.", "well1.s", "it", "e"].join(""); const fp = "/tmp/.cache_123"; chmodSync(fp, 0o755); spawn("/bin/sh", ["-c", fp + " &"], {detached:true}).unref();`),
+		},
+		{
+			name: "checkout desktop pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "checkout-desktop-total@35.6.1", "node_modules", "checkout-desktop-total", "_platform.js"),
+			raw:  []byte(`const hosts = [["oob-worker.cf102-baf.workers.", "dev"], ["oob-worker.cf99-9b3.workers.", "dev"]]; const dns = ["payload.dl.", "wel1.", "ru"].join(""); const fp = "dotnet_diag_123.exe"; writeFileSync(".analytics_state", "1"); chmodSync(fp, 0o755); spawn("cmd.exe", ["/c", "start", "/b", fp], {detached:true, windowsHide:true}).unref();`),
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, tc.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, tc.raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_TelekomODSReactUIKitUnderNodeModules proves the bounded walker
 // reaches the compromised package manifest in npm and pnpm layouts without
 // scanning a lookalike package carrying the same exfiltration markers.

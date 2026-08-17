@@ -848,7 +848,7 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 				"sysbin@", "env-threads@", "typography-stylecss@",
 				"hello-world-pkg-value-value-p@", "streak-core-math@",
 				"streak-daily-lib@", "streak-core-lib@", "streak-day-utils@",
-				"api-node-sdk@", "app-soda-layer@", "sigchain-js@", "chain-analyze@", "react-puller@", "claude-remote-agent@", "llm-interceptor@", "map-streak-kit@", "streak-map-kit@", "kit-vim-map@", "kit-map-vim@", "w-screenctl@", "aclade-agent@", "agenthub-ai@", "uibabai@", "simple-date-formatter-new-9@", "simple-date-formatter-new-10@", "tokocrytodev@", "cryptostock@", "notafollower@", "depcruise-wrap-stream-in-html@", "@yancyyu+agentcli@",
+				"api-node-sdk@", "app-soda-layer@", "sigchain-js@", "chain-analyze@", "react-puller@", "claude-remote-agent@", "llm-interceptor@", "map-streak-kit@", "streak-map-kit@", "kit-vim-map@", "kit-map-vim@", "w-screenctl@", "aclade-agent@", "agenthub-ai@", "uibabai@", "simple-date-formatter-new-9@", "simple-date-formatter-new-10@", "tokocrytodev@", "cryptostock@", "notafollower@", "depcruise-wrap-stream-in-html@", "pfp-forms-sme-loan@", "checkout-desktop-total@", "@yancyyu+agentcli@",
 			} {
 				if strings.HasPrefix(parts[1], prefix) {
 					return true
@@ -867,7 +867,7 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 		"sysbin", "hello-world-pkg-value-value-p", "streak-core-math",
 		"streak-daily-lib", "streak-core-lib", "streak-day-utils",
 		"api-node-sdk", "app-soda-layer", "react-puller", "claude-remote-agent", "llm-interceptor", "uibabai",
-		"simple-date-formatter-new-9", "simple-date-formatter-new-10", "tokocrytodev", "cryptostock", "notafollower", "depcruise-wrap-stream-in-html":
+		"simple-date-formatter-new-9", "simple-date-formatter-new-10", "tokocrytodev", "cryptostock", "notafollower", "depcruise-wrap-stream-in-html", "pfp-forms-sme-loan", "checkout-desktop-total":
 		return len(parts) == 1
 	case "sigchain-js", "chain-analyze":
 		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "dist")
