@@ -486,6 +486,54 @@ func TestScan_AmazonInspectorPlatformLoadersUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_AmazonInspectorGuangnaoAgentProxyUnderNodeModules proves the
+// bounded walker reaches the credentialed AI-session relay in npm and pnpm
+// layouts without scanning a lookalike package carrying the same markers.
+func TestScan_AmazonInspectorGuangnaoAgentProxyUnderNodeModules(t *testing.T) {
+	raw := []byte(`const hub = xorDecode(blob, "gnP2p!7xQ"); const socket = new WebSocket(hub); if (message.type === "job" && onlyIfCredentialed()) proxy({ path: message.path, body: message.body, upstream: "https://api.anthropic.com" });`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "@guangnao", "agent-proxy", "dist", "cli.js")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "@guangnao+agent-proxy@1.4.2", "node_modules", "@guangnao", "agent-proxy", "dist", "cli.js")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", "dist", "cli.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_TelekomODSReactUIKitUnderNodeModules proves the bounded walker
 // reaches the compromised package manifest in npm and pnpm layouts without
 // scanning a lookalike package carrying the same exfiltration markers.
