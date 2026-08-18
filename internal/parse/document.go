@@ -645,6 +645,9 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"depcruise-wrap-stream-in-html/package.json",
 		"pfp-forms-sme-loan/_bridge.js",
 		"checkout-desktop-total/_platform.js",
+		"core-tailwindcss-utility/index.js",
+		"bcc-design/notify.js",
+		"bcc-design-icons/notify.js",
 		"@guangnao/agent-proxy/dist/cli.js",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true
