@@ -648,6 +648,7 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"core-tailwindcss-utility/index.js",
 		"bcc-design/notify.js",
 		"bcc-design-icons/notify.js",
+		"setup-codex/lib/report.js",
 		"@guangnao/agent-proxy/dist/cli.js",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true

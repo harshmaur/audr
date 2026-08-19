@@ -848,7 +848,7 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 				"sysbin@", "env-threads@", "typography-stylecss@", "core-tailwindcss-utility@",
 				"hello-world-pkg-value-value-p@", "streak-core-math@",
 				"streak-daily-lib@", "streak-core-lib@", "streak-day-utils@",
-				"api-node-sdk@", "app-soda-layer@", "sigchain-js@", "chain-analyze@", "react-puller@", "claude-remote-agent@", "llm-interceptor@", "map-streak-kit@", "streak-map-kit@", "kit-vim-map@", "kit-map-vim@", "w-screenctl@", "aclade-agent@", "agenthub-ai@", "uibabai@", "simple-date-formatter-new-9@", "simple-date-formatter-new-10@", "tokocrytodev@", "cryptostock@", "notafollower@", "depcruise-wrap-stream-in-html@", "pfp-forms-sme-loan@", "checkout-desktop-total@", "bcc-design@", "bcc-design-icons@", "@guangnao+agent-proxy@", "@yancyyu+agentcli@",
+				"api-node-sdk@", "app-soda-layer@", "sigchain-js@", "chain-analyze@", "react-puller@", "claude-remote-agent@", "llm-interceptor@", "map-streak-kit@", "streak-map-kit@", "kit-vim-map@", "kit-map-vim@", "w-screenctl@", "aclade-agent@", "agenthub-ai@", "uibabai@", "simple-date-formatter-new-9@", "simple-date-formatter-new-10@", "tokocrytodev@", "cryptostock@", "notafollower@", "depcruise-wrap-stream-in-html@", "pfp-forms-sme-loan@", "checkout-desktop-total@", "bcc-design@", "bcc-design-icons@", "setup-codex@", "@guangnao+agent-proxy@", "@yancyyu+agentcli@",
 			} {
 				if strings.HasPrefix(parts[1], prefix) {
 					return true
@@ -872,6 +872,8 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 	case "sigchain-js", "chain-analyze":
 		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "dist")
 	case "env-threads":
+		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "lib")
+	case "setup-codex":
 		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "lib")
 	case "typography-stylecss":
 		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "src")

