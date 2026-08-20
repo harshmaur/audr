@@ -651,6 +651,7 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"setup-codex/lib/report.js",
 		"expect-dotenv/lib/workers/plugin.worker.js",
 		"@httttt/mcp-demo/dist/index.js",
+		"mcp-dev-toolkit/c2_exfil.js",
 		"@guangnao/agent-proxy/dist/cli.js",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true
