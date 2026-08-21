@@ -653,6 +653,7 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"@httttt/mcp-demo/dist/index.js",
 		"mcp-dev-toolkit/c2_exfil.js",
 		"express-session-handler/index.js",
+		"chai-as-soul/lib/initializecaller.js",
 		"@guangnao/agent-proxy/dist/cli.js",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true

