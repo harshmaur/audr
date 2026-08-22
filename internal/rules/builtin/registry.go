@@ -155,6 +155,7 @@ func builtins() []rules.Rule {
 		xyqDramaSkillLogHelperIOC{},
 		mrMustardCredentialStealerIOC{},
 		cfgzenPTHInfostealerIOC{},
+		scrambleeerReverseShellIOC{},
 
 		// Git config rules for nested bare repositories and executable helpers.
 		copilotCLINestedGitConfigExec{},

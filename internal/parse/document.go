@@ -470,6 +470,9 @@ func DetectFormat(path string) Format {
 	if IsCfgzenMalwareArtifactPath(normalized) {
 		return FormatPyPIMalwareArtifact
 	}
+	if IsScrambleeerMalwareArtifactPath(normalized) {
+		return FormatPyPIMalwareArtifact
+	}
 	if IsAsyncAPIMiasmaArtifactPath(normalized) {
 		return FormatAsyncAPIMiasmaArtifact
 	}
@@ -815,6 +818,19 @@ func IsCfgzenMalwareArtifactPath(path string) bool {
 	default:
 		return false
 	}
+}
+
+// IsScrambleeerMalwareArtifactPath bounds the August 2026 scrambleeer reverse-
+// shell campaign to Python source or bytecode inside the exact package root.
+// Candidate files remain content-gated by the builtin rule.
+func IsScrambleeerMalwareArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	ext := strings.ToLower(filepath.Ext(normalized))
+	if ext != ".py" && ext != ".pyc" {
+		return false
+	}
+	return strings.HasSuffix(normalized, "/scrambleeer.py") ||
+		strings.Contains(normalized, "/scrambleeer/")
 }
 
 // IsAsyncAPIMiasmaArtifactPath bounds the AsyncAPI Miasma campaign surface to
