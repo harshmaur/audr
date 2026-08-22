@@ -848,7 +848,7 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 				"sysbin@", "env-threads@", "typography-stylecss@", "core-tailwindcss-utility@",
 				"hello-world-pkg-value-value-p@", "streak-core-math@",
 				"streak-daily-lib@", "streak-core-lib@", "streak-day-utils@",
-				"api-node-sdk@", "app-soda-layer@", "sigchain-js@", "chain-analyze@", "react-puller@", "claude-remote-agent@", "llm-interceptor@", "map-streak-kit@", "streak-map-kit@", "kit-vim-map@", "kit-map-vim@", "w-screenctl@", "aclade-agent@", "agenthub-ai@", "uibabai@", "simple-date-formatter-new-9@", "simple-date-formatter-new-10@", "tokocrytodev@", "cryptostock@", "notafollower@", "depcruise-wrap-stream-in-html@", "pfp-forms-sme-loan@", "checkout-desktop-total@", "bcc-design@", "bcc-design-icons@", "setup-codex@", "expect-dotenv@", "mcp-dev-toolkit@", "express-session-handler@", "chai-as-soul@", "@httttt+mcp-demo@", "@guangnao+agent-proxy@", "@yancyyu+agentcli@",
+				"api-node-sdk@", "app-soda-layer@", "sigchain-js@", "chain-analyze@", "react-puller@", "claude-remote-agent@", "llm-interceptor@", "map-streak-kit@", "streak-map-kit@", "kit-vim-map@", "kit-map-vim@", "w-screenctl@", "aclade-agent@", "agenthub-ai@", "uibabai@", "simple-date-formatter-new-9@", "simple-date-formatter-new-10@", "tokocrytodev@", "cryptostock@", "notafollower@", "depcruise-wrap-stream-in-html@", "pfp-forms-sme-loan@", "checkout-desktop-total@", "bcc-design@", "bcc-design-icons@", "setup-codex@", "expect-dotenv@", "mcp-dev-toolkit@", "express-session-handler@", "chai-as-soul@", "fuel-react@", "lumen-pages-community@", "@gfe+lx-watcher@", "@httttt+mcp-demo@", "@guangnao+agent-proxy@", "@yancyyu+agentcli@",
 			} {
 				if strings.HasPrefix(parts[1], prefix) {
 					return true
@@ -867,7 +867,7 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 		"sysbin", "hello-world-pkg-value-value-p", "streak-core-math",
 		"streak-daily-lib", "streak-core-lib", "streak-day-utils",
 		"api-node-sdk", "app-soda-layer", "react-puller", "claude-remote-agent", "llm-interceptor", "uibabai",
-		"simple-date-formatter-new-9", "simple-date-formatter-new-10", "tokocrytodev", "cryptostock", "notafollower", "depcruise-wrap-stream-in-html", "pfp-forms-sme-loan", "checkout-desktop-total", "core-tailwindcss-utility", "bcc-design", "bcc-design-icons", "mcp-dev-toolkit", "express-session-handler":
+		"simple-date-formatter-new-9", "simple-date-formatter-new-10", "tokocrytodev", "cryptostock", "notafollower", "depcruise-wrap-stream-in-html", "pfp-forms-sme-loan", "checkout-desktop-total", "core-tailwindcss-utility", "bcc-design", "bcc-design-icons", "mcp-dev-toolkit", "express-session-handler", "fuel-react", "lumen-pages-community":
 		return len(parts) == 1
 	case "chai-as-soul":
 		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "lib")
@@ -895,6 +895,8 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 		}
 		return parts[1] == "agent-proxy" &&
 			(len(parts) == 2 || (len(parts) == 3 && parts[2] == "dist"))
+	case "@gfe":
+		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "lx-watcher")
 	case "@httttt":
 		if len(parts) == 1 {
 			return true

