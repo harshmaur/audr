@@ -820,17 +820,23 @@ func IsCfgzenMalwareArtifactPath(path string) bool {
 	}
 }
 
-// IsScrambleeerMalwareArtifactPath bounds the August 2026 scrambleeer reverse-
-// shell campaign to Python source or bytecode inside the exact package root.
-// Candidate files remain content-gated by the builtin rule.
+// IsScrambleeerMalwareArtifactPath bounds the August 2026 scrambleeer /
+// scrambleeeer reverse-shell campaign to the original package root and the
+// exact three-e core.py source/install paths. Candidate files remain
+// content-gated by the builtin rule.
 func IsScrambleeerMalwareArtifactPath(path string) bool {
 	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
 	ext := strings.ToLower(filepath.Ext(normalized))
-	if ext != ".py" && ext != ".pyc" {
+	if (ext == ".py" || ext == ".pyc") &&
+		(strings.HasSuffix(normalized, "/scrambleeer.py") || strings.Contains(normalized, "/scrambleeer/")) {
+		return true
+	}
+	if ext != ".py" {
 		return false
 	}
-	return strings.HasSuffix(normalized, "/scrambleeer.py") ||
-		strings.Contains(normalized, "/scrambleeer/")
+	return strings.HasSuffix(normalized, "/src/scrambleeeer/core.py") ||
+		strings.HasSuffix(normalized, "/site-packages/scrambleeeer/core.py") ||
+		strings.HasSuffix(normalized, "/dist-packages/scrambleeeer/core.py")
 }
 
 // IsAsyncAPIMiasmaArtifactPath bounds the AsyncAPI Miasma campaign surface to
