@@ -152,6 +152,7 @@ func builtins() []rules.Rule {
 		apexCopilotMCPInfostealerIOC{},
 		asyncAPIMiasmaRATIOC{},
 		injectiveSDKWalletSecretExfilIOC{},
+		mlflowOtelSystemdHelperIOC{},
 		xyqDramaSkillLogHelperIOC{},
 		mrMustardCredentialStealerIOC{},
 		cfgzenPTHInfostealerIOC{},

