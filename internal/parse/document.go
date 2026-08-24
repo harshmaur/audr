@@ -661,6 +661,7 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"fuel-react/postinstall.js",
 		"lumen-pages-community/dc.js",
 		"@js-lib-team/env-parser/index.js",
+		"conversa-sdk/postinstall.js",
 		"@guangnao/agent-proxy/dist/cli.js",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true
