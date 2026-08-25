@@ -153,6 +153,7 @@ func builtins() []rules.Rule {
 		asyncAPIMiasmaRATIOC{},
 		injectiveSDKWalletSecretExfilIOC{},
 		mlflowOtelSystemdHelperIOC{},
+		multyproccessHiddenPayloadIOC{},
 		xyqDramaSkillLogHelperIOC{},
 		mrMustardCredentialStealerIOC{},
 		cfgzenPTHInfostealerIOC{},

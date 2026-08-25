@@ -3,6 +3,7 @@ package scan_test
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1544,6 +1545,74 @@ os.system("nohup /tmp/systemd-helper &")
 	}
 	if got != 1 {
 		t.Fatalf("mlflow-otel-systemd-helper-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+	}
+}
+
+// TestScan_MultyproccessSetupSource proves the normal walker recognizes the
+// campaign's source-distribution installer markers without widening PyPI scans.
+func TestScan_MultyproccessSetupSource(t *testing.T) {
+	root := t.TempDir()
+	packageRoot := filepath.Join(root, "multyproccess-2.32.5")
+	if err := os.MkdirAll(packageRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload := filepath.Join(packageRoot, "setup.py")
+	raw := []byte(`
+from setuptools.command.install import install
+from setuptools.command.develop import develop
+encoded = open("request/.payload", "rb").read()
+payload = base64.b64decode(encoded)
+subprocess.Popen([sys.executable, "-c", payload], creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW)
+setup(cmdclass={"install": PostInstallCommand, "develop": PostInstallCommand})
+`)
+	if err := os.WriteFile(payload, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	got := 0
+	for _, f := range res.Findings {
+		if f.RuleID == "multyproccess-hidden-payload-ioc" {
+			got++
+		}
+	}
+	if got != 1 {
+		t.Fatalf("multyproccess-hidden-payload-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+	}
+}
+
+// TestScan_MultyproccessBundledPayload proves a surviving package payload is
+// detectable even when setup.py is no longer present.
+func TestScan_MultyproccessBundledPayload(t *testing.T) {
+	root := t.TempDir()
+	payload := filepath.Join(root, "multyproccess-2.32.5", "request", ".payload")
+	if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	raw := base64.StdEncoding.EncodeToString([]byte(`
+https://api.telegram.org/botTOKEN/sendMessage
+https://api.telegram.org/botTOKEN/sendDocument
+https://recloud-blush.vercel.app/api/upload
+`))
+	if err := os.WriteFile(payload, []byte(raw), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	got := 0
+	for _, f := range res.Findings {
+		if f.RuleID == "multyproccess-hidden-payload-ioc" {
+			got++
+		}
+	}
+	if got != 1 {
+		t.Fatalf("multyproccess-hidden-payload-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
 	}
 }
 

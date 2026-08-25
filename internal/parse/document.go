@@ -464,6 +464,9 @@ func DetectFormat(path string) Format {
 	if IsMLflowOtelSystemdHelperArtifactPath(normalized) {
 		return FormatPyPIMalwareArtifact
 	}
+	if IsMultyproccessMalwareArtifactPath(normalized) {
+		return FormatPyPIMalwareArtifact
+	}
 	if IsXYQDramaSkillArtifactPath(normalized) {
 		return FormatPyPIMalwareArtifact
 	}
@@ -752,6 +755,37 @@ func IsMLflowOtelSystemdHelperArtifactPath(path string) bool {
 func IsMLflowOtelSystemdHelperDropPath(path string) bool {
 	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
 	return normalized == "/tmp/systemd-helper" || normalized == "/private/tmp/systemd-helper"
+}
+
+// IsMultyproccessMalwareArtifactPath bounds the August 2026 multyproccess
+// infostealer campaign to setup.py files from the four known malicious source
+// distributions. The builtin rule content-gates the installer behavior before
+// emitting a finding; package/version exposure remains delegated to OSV.
+func IsMultyproccessMalwareArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	leaf := filepath.Base(normalized)
+	if leaf != "setup.py" && !strings.HasSuffix(normalized, "/request/.payload") {
+		return false
+	}
+	packageDir := filepath.Dir(normalized)
+	if leaf == ".payload" {
+		packageDir = filepath.Dir(packageDir)
+	}
+	parent := filepath.Base(packageDir)
+	switch parent {
+	case "multyproccess-2.32.3", "multyproccess-2.32.4", "multyproccess-2.32.5", "multyproccess-2.32.6":
+		return true
+	default:
+		return false
+	}
+}
+
+// IsMultyproccessBundledPayloadPath identifies the campaign's exact bundled
+// payload location under a known malicious source-distribution root.
+func IsMultyproccessBundledPayloadPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	return strings.HasSuffix(normalized, "/request/.payload") &&
+		IsMultyproccessMalwareArtifactPath(normalized)
 }
 
 // IsXYQDramaSkillArtifactPath bounds the xyq-drama-skill malware surface to
