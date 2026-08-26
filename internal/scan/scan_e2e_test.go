@@ -584,7 +584,8 @@ func TestScan_TelekomODSReactUIKitUnderNodeModules(t *testing.T) {
 }
 
 // TestScan_AmazonInspectorRedShellUnderNodeModules proves the bounded walker
-// reaches the map-streak-kit, streak-map-kit, kit-vim-map, and kit-map-vim source loaders
+// reaches the map-streak-kit, streak-map-kit, kit-vim-map, kit-map-vim, and
+// dim-hydration-ui source loaders
 // and bundled ELF payload paths in npm and pnpm layouts without scanning a
 // lookalike package.
 func TestScan_AmazonInspectorRedShellUnderNodeModules(t *testing.T) {
@@ -631,6 +632,16 @@ func TestScan_AmazonInspectorRedShellUnderNodeModules(t *testing.T) {
 		{
 			name: "kit map vim bundled ELF pnpm",
 			rel:  filepath.Join("node_modules", ".pnpm", "kit-map-vim@1.0.0", "node_modules", "kit-map-vim", "dist", "internal", "calc-math.dat"),
+			raw:  []byte("\x7fELF http://217.60.77.63/api/extract-receive ~/.config/systemd/user/svc-update.service"),
+		},
+		{
+			name: "dim hydration UI source npm",
+			rel:  filepath.Join("node_modules", "dim-hydration-ui", "dist", "index.mjs"),
+			raw:  []byte(`const binaryPath = join(__dirname, "internal/math.bin"); await chmod(binaryPath, 0o755); spawn(binaryPath, [], { detached: true, stdio: "ignore" });`),
+		},
+		{
+			name: "dim hydration UI bundled ELF pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "dim-hydration-ui@1.0.0", "node_modules", "dim-hydration-ui", "dist", "internal", "math.bin"),
 			raw:  []byte("\x7fELF http://217.60.77.63/api/extract-receive ~/.config/systemd/user/svc-update.service"),
 		},
 	}

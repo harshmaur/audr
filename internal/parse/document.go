@@ -640,6 +640,8 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"kit-vim-map/dist/internal/calc-math.dat",
 		"kit-map-vim/dist/index.mjs",
 		"kit-map-vim/dist/internal/calc-math.dat",
+		"dim-hydration-ui/dist/index.mjs",
+		"dim-hydration-ui/dist/internal/math.bin",
 		"w-screenctl/src/wscreenctl.mjs",
 		"aclade-agent/dist/index.js",
 		"agenthub-ai/dist-publish/main.js",
