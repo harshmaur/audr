@@ -669,6 +669,8 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"chai-as-org/lib/initializecaller.js",
 		"spotify-url-infos/index.js",
 		"spotify-url-resolvers/index.js",
+		"octopus-action/index.js",
+		"mt-ts-serverless-starter/index.js",
 		"@gfe/lx-watcher/install.js",
 		"fuel-react/postinstall.js",
 		"lumen-pages-community/dc.js",

