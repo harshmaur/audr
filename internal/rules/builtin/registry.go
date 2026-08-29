@@ -158,6 +158,7 @@ func builtins() []rules.Rule {
 		mrMustardCredentialStealerIOC{},
 		cfgzenPTHInfostealerIOC{},
 		scrambleeerReverseShellIOC{},
+		pygameRenderkitReverseShellPersistenceIOC{},
 
 		// Git config rules for nested bare repositories and executable helpers.
 		copilotCLINestedGitConfigExec{},

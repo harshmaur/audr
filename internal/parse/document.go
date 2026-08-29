@@ -461,6 +461,9 @@ func DetectFormat(path string) Format {
 	if IsApexCopilotMalwareArtifactPath(normalized) {
 		return FormatNPMMalwareArtifact
 	}
+	if IsPygameRenderkitMalwareArtifactPath(normalized) {
+		return FormatPyPIMalwareArtifact
+	}
 	if IsMLflowOtelSystemdHelperArtifactPath(normalized) {
 		return FormatPyPIMalwareArtifact
 	}
@@ -932,6 +935,47 @@ func IsScrambleeerMalwareArtifactPath(path string) bool {
 	return strings.HasSuffix(normalized, "/src/scrambleeeer/core.py") ||
 		strings.HasSuffix(normalized, "/site-packages/scrambleeeer/core.py") ||
 		strings.HasSuffix(normalized, "/dist-packages/scrambleeeer/core.py")
+}
+
+// IsPygameRenderkitMalwareArtifactPath bounds the August 2026
+// pygame-renderkit campaign to its exact source-distribution installer and
+// persistence paths. Every candidate remains content- or hash-gated by the
+// builtin rule; package/version exposure remains delegated to OSV-Scanner.
+func IsPygameRenderkitMalwareArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	if IsPygameRenderkitReconDropPath(normalized) ||
+		IsPygameRenderkitSystemdPersistencePath(normalized) ||
+		IsPygameRenderkitSudoersPersistencePath(normalized) {
+		return true
+	}
+	if !strings.HasSuffix(normalized, "/setup.py") {
+		return false
+	}
+	parent := filepath.Base(filepath.Dir(normalized))
+	return parent == "pygame-renderkit-1.2.0" || parent == "pygame_renderkit-1.2.0"
+}
+
+// IsPygameRenderkitReconDropPath recognizes the campaign's exact temporary
+// Python payload. A scan-root prefix is allowed so synthetic fixtures and
+// mounted filesystem images retain the same suffix.
+func IsPygameRenderkitReconDropPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	return strings.HasSuffix(normalized, "/tmp/.rk_recon.py") ||
+		strings.HasSuffix(normalized, "/private/tmp/.rk_recon.py")
+}
+
+// IsPygameRenderkitSystemdPersistencePath recognizes only the exact user-unit
+// filename used by the campaign.
+func IsPygameRenderkitSystemdPersistencePath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	return strings.HasSuffix(normalized, "/.config/systemd/user/renderkit.service")
+}
+
+// IsPygameRenderkitSudoersPersistencePath recognizes only the exact sudoers
+// drop used by the campaign.
+func IsPygameRenderkitSudoersPersistencePath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	return strings.HasSuffix(normalized, "/etc/sudoers.d/.renderkit")
 }
 
 // IsAsyncAPIMiasmaArtifactPath bounds the AsyncAPI Miasma campaign surface to
