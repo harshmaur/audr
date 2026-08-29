@@ -141,6 +141,74 @@ func TestRule_MiniShaiHuludRouterInitArtifact(t *testing.T) {
 	}
 }
 
+func TestRule_MiniShaiHuludOpenAPICodegenArtifacts(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		raw  string
+	}{
+		{
+			name: "obfuscated payload",
+			path: "/repo/node_modules/@7nohe/openapi-react-query-codegen/3FWCvzduYZg.js",
+			raw:  `const encodedPayload = "synthetic-test-payload";`,
+		},
+		{
+			name: "binding gyp trigger",
+			path: "/repo/node_modules/@7nohe/openapi-react-query-codegen/binding.gyp",
+			raw:  `{"targets":[{"actions":[{"action":["python3","-c","object.__subclasses__(); os.system('node 3FWCvzduYZg.js')"]}]}]}`,
+		},
+		{
+			name: "preinstall trigger",
+			path: "/repo/node_modules/@7nohe/openapi-react-query-codegen/package.json",
+			raw:  `{"name":"@7nohe/openapi-react-query-codegen","scripts":{"preinstall":"node 3FWCvzduYZg.js"}}`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := parse.Parse(tc.path, []byte(tc.raw))
+			if doc.Format != parse.FormatMiniShaiHuludArtifact {
+				t.Fatalf("format = %q, want Mini Shai-Hulud artifact", doc.Format)
+			}
+			if !fired(doc, "mini-shai-hulud-dropped-payload") {
+				t.Fatalf("Mini Shai-Hulud OpenAPI codegen IOC did not fire; got %v", applyRule(doc))
+			}
+		})
+	}
+}
+
+func TestRule_MiniShaiHuludOpenAPICodegenArtifactsStayPackageBounded(t *testing.T) {
+	for _, path := range []string{
+		"/repo/node_modules/@other/openapi-react-query-codegen/3FWCvzduYZg.js",
+		"/repo/node_modules/@other/openapi-react-query-codegen/binding.gyp",
+		"/repo/node_modules/@other/openapi-react-query-codegen/package.json",
+	} {
+		doc := parse.Parse(path, []byte(`{"scripts":{"preinstall":"node 3FWCvzduYZg.js"},"command":"os.system"}`))
+		if fired(doc, "mini-shai-hulud-dropped-payload") {
+			t.Fatalf("Mini Shai-Hulud OpenAPI codegen IOC fired outside the exact package root for %s; got %v", path, applyRule(doc))
+		}
+	}
+
+	cleanExactPackageFiles := []struct {
+		path string
+		raw  string
+	}{
+		{
+			path: "/repo/node_modules/@7nohe/openapi-react-query-codegen/binding.gyp",
+			raw:  `{"targets":[{"target_name":"native","sources":["src/native.cc"]}]}`,
+		},
+		{
+			path: "/repo/node_modules/@7nohe/openapi-react-query-codegen/package.json",
+			raw:  `{"name":"@7nohe/openapi-react-query-codegen","scripts":{"build":"tsc"}}`,
+		},
+	}
+	for _, tc := range cleanExactPackageFiles {
+		doc := parse.Parse(tc.path, []byte(tc.raw))
+		if fired(doc, "mini-shai-hulud-dropped-payload") {
+			t.Fatalf("Mini Shai-Hulud OpenAPI codegen IOC fired on clean exact-package file %s; got %v", tc.path, applyRule(doc))
+		}
+	}
+}
+
 func TestRule_MiniShaiHuludStage6GitHubC2IOCs(t *testing.T) {
 	cases := []struct {
 		name string

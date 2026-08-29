@@ -155,6 +155,53 @@ func TestScan_MiniShaiHuludRouterInitUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_MiniShaiHuludOpenAPICodegenUnderNodeModules proves the bounded
+// node_modules exception reaches the exact compromised package root in both
+// npm and pnpm layouts without scanning lookalike packages.
+func TestScan_MiniShaiHuludOpenAPICodegenUnderNodeModules(t *testing.T) {
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "@7nohe", "openapi-react-query-codegen", "3FWCvzduYZg.js")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "@7nohe+openapi-react-query-codegen@3.0.4", "node_modules", "@7nohe", "openapi-react-query-codegen", "3FWCvzduYZg.js")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, []byte(`const encodedPayload = "synthetic-test-payload";`), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "@other", "openapi-react-query-codegen", "3FWCvzduYZg.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, []byte(`const encodedPayload = "lookalike";`), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "mini-shai-hulud-dropped-payload" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("mini-shai-hulud-dropped-payload findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_JscramblerPayloadUnderNodeModules asserts the default walker keeps
 // node_modules skipped while still checking the campaign's exact package path.
 func TestScan_JscramblerPayloadUnderNodeModules(t *testing.T) {

@@ -482,6 +482,9 @@ func DetectFormat(path string) Format {
 	if IsAsyncAPIMiasmaArtifactPath(normalized) {
 		return FormatAsyncAPIMiasmaArtifact
 	}
+	if IsMiniShaiHuludOpenAPICodegenArtifactPath(normalized) {
+		return FormatMiniShaiHuludArtifact
+	}
 	if strings.HasSuffix(normalized, "/apps/api/src/routes/auth.ts") ||
 		strings.HasSuffix(normalized, "/apps/api/src/services/resolve-user.ts") {
 		return FormatClawVetAuthSource
@@ -577,6 +580,28 @@ func DetectFormat(path string) Format {
 	}
 
 	return FormatUnknown
+}
+
+// IsMiniShaiHuludOpenAPICodegenArtifactPath bounds the August 2026
+// @7nohe/openapi-react-query-codegen campaign variant to the exact package
+// root files that carried or launched the payload. Package/version exposure
+// remains delegated to OSV-Scanner.
+func IsMiniShaiHuludOpenAPICodegenArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	marker := "/node_modules/"
+	idx := strings.LastIndex(normalized, marker)
+	if idx < 0 {
+		return false
+	}
+	rel := normalized[idx+len(marker):]
+	switch rel {
+	case "@7nohe/openapi-react-query-codegen/3fwcvzduyzg.js",
+		"@7nohe/openapi-react-query-codegen/binding.gyp",
+		"@7nohe/openapi-react-query-codegen/package.json":
+		return true
+	default:
+		return false
+	}
 }
 
 func isMarketfrontCampaignPostinstallPath(path string) bool {

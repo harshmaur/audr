@@ -612,7 +612,8 @@ func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- strin
 			return nil
 		}
 		base := filepath.Base(path)
-		miniShaiHuludPayload := (base == "router_init.js" || base == "tanstack_runner.js") && depth <= 3
+		miniShaiHuludPayload := ((base == "router_init.js" || base == "tanstack_runner.js") && depth <= 3) ||
+			parse.IsMiniShaiHuludOpenAPICodegenArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
 		jscramblerPayload := relSlash == "jscrambler/dist/intro.js" ||
 			relSlash == "jscrambler/dist/setup.js" ||
 			relSlash == "jscrambler/dist/index.js" ||
@@ -667,6 +668,9 @@ func shouldDescendKnownNodeModulesIOC(relSlash string, depth int) bool {
 	if shouldDescendInjectiveWalletStealerPath(relSlash) {
 		return true
 	}
+	if shouldDescendMiniShaiHuludOpenAPICodegenPath(relSlash) {
+		return true
+	}
 	switch relSlash {
 	case "nodemon-sudo/node_modules/tslint-conf",
 		"nodemon-sudo/node_modules/tslint-conf/lib":
@@ -685,6 +689,17 @@ func shouldDescendKnownNodeModulesIOC(relSlash string, depth int) bool {
 	default:
 		return false
 	}
+}
+
+func shouldDescendMiniShaiHuludOpenAPICodegenPath(relSlash string) bool {
+	parts := strings.Split(relSlash, "/")
+	if len(parts) >= 3 && parts[0] == ".pnpm" && parts[2] == "node_modules" {
+		if len(parts) == 3 {
+			return strings.HasPrefix(parts[1], "@7nohe+openapi-react-query-codegen@")
+		}
+		return shouldDescendMiniShaiHuludOpenAPICodegenPath(strings.Join(parts[3:], "/"))
+	}
+	return equalPathPrefix(parts, []string{"@7nohe", "openapi-react-query-codegen"})
 }
 
 func shouldDescendAsyncAPIMiasmaPath(relSlash string) bool {

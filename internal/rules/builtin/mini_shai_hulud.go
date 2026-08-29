@@ -209,6 +209,18 @@ func (miniShaiHuludDroppedPayload) Formats() []parse.Format {
 func (miniShaiHuludDroppedPayload) Apply(doc *parse.Document) []finding.Finding {
 	path := filepath.ToSlash(doc.Path)
 	base := filepath.Base(path)
+	lower := strings.ToLower(string(doc.Raw))
+	openAPICodegenIOC := false
+	if parse.IsMiniShaiHuludOpenAPICodegenArtifactPath(path) {
+		switch strings.ToLower(base) {
+		case "3fwcvzduyzg.js":
+			openAPICodegenIOC = true
+		case "binding.gyp":
+			openAPICodegenIOC = strings.Contains(lower, "3fwcvzduyzg.js")
+		case "package.json":
+			openAPICodegenIOC = strings.Contains(lower, "preinstall") && strings.Contains(lower, "3fwcvzduyzg.js")
+		}
+	}
 	known := strings.HasSuffix(path, "/.claude/setup.mjs") ||
 		strings.HasSuffix(path, "/.vscode/setup.mjs") ||
 		strings.HasSuffix(path, "/.claude/router_runtime.js") ||
@@ -217,7 +229,8 @@ func (miniShaiHuludDroppedPayload) Apply(doc *parse.Document) []finding.Finding 
 		strings.HasSuffix(path, "/.local/share/kitty/cat.py") ||
 		strings.HasSuffix(path, "/.local/bin/gh-token-monitor.sh") ||
 		strings.HasSuffix(path, "/var/tmp/.gh_update_state") ||
-		(strings.Contains(path, "/node_modules/") && (base == "router_init.js" || base == "tanstack_runner.js"))
+		(strings.Contains(path, "/node_modules/") && (base == "router_init.js" || base == "tanstack_runner.js")) ||
+		openAPICodegenIOC
 	if !known {
 		return nil
 	}
@@ -226,7 +239,7 @@ func (miniShaiHuludDroppedPayload) Apply(doc *parse.Document) []finding.Finding 
 		Severity:     finding.SeverityCritical,
 		Taxonomy:     finding.TaxDetectable,
 		Title:        "Mini Shai-Hulud dropped payload file present",
-		Description:  "This path matches a Mini Shai-Hulud dropped payload artifact. The worm used setup.mjs/router_runtime.js for persistence and router_init.js/tanstack_runner.js in compromised npm packages.",
+		Description:  "This path matches a Mini Shai-Hulud dropped payload or package-root launcher artifact. The worm used agent persistence files and bounded npm package-root payloads to execute and propagate credential-stealing malware.",
 		Path:         doc.Path,
 		Line:         1,
 		Match:        base,
