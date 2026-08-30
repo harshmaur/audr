@@ -704,6 +704,9 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"lumen-pages-community/dc.js",
 		"@js-lib-team/env-parser/index.js",
 		"conversa-sdk/postinstall.js",
+		"grafeno-billing/preinstall.js",
+		"grafeno-payments/preinstall.js",
+		"grafeno-webhook/preinstall.js",
 		"@guangnao/agent-proxy/dist/cli.js",
 		"@yancyyu/agentcli/bin/hermit.mjs":
 		return true

