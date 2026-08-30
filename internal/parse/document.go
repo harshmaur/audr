@@ -941,21 +941,26 @@ func IsScrambleeerMalwareArtifactPath(path string) bool {
 }
 
 // IsPygameRenderkitMalwareArtifactPath bounds the August 2026
-// pygame-renderkit campaign to its exact source-distribution installer and
-// persistence paths. Every candidate remains content- or hash-gated by the
-// builtin rule; package/version exposure remains delegated to OSV-Scanner.
+// pygame-renderkit / flask-header-guard campaign to exact source-distribution,
+// installed-module, dropped-payload, and persistence paths. Every candidate
+// remains content- or hash-gated by the builtin rule; package/version exposure
+// remains delegated to OSV-Scanner.
 func IsPygameRenderkitMalwareArtifactPath(path string) bool {
 	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
 	if IsPygameRenderkitReconDropPath(normalized) ||
 		IsPygameRenderkitSystemdPersistencePath(normalized) ||
-		IsPygameRenderkitSudoersPersistencePath(normalized) {
+		IsPygameRenderkitSudoersPersistencePath(normalized) ||
+		IsFlaskHeaderGuardReconDropPath(normalized) ||
+		IsFlaskHeaderGuardSudoersPersistencePath(normalized) ||
+		IsFlaskHeaderGuardBackdoorPath(normalized) {
 		return true
 	}
 	if !strings.HasSuffix(normalized, "/setup.py") {
 		return false
 	}
 	parent := filepath.Base(filepath.Dir(normalized))
-	return parent == "pygame-renderkit-1.2.0" || parent == "pygame_renderkit-1.2.0"
+	return parent == "pygame-renderkit-1.2.0" || parent == "pygame_renderkit-1.2.0" ||
+		parent == "flask-header-guard-1.0.0" || parent == "flask_header_guard-1.0.0"
 }
 
 // IsPygameRenderkitReconDropPath recognizes the campaign's exact temporary
@@ -979,6 +984,28 @@ func IsPygameRenderkitSystemdPersistencePath(path string) bool {
 func IsPygameRenderkitSudoersPersistencePath(path string) bool {
 	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
 	return strings.HasSuffix(normalized, "/etc/sudoers.d/.renderkit")
+}
+
+// IsFlaskHeaderGuardReconDropPath recognizes the follow-up campaign package's
+// exact temporary reverse-shell payload.
+func IsFlaskHeaderGuardReconDropPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	return strings.HasSuffix(normalized, "/tmp/.fhg_recon.py") ||
+		strings.HasSuffix(normalized, "/private/tmp/.fhg_recon.py")
+}
+
+// IsFlaskHeaderGuardSudoersPersistencePath recognizes only the hidden sudoers
+// file used by flask-header-guard 1.0.0.
+func IsFlaskHeaderGuardSudoersPersistencePath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	return strings.HasSuffix(normalized, "/etc/sudoers.d/.fhg")
+}
+
+// IsFlaskHeaderGuardBackdoorPath bounds source and installed-package checks to
+// the exact malicious module path. Content or hash checks are still required.
+func IsFlaskHeaderGuardBackdoorPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	return strings.HasSuffix(normalized, "/flask_header_guard/backdoor.py")
 }
 
 // IsAsyncAPIMiasmaArtifactPath bounds the AsyncAPI Miasma campaign surface to
