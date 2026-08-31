@@ -482,6 +482,9 @@ func DetectFormat(path string) Format {
 	if IsScrambleeerMalwareArtifactPath(normalized) {
 		return FormatPyPIMalwareArtifact
 	}
+	if IsTronixPyPIKeyExfilArtifactPath(normalized) {
+		return FormatPyPIMalwareArtifact
+	}
 	if IsAsyncAPIMiasmaArtifactPath(normalized) {
 		return FormatAsyncAPIMiasmaArtifact
 	}
@@ -938,6 +941,70 @@ func IsScrambleeerMalwareArtifactPath(path string) bool {
 	return strings.HasSuffix(normalized, "/src/scrambleeeer/core.py") ||
 		strings.HasSuffix(normalized, "/site-packages/scrambleeeer/core.py") ||
 		strings.HasSuffix(normalized, "/dist-packages/scrambleeeer/core.py")
+}
+
+var tronixPyPIPackageRoots = map[string]struct{}{
+	"hexadec": {}, "hexadecpy": {}, "hexcon": {}, "hexdec": {},
+	"hexdeci": {}, "hexdecimal": {}, "hexdecli": {}, "hexdeclink": {},
+	"hexdecnet": {}, "hexdecpy": {}, "tronapinet": {}, "tronapipy": {},
+	"troncloud": {}, "trondec": {}, "trongap": {}, "trongapy": {},
+	"trongithpy": {}, "trongitpy": {}, "trongridapi": {}, "trongriden": {},
+	"trongrider": {}, "trongridet": {}, "trongridev": {}, "trongridlib": {},
+	"trongridme": {}, "trongridmy": {}, "trongridor": {}, "trongridperm": {},
+	"trongridweb": {}, "trongridy": {}, "tronhap": {}, "tronhapy": {},
+	"tronhex": {}, "tronhexpy": {}, "tronix": {}, "tronjoi": {},
+	"tronkeep": {}, "tronkeeppy": {}, "tronkeypy": {}, "tronkeyspy": {},
+	"tronlab": {}, "tronlabpy3": {}, "tronlast": {}, "tronlastpy": {},
+	"tronlib": {}, "tronlibapi": {}, "tronlibpy": {}, "tronlid": {},
+	"tronlinker": {}, "tronlinknet": {}, "tronlix": {}, "tronpad": {},
+	"tronpak": {}, "tronpath": {}, "tronpropy": {}, "tronpyapi": {},
+	"tronsev": {}, "tronwalletpy": {}, "tronwe": {}, "tronwebwpy": {},
+	"trxone": {}, "trxtwo": {}, "wallettron": {}, "wallettronpy": {},
+}
+
+// IsTronixPyPIKeyExfilArtifactPath bounds the 2025-04 Tronix campaign to
+// Python source or bytecode inside one of the 64 exact package roots published
+// by kam193. The builtin rule additionally requires a campaign domain, wallet
+// material collection, and outbound request behavior before emitting.
+func IsTronixPyPIKeyExfilArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	ext := strings.ToLower(filepath.Ext(normalized))
+	if ext != ".py" && ext != ".pyc" {
+		return false
+	}
+	components := strings.FieldsFunc(strings.Trim(normalized, "/"), func(r rune) bool { return r == '/' })
+	for i, component := range components {
+		if component == "site-packages" || component == "dist-packages" {
+			if i+1 >= len(components) {
+				return false
+			}
+			installedRoot := strings.TrimSuffix(components[i+1], filepath.Ext(components[i+1]))
+			_, ok := tronixPyPIPackageRoots[installedRoot]
+			return ok
+		}
+		for packageName := range tronixPyPIPackageRoots {
+			prefix := packageName + "-"
+			if strings.HasPrefix(component, prefix) && isLikelyTronixPyPIPackageVersion(component[len(prefix):]) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isLikelyTronixPyPIPackageVersion(version string) bool {
+	if version == "" || version[0] < '0' || version[0] > '9' {
+		return false
+	}
+	for _, char := range version {
+		if (char >= '0' && char <= '9') ||
+			(char >= 'a' && char <= 'z') ||
+			char == '.' || char == '+' || char == '_' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // IsPygameRenderkitMalwareArtifactPath bounds the August 2026
