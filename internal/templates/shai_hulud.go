@@ -27,7 +27,35 @@ func registerShaiHulud(r *Registry) {
 	r.registerRule("mini-shai-hulud-token-monitor-persistence", shaiHuludTokenMonitor)
 	r.registerRule("mini-shai-hulud-dropped-payload", shaiHuludDroppedPayload)
 	r.registerRule("mini-shai-hulud-stage6-github-c2-ioc", shaiHuludStage6GitHubC2IOC)
+	r.registerRule("mini-shai-hulud-untrusted-publish-workflow", shaiHuludUntrustedPublishWorkflow)
 	r.registerRule("mini-shai-hulud-workflow-secret-exfil", shaiHuludWorkflowExfil)
+}
+
+func shaiHuludUntrustedPublishWorkflow(_ state.Finding, loc Locator) (string, string, bool) {
+	path := loc.String("path")
+	if path == "" {
+		path = "<.github/workflows/release.yml>"
+	}
+	human := fmt.Sprintf(`MINI SHAI-HULUD: unsafe npm trusted-publishing workflow detected at %s.
+
+An issue comment can reach a job that checks out a pull-request head, runs
+dependency install scripts, and publishes with id-token: write. A fork can
+therefore execute its install hook inside an OIDC-enabled publishing job.
+
+1. Disable the issue_comment release path before running this workflow again.
+2. Require OWNER, MEMBER, or COLLABORATOR author association before any trusted action.
+3. Keep fork checkout and install steps out of jobs with id-token: write.
+4. Review recent workflow runs and npm versions; unpublish malicious versions
+   and rotate repository/registry credentials if this path was triggered.
+5. Restore the workflow from a reviewed commit and use minimal permissions.`, path)
+	ai := fmt.Sprintf(`A Mini Shai-Hulud supply-chain workflow shape was detected at %s.
+
+Inspect the issue_comment trigger, PR-head checkout, package install, publish,
+and id-token: write permission. Remove the issue_comment publishing path or
+add a strict OWNER/MEMBER/COLLABORATOR author-association gate before the job
+starts. Separate untrusted fork testing from trusted OIDC publishing. Preserve
+unrelated workflow behavior, show the exact diff, and do not run the workflow.`, path)
+	return human, ai, true
 }
 
 func shaiHuludOptionalDep(_ state.Finding, loc Locator) (string, string, bool) {

@@ -121,6 +121,7 @@ type AgentDoc struct {
 // Workflow is the parsed form of a GitHub Actions YAML.
 type Workflow struct {
 	Name        string
+	Triggers    map[string]bool
 	Permissions map[string]string // top-level permissions block, if any
 	Jobs        map[string]Job
 }
@@ -128,6 +129,7 @@ type Workflow struct {
 // Job is one job in a GitHub Actions workflow.
 type Job struct {
 	Name        string
+	If          string
 	Permissions map[string]string
 	Steps       []Step
 	RunsOn      []string
@@ -136,6 +138,7 @@ type Job struct {
 // Step is one step in a job.
 type Step struct {
 	Name string
+	If   string
 	Uses string
 	Run  string
 	Env  map[string]string

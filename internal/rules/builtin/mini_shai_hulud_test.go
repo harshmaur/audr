@@ -91,6 +91,245 @@ jobs:
 	}
 }
 
+func TestRule_MiniShaiHuludUntrustedPublishWorkflow(t *testing.T) {
+	raw := []byte(`name: Release
+on:
+  push:
+    tags: ['v*']
+  issue_comment:
+    types: [created]
+permissions:
+  contents: write
+  issues: write
+  id-token: write
+jobs:
+  release:
+    if: github.event_name == 'push' || (github.event_name == 'issue_comment' && github.event.comment.body == 'npm publish')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        if: github.event_name == 'issue_comment'
+        run: |
+          git fetch origin pull/${{ github.event.issue.number }}/head:pr-find-commit
+          git checkout pr-find-commit
+      - name: Install dependencies
+        run: pnpm install
+      - name: Publish prerelease
+        if: github.event_name == 'issue_comment'
+        run: pnpm publish --no-git-checks --tag canary
+`)
+	doc := parse.Parse("/repo/.github/workflows/release.yml", raw)
+	if !fired(doc, "mini-shai-hulud-untrusted-publish-workflow") {
+		t.Fatalf("Mini Shai-Hulud untrusted publish workflow rule did not fire; got %v", applyRule(doc))
+	}
+}
+
+func TestRule_MiniShaiHuludUntrustedPublishWorkflowBoundsFalsePositives(t *testing.T) {
+	tests := []struct {
+		name    string
+		extra   string
+		perms   string
+		fetch   string
+		install string
+	}{
+		{
+			name:    "author association gate",
+			extra:   ` && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)`,
+			perms:   "id-token: write",
+			fetch:   "git fetch origin pull/${{ github.event.issue.number }}/head:pr-find-commit",
+			install: "pnpm install",
+		},
+		{
+			name:    "no OIDC permission",
+			perms:   "id-token: none",
+			fetch:   "git fetch origin pull/${{ github.event.issue.number }}/head:pr-find-commit",
+			install: "pnpm install",
+		},
+		{
+			name:    "does not check out PR head",
+			perms:   "id-token: write",
+			fetch:   "git checkout main",
+			install: "pnpm install",
+		},
+		{
+			name:    "install scripts disabled",
+			perms:   "id-token: write",
+			fetch:   "git fetch origin pull/${{ github.event.issue.number }}/head:pr-find-commit",
+			install: "pnpm install --ignore-scripts",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := []byte(`name: Release
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  ` + tc.perms + `
+jobs:
+  release:
+    if: github.event.comment.body == 'npm publish'` + tc.extra + `
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          ` + tc.fetch + `
+          git checkout pr-find-commit
+      - run: ` + tc.install + `
+      - run: pnpm publish --no-git-checks --tag canary
+`)
+			doc := parse.Parse("/repo/.github/workflows/release.yml", raw)
+			if fired(doc, "mini-shai-hulud-untrusted-publish-workflow") {
+				t.Fatalf("Mini Shai-Hulud untrusted publish workflow rule fired on bounded negative; got %v", applyRule(doc))
+			}
+		})
+	}
+}
+
+func TestRule_MiniShaiHuludUntrustedPublishWorkflowWeakAssociationGateStillFires(t *testing.T) {
+	raw := []byte(`name: Release
+on: [issue_comment]
+permissions: write-all
+jobs:
+  release:
+    if: github.event.comment.author_association != 'NONE'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          git fetch origin pull/${{ github.event.issue.number }}/head:pr-find-commit
+          git checkout pr-find-commit
+      - run: pnpm install
+      - run: pnpm publish --tag canary
+`)
+	doc := parse.Parse("/repo/.github/workflows/release.yml", raw)
+	if !fired(doc, "mini-shai-hulud-untrusted-publish-workflow") {
+		t.Fatalf("weak author-association gate must not suppress the rule; got %v", applyRule(doc))
+	}
+}
+
+func TestRule_MiniShaiHuludUntrustedPublishWorkflowIgnoresUnrelatedAssociationMention(t *testing.T) {
+	raw := []byte(`name: Release
+on:
+  issue_comment:
+permissions:
+  id-token: write
+jobs:
+  release:
+    # author_association is documented elsewhere but not enforced here.
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          git fetch origin pull/${{ github.event.issue.number }}/head:pr-find-commit
+          git checkout pr-find-commit
+      - run: npm ci
+      - run: npm publish
+`)
+	doc := parse.Parse("/repo/.github/workflows/release.yml", raw)
+	if !fired(doc, "mini-shai-hulud-untrusted-publish-workflow") {
+		t.Fatalf("unrelated author-association mention must not suppress the rule; got %v", applyRule(doc))
+	}
+}
+
+func TestRule_MiniShaiHuludUntrustedPublishWorkflowKeepsSignalsInOneJob(t *testing.T) {
+	raw := []byte(`name: Release
+on:
+  push:
+    tags: ['v*']
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+jobs:
+  comment:
+    if: github.event_name == 'issue_comment'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Thanks for the comment"
+  publish:
+    if: github.event_name == 'push'
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          git fetch origin pull/${{ github.event.issue.number }}/head:pr-find-commit
+          git checkout pr-find-commit
+      - run: pnpm install
+      - run: pnpm publish
+`)
+	doc := parse.Parse("/repo/.github/workflows/release.yml", raw)
+	if fired(doc, "mini-shai-hulud-untrusted-publish-workflow") {
+		t.Fatalf("signals split across issue-comment and push-only jobs must not fire; got %v", applyRule(doc))
+	}
+}
+
+func TestRule_MiniShaiHuludUntrustedPublishWorkflowRespectsJobPermissionOverride(t *testing.T) {
+	raw := []byte(`name: Release
+on: [issue_comment]
+permissions:
+  id-token: write
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          git fetch origin pull/${{ github.event.issue.number }}/head:pr-find-commit
+          git checkout pr-find-commit
+      - run: pnpm install
+      - run: pnpm publish
+`)
+	doc := parse.Parse("/repo/.github/workflows/release.yml", raw)
+	if fired(doc, "mini-shai-hulud-untrusted-publish-workflow") {
+		t.Fatalf("job-level permissions without id-token must override workflow permission; got %v", applyRule(doc))
+	}
+}
+
+func TestRule_MiniShaiHuludUntrustedPublishWorkflowRejectsBypassableAssociationGate(t *testing.T) {
+	raw := []byte(`name: Release
+on: [issue_comment]
+permissions: write-all
+jobs:
+  release:
+    if: github.event.comment.author_association == 'OWNER' || github.event.comment.body == 'npm publish'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          git fetch origin pull/${{ github.event.issue.number }}/head:pr-find-commit
+          git checkout pr-find-commit
+      - run: pnpm install
+      - run: pnpm publish
+`)
+	doc := parse.Parse("/repo/.github/workflows/release.yml", raw)
+	if !fired(doc, "mini-shai-hulud-untrusted-publish-workflow") {
+		t.Fatalf("bypassable author-association OR gate must still fire; got %v", applyRule(doc))
+	}
+}
+
+func TestRule_MiniShaiHuludUntrustedPublishWorkflowHandlesBlockTriggerAndNegativeGuard(t *testing.T) {
+	raw := []byte(`name: Release
+on:
+  - push
+  - issue_comment
+permissions:
+  id-token: write
+jobs:
+  release:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          git fetch origin pull/${{ github.event.issue.number }}/head:pr-find-commit
+          git checkout pr-find-commit
+      - run: pnpm install
+      - run: pnpm publish
+`)
+	doc := parse.Parse("/repo/.github/workflows/release.yml", raw)
+	if !fired(doc, "mini-shai-hulud-untrusted-publish-workflow") {
+		t.Fatalf("block-list issue_comment trigger with negative push guard must fire; got %v", applyRule(doc))
+	}
+}
+
 func TestRule_MiniShaiHuludServicePersistence(t *testing.T) {
 	raw := []byte(`[Service]
 ExecStart=/home/user/.local/bin/gh-token-monitor.sh

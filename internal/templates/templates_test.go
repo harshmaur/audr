@@ -300,6 +300,13 @@ func TestShaiHuludHandlersDispatch(t *testing.T) {
 			expectInAI:    "binary malware",
 		},
 		{
+			ruleID:        "mini-shai-hulud-untrusted-publish-workflow",
+			locatorJSON:   `{"path":"/repos/proj/.github/workflows/release.yml"}`,
+			expectPath:    "/repos/proj/.github/workflows/release.yml",
+			expectInHuman: "id-token: write",
+			expectInAI:    "author-association",
+		},
+		{
 			ruleID:        "mini-shai-hulud-workflow-secret-exfil",
 			locatorJSON:   `{"path":"/repos/proj/.github/workflows/release.yml"}`,
 			expectPath:    "/repos/proj/.github/workflows/release.yml",

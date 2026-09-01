@@ -80,6 +80,7 @@ func builtins() []rules.Rule {
 		ghaSecretsInAgentStep{},
 		ghaBase64SecretExfilWorkflow{},
 		ghaClaudeIssueAgentInjection{},
+		miniShaiHuludUntrustedPublishWorkflow{},
 		miniShaiHuludWorkflowSecretExfil{},
 
 		// Shell rc rules.

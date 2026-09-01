@@ -306,6 +306,121 @@ func (miniShaiHuludStage6GitHubC2IOC) Apply(doc *parse.Document) []finding.Findi
 	return nil
 }
 
+// --- mini-shai-hulud-untrusted-publish-workflow ----------------------------
+
+type miniShaiHuludUntrustedPublishWorkflow struct{}
+
+func (miniShaiHuludUntrustedPublishWorkflow) ID() string {
+	return "mini-shai-hulud-untrusted-publish-workflow"
+}
+func (miniShaiHuludUntrustedPublishWorkflow) Title() string {
+	return "Untrusted issue comment can publish npm packages with OIDC"
+}
+func (miniShaiHuludUntrustedPublishWorkflow) Severity() finding.Severity {
+	return finding.SeverityCritical
+}
+func (miniShaiHuludUntrustedPublishWorkflow) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (miniShaiHuludUntrustedPublishWorkflow) Formats() []parse.Format {
+	return []parse.Format{parse.FormatGHAWorkflow}
+}
+
+var (
+	miniShaiHuludPRHeadCheckout             = regexp.MustCompile(`(?is)git\s+fetch\b[^\n]*\bpull/\s*\$\{\{\s*github\.event\.issue\.number\s*\}\}/head(?:\s|:)`)
+	miniShaiHuludPackageInstall             = regexp.MustCompile(`(?im)(?:^|[;&|\s])(?:pnpm|npm|yarn|bun)\s+(?:install|ci)\b`)
+	miniShaiHuludPackagePublish             = regexp.MustCompile(`(?im)(?:^|[;&|\s])(?:pnpm|npm|yarn)\s+publish\b`)
+	miniShaiHuludTrustedAssociationContains = regexp.MustCompile(`(?is)contains\s*\([^\n]*(?:owner[^\n]*member[^\n]*collaborator|owner[^\n]*collaborator[^\n]*member|member[^\n]*owner[^\n]*collaborator|member[^\n]*collaborator[^\n]*owner|collaborator[^\n]*owner[^\n]*member|collaborator[^\n]*member[^\n]*owner)[^\n]*author_association`)
+	miniShaiHuludTrustedAssociationEquality = regexp.MustCompile(`(?is)(?:github\.event\.(?:comment|issue)\.author_association|author_association)\s*==\s*['"](?:OWNER|MEMBER|COLLABORATOR)['"]`)
+	miniShaiHuludEventNameEquality          = regexp.MustCompile(`(?i)^\s*(?:\$\{\{\s*)?github\.event_name\s*==\s*['"]([a-z_]+)['"]\s*(?:\}\})?\s*$`)
+	miniShaiHuludEventNameInequality        = regexp.MustCompile(`(?i)^\s*(?:\$\{\{\s*)?github\.event_name\s*!=\s*['"]([a-z_]+)['"]\s*(?:\}\})?\s*$`)
+)
+
+func (miniShaiHuludUntrustedPublishWorkflow) Apply(doc *parse.Document) []finding.Finding {
+	if doc.Workflow == nil {
+		return nil
+	}
+	if !doc.Workflow.Triggers["issue_comment"] {
+		return nil
+	}
+	for _, job := range doc.Workflow.Jobs {
+		if !miniShaiHuludJobReachableOnIssueComment(job.If) || miniShaiHuludHasTrustedAuthorGate(job.If) {
+			continue
+		}
+		if !miniShaiHuludJobHasPermission(doc, job, "id-token", "write") {
+			continue
+		}
+
+		var checkoutRuns, installRuns, publishRuns strings.Builder
+		for _, step := range job.Steps {
+			if !miniShaiHuludStepReachableOnIssueComment(step.If) {
+				continue
+			}
+			lowerRun := strings.ToLower(step.Run)
+			checkoutRuns.WriteString("\n" + step.Run)
+			if miniShaiHuludPackageInstall.MatchString(step.Run) && !strings.Contains(lowerRun, "--ignore-scripts") {
+				installRuns.WriteString("\n" + step.Run)
+			}
+			if miniShaiHuludPackagePublish.MatchString(step.Run) {
+				publishRuns.WriteString("\n" + step.Run)
+			}
+		}
+		checkout := checkoutRuns.String()
+		if !miniShaiHuludPRHeadCheckout.MatchString(checkout) || !strings.Contains(strings.ToLower(checkout), "git checkout") || installRuns.Len() == 0 || publishRuns.Len() == 0 {
+			continue
+		}
+
+		return []finding.Finding{finding.New(finding.Args{
+			RuleID:       "mini-shai-hulud-untrusted-publish-workflow",
+			Severity:     finding.SeverityCritical,
+			Taxonomy:     finding.TaxDetectable,
+			Title:        "Issue comment can publish attacker-controlled npm code with OIDC",
+			Description:  "This release workflow lets an issue_comment path check out a pull-request head, run dependency install scripts, and publish with id-token: write without an author-association gate. This is the workflow shape exploited to publish the Mini Shai-Hulud @7nohe/openapi-react-query-codegen payload under a legitimate npm package identity.",
+			Path:         doc.Path,
+			Line:         findLineContaining(doc.Raw, "issue_comment"),
+			Match:        "issue_comment PR-head checkout with install scripts, package publish, and id-token: write",
+			SuggestedFix: "Remove the issue_comment release trigger or require a trusted OWNER/MEMBER/COLLABORATOR author association before the job starts. Never run install scripts from a fork in an OIDC-enabled publish job; separate untrusted checkout/testing from trusted publishing and minimize token permissions.",
+			Tags:         []string{"mini-shai-hulud", "gha", "supply-chain", "npm", "oidc", "trusted-publishing"},
+		})}
+	}
+	return nil
+}
+
+func miniShaiHuludJobHasPermission(doc *parse.Document, job parse.Job, name, value string) bool {
+	if job.Permissions != nil {
+		return strings.EqualFold(job.Permissions[name], value) || strings.EqualFold(job.Permissions["_"], "write-all")
+	}
+	return strings.EqualFold(doc.Workflow.Permissions[name], value) || strings.EqualFold(doc.Workflow.Permissions["_"], "write-all")
+}
+
+func miniShaiHuludJobReachableOnIssueComment(condition string) bool {
+	if condition == "" {
+		return true
+	}
+	if match := miniShaiHuludEventNameEquality.FindStringSubmatch(condition); len(match) == 2 {
+		return strings.EqualFold(match[1], "issue_comment")
+	}
+	if match := miniShaiHuludEventNameInequality.FindStringSubmatch(condition); len(match) == 2 {
+		return !strings.EqualFold(match[1], "issue_comment")
+	}
+	// Complex expressions are reachable unless they can be proven otherwise.
+	// This avoids missing negative guards such as event_name != 'push'.
+	return true
+}
+
+func miniShaiHuludStepReachableOnIssueComment(condition string) bool {
+	return miniShaiHuludJobReachableOnIssueComment(condition)
+}
+
+func miniShaiHuludHasTrustedAuthorGate(condition string) bool {
+	// An OR branch can make an otherwise valid association comparison bypassable.
+	// Stay conservative unless every route through the job includes the gate.
+	if strings.Contains(condition, "||") {
+		return false
+	}
+	return miniShaiHuludTrustedAssociationContains.MatchString(condition) || miniShaiHuludTrustedAssociationEquality.MatchString(condition)
+}
+
 // --- mini-shai-hulud-workflow-secret-exfil ---------------------------------
 
 type miniShaiHuludWorkflowSecretExfil struct{}

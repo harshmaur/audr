@@ -18,11 +18,13 @@ func parseWorkflow(raw []byte) (*Workflow, error) {
 		return nil, fmt.Errorf("workflow yaml: %w", err)
 	}
 	w := &Workflow{
-		Jobs: map[string]Job{},
+		Triggers: map[string]bool{},
+		Jobs:     map[string]Job{},
 	}
 	if name, ok := top["name"].(string); ok {
 		w.Name = name
 	}
+	parseWorkflowTriggers(w.Triggers, top["on"])
 
 	w.Permissions = stringMap(top["permissions"])
 
@@ -35,6 +37,9 @@ func parseWorkflow(raw []byte) (*Workflow, error) {
 			job := Job{
 				Name:        jobName,
 				Permissions: stringMap(jobMap["permissions"]),
+			}
+			if condition, ok := jobMap["if"].(string); ok {
+				job.If = condition
 			}
 			if runsOn, ok := jobMap["runs-on"].(string); ok {
 				job.RunsOn = []string{runsOn}
@@ -58,6 +63,9 @@ func parseWorkflow(raw []byte) (*Workflow, error) {
 					if v, ok := sm["name"].(string); ok {
 						st.Name = v
 					}
+					if v, ok := sm["if"].(string); ok {
+						st.If = v
+					}
 					if v, ok := sm["uses"].(string); ok {
 						st.Uses = v
 					}
@@ -71,6 +79,23 @@ func parseWorkflow(raw []byte) (*Workflow, error) {
 		}
 	}
 	return w, nil
+}
+
+func parseWorkflowTriggers(out map[string]bool, raw any) {
+	switch value := raw.(type) {
+	case string:
+		out[value] = true
+	case []any:
+		for _, item := range value {
+			if name, ok := item.(string); ok {
+				out[name] = true
+			}
+		}
+	case map[string]any:
+		for name := range value {
+			out[name] = true
+		}
+	}
 }
 
 // stringMap coerces an any into map[string]string, skipping non-string values.
