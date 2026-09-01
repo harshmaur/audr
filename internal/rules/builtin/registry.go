@@ -161,6 +161,7 @@ func builtins() []rules.Rule {
 		scrambleeerReverseShellIOC{},
 		pygameRenderkitReverseShellPersistenceIOC{},
 		tronixPyPIPrivateKeyExfilIOC{},
+		spaysrbdataDiscordNVInfostealerIOC{},
 
 		// Git config rules for nested bare repositories and executable helpers.
 		copilotCLINestedGitConfigExec{},

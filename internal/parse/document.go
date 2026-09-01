@@ -488,6 +488,9 @@ func DetectFormat(path string) Format {
 	if IsTronixPyPIKeyExfilArtifactPath(normalized) {
 		return FormatPyPIMalwareArtifact
 	}
+	if IsSpaysrbdataDiscordNVArtifactPath(normalized) {
+		return FormatPyPIMalwareArtifact
+	}
 	if IsAsyncAPIMiasmaArtifactPath(normalized) {
 		return FormatAsyncAPIMiasmaArtifact
 	}
@@ -1008,6 +1011,21 @@ func isLikelyTronixPyPIPackageVersion(version string) bool {
 		return false
 	}
 	return true
+}
+
+// IsSpaysrbdataDiscordNVArtifactPath bounds the 2026-06 spaysrbdata
+// credential-stealer campaign to the two published discordnv 0.8.0 source
+// files inside installed site-packages or dist-packages roots. The builtin rule
+// additionally requires a published hash or multiple independent
+// credential-theft, exfiltration, and persistence markers.
+func IsSpaysrbdataDiscordNVArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	if !strings.HasSuffix(normalized, "/discordnv/__init__.py") &&
+		!strings.HasSuffix(normalized, "/discordnv/main.py") {
+		return false
+	}
+	return strings.Contains(normalized, "/site-packages/discordnv/") ||
+		strings.Contains(normalized, "/dist-packages/discordnv/")
 }
 
 // IsPygameRenderkitMalwareArtifactPath bounds the August 2026
