@@ -40,21 +40,22 @@ func (copilotCLINestedGitConfigExec) Apply(doc *parse.Document) []finding.Findin
 			continue
 		}
 		fullKey := gitConfigFullKey(section, key)
-		if !dangerousGitConfigExecKey(fullKey) || !gitConfigValueLooksExecutable(value) {
+		if !dangerousGitConfigExecKey(fullKey) || !gitConfigKeyValueLooksExecutable(fullKey, value) {
 			continue
 		}
+		description, suggestedFix, tags := gitConfigExecMetadata(doc.Path, fullKey)
 		out = append(out, finding.New(finding.Args{
 			RuleID:        "copilot-cli-nested-git-config-exec",
 			Severity:      finding.SeverityHigh,
 			Taxonomy:      finding.TaxDetectable,
 			Title:         "Executable git config key can run during agent git operations",
-			Description:   "CVE-2026-45033: GitHub Copilot CLI before 1.0.43 could execute attacker-controlled commands when git discovered a nested bare repository with executable git config keys during normal operations.",
+			Description:   description,
 			Path:          doc.Path,
 			Line:          i + 1,
 			Match:         fullKey,
 			Context:       strings.TrimSpace(raw),
-			SuggestedFix:  "Upgrade GitHub Copilot CLI to 1.0.43 or later. Remove nested bare repositories or unset executable git config keys such as core.fsmonitor, core.hookspath, diff.external, and merge.tool before allowing an agent to run git commands in this workspace.",
-			Tags:          []string{"cve", "github-copilot-cli", "git-config", "command-execution"},
+			SuggestedFix:  suggestedFix,
+			Tags:          tags,
 			DedupGroupKey: "git-config-exec:" + filepath.ToSlash(doc.Path) + ":" + fullKey,
 		}))
 	}
@@ -113,4 +114,56 @@ func gitConfigValueLooksExecutable(value string) bool {
 		return true
 	}
 	return false
+}
+
+func gitConfigKeyValueLooksExecutable(key, value string) bool {
+	v := strings.TrimSpace(strings.ToLower(value))
+	switch key {
+	case "core.hookspath":
+		return v != "" && v != "/dev/null" && v != "nul"
+	case "core.fsmonitor":
+		return v != "" && v != "true" && v != "false"
+	default:
+		return gitConfigValueLooksExecutable(value)
+	}
+}
+
+func gitConfigExecMetadata(configPath, key string) (string, string, []string) {
+	descriptions := make([]string, 0, 2)
+	fixes := make([]string, 0, 3)
+	tags := []string{"ai-coding-agent", "git-config", "command-execution"}
+	cveTagged := false
+
+	if nestedBareGitConfig(configPath) {
+		descriptions = append(descriptions, "CVE-2026-45033: GitHub Copilot CLI before 1.0.43 could execute attacker-controlled helpers from nested bare-repository Git config.")
+		fixes = append(fixes, "Upgrade GitHub Copilot CLI to 1.0.43 or later.")
+		tags = append(tags, "cve", "github-copilot-cli")
+		cveTagged = true
+	}
+
+	switch key {
+	case "core.hookspath":
+		descriptions = append(descriptions, "CVE-2026-19590: OpenAI Codex Desktop on Windows and macOS could execute repository-local core.hooksPath hooks while inspecting repositories delivered with local Git config intact.")
+		fixes = append(fixes, "Update OpenAI Codex Desktop on Windows and macOS to a release that mitigates repository-local hook execution during automated Git inspection.")
+		tags = append(tags, "openai-codex")
+	case "core.fsmonitor":
+		descriptions = append(descriptions, "CVE-2026-19592: OpenAI Codex CLI on Windows, macOS, and Linux and Codex Desktop on Windows and macOS could execute repository-local core.fsmonitor helpers while collecting Git metadata from repositories delivered with local Git config intact.")
+		fixes = append(fixes, "Update OpenAI Codex CLI on Windows, macOS, and Linux and Codex Desktop on Windows and macOS to a release that mitigates repository-local fsmonitor execution during automated Git inspection.")
+		tags = append(tags, "openai-codex")
+	}
+
+	if (key == "core.hookspath" || key == "core.fsmonitor") && !cveTagged {
+		tags = append(tags, "cve")
+	}
+	if len(descriptions) == 0 {
+		descriptions = append(descriptions, "Executable repository-local Git config can run attacker-controlled commands during automated agent Git operations.")
+	}
+	fixes = append(fixes, "Remove nested bare repositories or unset executable Git config keys such as core.fsmonitor, core.hookspath, diff.external, and merge.tool before allowing an agent to run Git commands in this workspace.")
+	return strings.Join(descriptions, " "), strings.Join(fixes, " "), tags
+}
+
+func nestedBareGitConfig(configPath string) bool {
+	normalized := filepath.ToSlash(strings.ReplaceAll(configPath, `\`, "/"))
+	parent := strings.ToLower(filepath.Base(filepath.Dir(normalized)))
+	return parent != ".git" && strings.HasSuffix(parent, ".git")
 }
