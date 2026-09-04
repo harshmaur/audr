@@ -972,6 +972,61 @@ writeFileSync(__filename, readFileSync(__filename, "utf8").replace("eval(atob(",
 	}
 }
 
+// TestScan_AmazonInspectorTailwindStylesUnderNodeModules proves the bounded
+// walker reaches the three September EtherHiding variants in npm and pnpm
+// layouts without scanning a lookalike package carrying the same markers.
+func TestScan_AmazonInspectorTailwindStylesUnderNodeModules(t *testing.T) {
+	raw := []byte(`const wallet = "0xa322E5f3D311D3080e6f0121063e9aDC2490Ef1a";
+fetch("/0x/cls"); fetch("/0x/ls");
+spawn("node", ["-e", payload], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+writeFileSync(__filename, readFileSync(__filename, "utf8").replace("eval(atob(", ""));`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"container queries npm", filepath.Join("node_modules", "tailwind-container-queries", "dist", "index.js")},
+		{"container queries pnpm", filepath.Join("node_modules", ".pnpm", "tailwind-container-queries@0.1.1", "node_modules", "tailwind-container-queries", "dist", "index.js")},
+		{"scrollbar styles npm", filepath.Join("node_modules", "tailwind-scrollbar-styles", "dist", "index.js")},
+		{"scrollbar styles pnpm", filepath.Join("node_modules", ".pnpm", "tailwind-scrollbar-styles@4.0.3", "node_modules", "tailwind-scrollbar-styles", "dist", "index.js")},
+		{"animate styles npm", filepath.Join("node_modules", "tailwindcss-animate-styles", "index.js")},
+		{"animate styles pnpm", filepath.Join("node_modules", ".pnpm", "tailwindcss-animate-styles@1.0.9", "node_modules", "tailwindcss-animate-styles", "index.js")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other-package", filepath.Base(filepath.Dir(payload)), "index.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "amazon-inspector-npm-malware-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("amazon-inspector-npm-malware-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // TestScan_AmazonInspectorSimpleDateFormatterUnderNodeModules proves the
 // bounded walker reaches both package variants and artifact types in npm and
 // pnpm layouts without scanning a lookalike package carrying the same markers.

@@ -861,6 +861,7 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 				"chalk-utils@", "joi-pack@", "rimraf-utils@", "nock-helper@",
 				"glob-helper@", "solc-helper@", "ethers-common@", "hardhat-core@",
 				"sysbin@", "env-threads@", "typography-stylecss@", "core-tailwindcss-utility@", "tailwindcss-fluid-styles@",
+				"tailwind-container-queries@", "tailwind-scrollbar-styles@", "tailwindcss-animate-styles@",
 				"hello-world-pkg-value-value-p@", "streak-core-math@",
 				"streak-daily-lib@", "streak-core-lib@", "streak-day-utils@",
 				"api-node-sdk@", "app-soda-layer@", "sigchain-js@", "chain-analyze@", "react-puller@", "claude-remote-agent@", "llm-interceptor@", "map-streak-kit@", "streak-map-kit@", "kit-vim-map@", "kit-map-vim@", "dim-hydration-ui@", "w-screenctl@", "aclade-agent@", "agenthub-ai@", "uibabai@", "simple-date-formatter-new-9@", "simple-date-formatter-new-10@", "tokocrytodev@", "cryptostock@", "notafollower@", "depcruise-wrap-stream-in-html@", "pfp-forms-sme-loan@", "checkout-desktop-total@", "bcc-design@", "bcc-design-icons@", "setup-codex@", "expect-dotenv@", "mcp-dev-toolkit@", "express-session-handler@", "chai-as-soul@", "chai-as-otc@", "chai-as-org@", "spotify-url-infos@", "spotify-url-resolvers@", "octopus-action@", "mt-ts-serverless-starter@", "fuel-react@", "lumen-pages-community@", "grafeno-billing@", "grafeno-payments@", "grafeno-webhook@", "@gfe+lx-watcher@", "@httttt+mcp-demo@", "@guangnao+agent-proxy@", "@yancyyu+agentcli@", "@js-lib-team+env-parser@",
@@ -882,7 +883,7 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 		"sysbin", "hello-world-pkg-value-value-p", "streak-core-math",
 		"streak-daily-lib", "streak-core-lib", "streak-day-utils",
 		"api-node-sdk", "app-soda-layer", "react-puller", "claude-remote-agent", "llm-interceptor", "uibabai",
-		"simple-date-formatter-new-9", "simple-date-formatter-new-10", "tokocrytodev", "cryptostock", "notafollower", "depcruise-wrap-stream-in-html", "pfp-forms-sme-loan", "checkout-desktop-total", "core-tailwindcss-utility", "bcc-design", "bcc-design-icons", "mcp-dev-toolkit", "express-session-handler", "spotify-url-infos", "spotify-url-resolvers", "octopus-action", "mt-ts-serverless-starter", "fuel-react", "lumen-pages-community", "grafeno-billing", "grafeno-payments", "grafeno-webhook":
+		"simple-date-formatter-new-9", "simple-date-formatter-new-10", "tokocrytodev", "cryptostock", "notafollower", "depcruise-wrap-stream-in-html", "pfp-forms-sme-loan", "checkout-desktop-total", "core-tailwindcss-utility", "tailwindcss-animate-styles", "bcc-design", "bcc-design-icons", "mcp-dev-toolkit", "express-session-handler", "spotify-url-infos", "spotify-url-resolvers", "octopus-action", "mt-ts-serverless-starter", "fuel-react", "lumen-pages-community", "grafeno-billing", "grafeno-payments", "grafeno-webhook":
 		return len(parts) == 1
 	case "chai-as-soul", "chai-as-otc", "chai-as-org":
 		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "lib")
@@ -900,6 +901,8 @@ func shouldDescendAmazonInspectorNPMMalwarePath(relSlash string) bool {
 		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "src")
 	case "tailwindcss-fluid-styles":
 		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "src")
+	case "tailwind-container-queries", "tailwind-scrollbar-styles":
+		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "dist")
 	case "w-screenctl":
 		return len(parts) == 1 || (len(parts) == 2 && parts[1] == "src")
 	case "aclade-agent":

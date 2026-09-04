@@ -629,7 +629,7 @@ func isMarketfrontCampaignPostinstallPath(path string) bool {
 	return len(parts) == 3 && parts[0] != "" && parts[1] == "scripts" && parts[2] == "postinstall.js"
 }
 
-// IsAmazonInspectorNPMMalwareArtifactPath bounds the July 2026 Amazon
+// IsAmazonInspectorNPMMalwareArtifactPath bounds the 2026 Amazon Inspector
 // Inspector advisory backfill to exact package-root files carrying native IOCs.
 // Package/version exposure remains delegated to OSV-Scanner.
 func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
@@ -684,6 +684,9 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"agenthub-ai/dist-publish/main.js",
 		"uibabai/index.js",
 		"tailwindcss-fluid-styles/src/index.js",
+		"tailwind-container-queries/dist/index.js",
+		"tailwind-scrollbar-styles/dist/index.js",
+		"tailwindcss-animate-styles/index.js",
 		"simple-date-formatter-new-9/package.json",
 		"simple-date-formatter-new-9/postinstall.js",
 		"simple-date-formatter-new-10/package.json",
