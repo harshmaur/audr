@@ -957,8 +957,8 @@ var tronixPyPIPackageRoots = map[string]struct{}{
 	"troncloud": {}, "trondec": {}, "trongap": {}, "trongapy": {},
 	"trongithpy": {}, "trongitpy": {}, "trongridapi": {}, "trongriden": {},
 	"trongrider": {}, "trongridet": {}, "trongridev": {}, "trongridlib": {},
-	"trongridme": {}, "trongridmy": {}, "trongridor": {}, "trongridperm": {},
-	"trongridweb": {}, "trongridy": {}, "tronhap": {}, "tronhapy": {},
+	"trongridi": {}, "trongridme": {}, "trongridmy": {}, "trongridor": {},
+	"trongridperm": {}, "trongridweb": {}, "trongridy": {}, "tronhap": {}, "tronhapy": {},
 	"tronhex": {}, "tronhexpy": {}, "tronix": {}, "tronjoi": {},
 	"tronkeep": {}, "tronkeeppy": {}, "tronkeypy": {}, "tronkeyspy": {},
 	"tronlab": {}, "tronlabpy3": {}, "tronlast": {}, "tronlastpy": {},
@@ -970,7 +970,7 @@ var tronixPyPIPackageRoots = map[string]struct{}{
 }
 
 // IsTronixPyPIKeyExfilArtifactPath bounds the 2025-04 Tronix campaign to
-// Python source or bytecode inside one of the 64 exact package roots published
+// Python source or bytecode inside one of the 65 exact package roots published
 // by kam193. The builtin rule additionally requires a campaign domain, wallet
 // material collection, and outbound request behavior before emitting.
 func IsTronixPyPIKeyExfilArtifactPath(path string) bool {

