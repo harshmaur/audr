@@ -53,8 +53,17 @@ func minimalTestServer(t *testing.T, seed func(s *state.Store, scanID int64)) *S
 	if err := srv.Bind(); err != nil {
 		t.Fatal(err)
 	}
-	go func() { _ = srv.Run(context.Background()) }()
-	t.Cleanup(func() { _ = srv.Close() })
+	serverCtx, serverCancel := context.WithCancel(context.Background())
+	serverDone := make(chan struct{})
+	go func() {
+		defer close(serverDone)
+		_ = srv.Run(serverCtx)
+	}()
+	t.Cleanup(func() {
+		serverCancel()
+		<-serverDone
+		_ = srv.Close()
+	})
 	return srv
 }
 
