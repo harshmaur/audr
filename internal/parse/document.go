@@ -959,7 +959,7 @@ var tronixPyPIPackageRoots = map[string]struct{}{
 	"hexdecnet": {}, "hexdecpy": {}, "tronapinet": {}, "tronapipy": {},
 	"troncloud": {}, "trondec": {}, "trongap": {}, "trongapy": {},
 	"trongithpy": {}, "trongitpy": {}, "trongridapi": {}, "trongriden": {},
-	"trongrider": {}, "trongridet": {}, "trongridev": {}, "trongridlib": {},
+	"trongrider": {}, "trongridet": {}, "trongridev": {}, "trongridew": {}, "trongridlib": {},
 	"trongridi": {}, "trongridme": {}, "trongridmy": {}, "trongridor": {},
 	"trongridperm": {}, "trongridweb": {}, "trongridy": {}, "tronhap": {}, "tronhapy": {},
 	"tronhex": {}, "tronhexpy": {}, "tronix": {}, "tronjoi": {},
