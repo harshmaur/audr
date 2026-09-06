@@ -37,6 +37,7 @@ const (
 	FormatPyPIMalwareArtifact    Format = "pypi-malware-artifact"    // bounded PyPI package/drop supply-chain IOCs
 	FormatAsyncAPIMiasmaArtifact Format = "asyncapi-miasma-artifact" // AsyncAPI Miasma package/drop IOCs
 	FormatClawVetAuthSource      Format = "clawvet-auth-source"      // ClawVet self-hosted API authentication source
+	FormatAutoAgentSource        Format = "autoagent-source"         // AutoAgent sandbox command-server source
 	FormatSiYuanConfig           Format = "siyuan-config"            // SiYuan workspace conf/conf.json or ~/.siyuan/conf.json
 	FormatUnknown                Format = ""
 )
@@ -500,6 +501,13 @@ func DetectFormat(path string) Format {
 	if strings.HasSuffix(normalized, "/apps/api/src/routes/auth.ts") ||
 		strings.HasSuffix(normalized, "/apps/api/src/services/resolve-user.ts") {
 		return FormatClawVetAuthSource
+	}
+	// AutoAgent ships the listener at autoagent/environment/tcp_server.py and
+	// copies it to the configured workspace root before the container starts.
+	// Route that distinctive basename; the rule additionally requires the
+	// complete socket -> received command -> shell execution data flow.
+	if strings.EqualFold(base, "tcp_server.py") {
+		return FormatAutoAgentSource
 	}
 
 	// Mini Shai-Hulud persistence artifacts that are not otherwise parsed by

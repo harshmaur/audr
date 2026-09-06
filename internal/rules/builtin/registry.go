@@ -100,6 +100,7 @@ func builtins() []rules.Rule {
 		mlflowAssistantOriginBypass{},
 		mcpPythonSDKWebSocketOriginValidation{},
 		clawVetHardcodedJWTSecret{},
+		autoAgentUnauthTCPCommandServer{},
 		deeptutorMCPToolGrantBypass{},
 		deepseekMCPSessionIDHijack{},
 		mcpCalculateServerEvalRCE{},
