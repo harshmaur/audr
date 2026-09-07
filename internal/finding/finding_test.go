@@ -93,3 +93,18 @@ func TestLocation(t *testing.T) {
 		t.Errorf("Location with line: %q", f.Location())
 	}
 }
+
+func TestNew_RedactsFineGrainedGitHubToken(t *testing.T) {
+	token := "github_pat_" + strings.Repeat("a", 22) + "_" + strings.Repeat("b", 59)
+	f := New(Args{RuleID: "test", Match: token, Context: "line one\nGH_TOKEN=" + token})
+	data, err := json.Marshal(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), token) {
+		t.Fatal("serialized finding leaked synthetic token")
+	}
+	if !strings.Contains(f.Match, "<redacted:github-token>") || !strings.Contains(f.Context, "<redacted:github-token>") {
+		t.Fatal("missing redaction markers")
+	}
+}

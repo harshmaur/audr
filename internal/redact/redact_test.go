@@ -7,9 +7,9 @@ import (
 
 func TestString_RedactsKnownSecrets(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   string
-		mustNot string // substring that must NOT appear in output
+		name     string
+		input    string
+		mustNot  string // substring that must NOT appear in output
 		mustHave string // marker that MUST appear in output
 	}{
 		{"aws-access-key", "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE", "AKIAIOSFODNN7EXAMPLE", "<redacted:aws-access-key>"},
@@ -132,5 +132,14 @@ func TestString_PropertyNoSecretLeaks(t *testing.T) {
 func TestPatterns_NotEmpty(t *testing.T) {
 	if len(Patterns()) == 0 {
 		t.Fatal("Patterns() returned empty list")
+	}
+}
+
+func TestString_RedactsFineGrainedGitHubToken(t *testing.T) {
+	token := "github_pat_" + strings.Repeat("a", 22) + "_" + strings.Repeat("b", 59)
+	for _, input := range []string{token, "GH_TOKEN=" + token, `{"token":"` + token + `"}`} {
+		if got := String(input); strings.Contains(got, token) || !strings.Contains(got, "<redacted:github-token>") {
+			t.Errorf("fine-grained token was not redacted: %q", got)
+		}
 	}
 }
