@@ -1026,18 +1026,41 @@ func isLikelyTronixPyPIPackageVersion(version string) bool {
 }
 
 // IsSpaysrbdataDiscordNVArtifactPath bounds the 2026-06 spaysrbdata
-// credential-stealer campaign to the two published discordnv 0.8.0 source
-// files inside installed site-packages or dist-packages roots. The builtin rule
-// additionally requires a published hash or multiple independent
-// credential-theft, exfiltration, and persistence markers.
+// credential-stealer campaign to published discordnv and minecraftmodes source
+// inside installed site-packages or dist-packages roots. The historical name is
+// retained because the builtin rule ID is stable. The builtin rule additionally
+// requires a campaign endpoint and package-specific credential-theft markers.
 func IsSpaysrbdataDiscordNVArtifactPath(path string) bool {
 	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
-	if !strings.HasSuffix(normalized, "/discordnv/__init__.py") &&
-		!strings.HasSuffix(normalized, "/discordnv/main.py") {
-		return false
+	if strings.HasSuffix(normalized, "/discordnv/__init__.py") ||
+		strings.HasSuffix(normalized, "/discordnv/main.py") {
+		return strings.Contains(normalized, "/site-packages/discordnv/") ||
+			strings.Contains(normalized, "/dist-packages/discordnv/")
 	}
-	return strings.Contains(normalized, "/site-packages/discordnv/") ||
-		strings.Contains(normalized, "/dist-packages/discordnv/")
+	return IsSpaysrbdataMinecraftmodesArtifactPath(normalized)
+}
+
+// IsSpaysrbdataMinecraftmodesArtifactPath recognizes Python source directly
+// inside the installed minecraftmodes package root, or its top-level module.
+// Content gates in the builtin rule prevent package-name-only findings.
+func IsSpaysrbdataMinecraftmodesArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	for _, marker := range []string{"/site-packages/", "/dist-packages/"} {
+		idx := strings.LastIndex(normalized, marker)
+		if idx < 0 {
+			continue
+		}
+		relative := normalized[idx+len(marker):]
+		if relative == "minecraftmodes.py" {
+			return true
+		}
+		if strings.HasPrefix(relative, "minecraftmodes/") &&
+			strings.HasSuffix(relative, ".py") &&
+			!strings.Contains(strings.TrimPrefix(relative, "minecraftmodes/"), "/") {
+			return true
+		}
+	}
+	return false
 }
 
 // IsPygameRenderkitMalwareArtifactPath bounds the August 2026
