@@ -25,7 +25,7 @@ var patterns = []pattern{
 	// AWS secret access keys (40 chars of base64-ish).
 	{"aws-secret-key", regexp.MustCompile(`(?i)aws_secret[_a-z]*[\s:=]+["']?([A-Za-z0-9/+=]{40})["']?`)},
 	// GitHub tokens (classic, fine-grained, server-to-server).
-	{"github-token", regexp.MustCompile(`gh[pousr]_[A-Za-z0-9]{36,}`)},
+	{"github-token", regexp.MustCompile(`(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{82,})`)},
 	// Stripe keys (live/test, secret/restricted).
 	{"stripe-key", regexp.MustCompile(`(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{24,}`)},
 	// Anthropic API keys (e.g. sk-ant-api03-...).

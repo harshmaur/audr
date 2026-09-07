@@ -13,18 +13,18 @@ import (
 // Order matters only for description accuracy (we use the first match's
 // label); functionally any single match flips the credential bit.
 var apiKeyValuePatterns = []*regexp.Regexp{
-	regexp.MustCompile(`AKIA[0-9A-Z]{16}`),                             // AWS access key
-	regexp.MustCompile(`gh[pousr]_[A-Za-z0-9]{36,}`),                   // GitHub token (classic, fine-grained, server-to-server)
-	regexp.MustCompile(`(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{24,}`),     // Stripe live/test, secret/restricted
-	regexp.MustCompile(`sk-ant-[a-z][a-z0-9]{2,}-[A-Za-z0-9_\-]{32,}`), // Anthropic
-	regexp.MustCompile(`AIza[0-9A-Za-z_\-]{35}`),                       // Google API
-	regexp.MustCompile(`xox[baprs]-[A-Za-z0-9-]{10,}`),                 // Slack
+	regexp.MustCompile(`AKIA[0-9A-Z]{16}`),                                            // AWS access key
+	regexp.MustCompile(`(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{82,})`), // GitHub token (classic, fine-grained, server-to-server)
+	regexp.MustCompile(`(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{24,}`),                    // Stripe live/test, secret/restricted
+	regexp.MustCompile(`sk-ant-[a-z][a-z0-9]{2,}-[A-Za-z0-9_\-]{32,}`),                // Anthropic
+	regexp.MustCompile(`AIza[0-9A-Za-z_\-]{35}`),                                      // Google API
+	regexp.MustCompile(`xox[baprs]-[A-Za-z0-9-]{10,}`),                                // Slack
 	// v0.1.4: extended set after a real Mac scan caught only 1 of 3
 	// production tokens in .zprofile.
-	regexp.MustCompile(`\bglpat-[A-Za-z0-9_\-\.]{20,}`),  // GitLab personal access token
-	regexp.MustCompile(`\bglptt-[A-Za-z0-9_\-\.]{20,}`),  // GitLab project trigger token
-	regexp.MustCompile(`\bhf_[A-Za-z0-9]{30,}`),          // Hugging Face
-	regexp.MustCompile(`\bnpm_[A-Za-z0-9]{36,}`),         // npm modern token
+	regexp.MustCompile(`\bglpat-[A-Za-z0-9_\-\.]{20,}`), // GitLab personal access token
+	regexp.MustCompile(`\bglptt-[A-Za-z0-9_\-\.]{20,}`), // GitLab project trigger token
+	regexp.MustCompile(`\bhf_[A-Za-z0-9]{30,}`),         // Hugging Face
+	regexp.MustCompile(`\bnpm_[A-Za-z0-9]{36,}`),        // npm modern token
 }
 
 // credentialNameSuffix recognizes env var names that scream "I am a secret"
