@@ -123,8 +123,8 @@ func findKeyLineRaw(raw []byte, key string) int {
 	return strings.Count(string(raw[:idx]), "\n") + 1
 }
 
-// findLineCodex returns the 1-indexed line where marker first appears in the
-// TOML source. Used for Codex rules.
+// findLineCodex returns the 1-indexed line where marker first appears in
+// the TOML source. Used for Codex rules.
 func findLineCodex(raw []byte, marker string) int {
 	idx := strings.Index(string(raw), marker)
 	if idx < 0 {
