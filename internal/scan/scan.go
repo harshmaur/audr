@@ -626,12 +626,13 @@ func walkKnownNodeModulesIOCs(ctx context.Context, root string, out chan<- strin
 			strings.HasSuffix(relSlash, "/node_modules/tslint-conf/lib/const.js")
 		marketfrontPayload := isMarketfrontCampaignNodeModulesFile(relSlash)
 		amazonInspectorPayload := isAmazonInspectorNPMMalwareNodeModulesFile(relSlash)
+		aiCLIRelayPayload := isAICLIRelayCampaignNodeModulesFile(relSlash)
 		telekomODSPayload := isTelekomODSReactUIKitNodeModulesFile(relSlash)
 		ada8877SentryPayload := isAda8877SentryNodeModulesFile(relSlash)
 		apexCopilotPayload := isApexCopilotNodeModulesFile(relSlash)
 		asyncAPIMiasmaPayload := parse.IsAsyncAPIMiasmaArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
 		injectiveWalletStealerPayload := parse.IsInjectiveWalletStealerArtifactPath(filepath.ToSlash(filepath.Join(root, relSlash)))
-		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload && !amazonInspectorPayload && !telekomODSPayload && !ada8877SentryPayload && !apexCopilotPayload && !asyncAPIMiasmaPayload && !injectiveWalletStealerPayload {
+		if !miniShaiHuludPayload && !jscramblerPayload && !nodemonSudoPayload && !marketfrontPayload && !amazonInspectorPayload && !aiCLIRelayPayload && !telekomODSPayload && !ada8877SentryPayload && !apexCopilotPayload && !asyncAPIMiasmaPayload && !injectiveWalletStealerPayload {
 			return nil
 		}
 		select {
@@ -651,6 +652,9 @@ func shouldDescendKnownNodeModulesIOC(relSlash string, depth int) bool {
 		return true
 	}
 	if shouldDescendAmazonInspectorNPMMalwarePath(relSlash) {
+		return true
+	}
+	if shouldDescendAICLIRelayCampaignPath(relSlash) {
 		return true
 	}
 	if shouldDescendTelekomODSReactUIKitPath(relSlash) {
@@ -829,6 +833,48 @@ func shouldDescendMarketfrontCampaignPath(relSlash string) bool {
 func isAmazonInspectorNPMMalwareNodeModulesFile(relSlash string) bool {
 	fullPath := filepath.ToSlash(filepath.Join("/node_modules", relSlash))
 	return parse.IsAmazonInspectorNPMMalwareArtifactPath(fullPath)
+}
+
+func isAICLIRelayCampaignNodeModulesFile(relSlash string) bool {
+	fullPath := filepath.ToSlash(filepath.Join("/node_modules", relSlash))
+	return parse.IsAICLIRelayCampaignArtifactPath(fullPath)
+}
+
+func shouldDescendAICLIRelayCampaignPath(relSlash string) bool {
+	parts := strings.Split(relSlash, "/")
+	if len(parts) >= 3 && parts[0] == ".pnpm" && parts[2] == "node_modules" {
+		if len(parts) == 3 {
+			for _, prefix := range []string{"codebuff-cli@", "orbitron-tui@", "orbitron-cli@", "agent-free@", "prime-coding-agent@"} {
+				if strings.HasPrefix(parts[1], prefix) {
+					return true
+				}
+			}
+			return false
+		}
+		return shouldDescendAICLIRelayCampaignPath(strings.Join(parts[3:], "/"))
+	}
+	if len(parts) == 0 {
+		return false
+	}
+	switch parts[0] {
+	case "codebuff-cli":
+		return equalPathPrefix(parts, []string{"codebuff-cli", "cli", "bin"}) ||
+			equalPathPrefix(parts, []string{"codebuff-cli", "cli", "scripts"})
+	case "orbitron-tui":
+		return equalPathPrefix(parts, []string{"orbitron-tui", "dist", "api"}) ||
+			equalPathPrefix(parts, []string{"orbitron-tui", "src", "api"}) ||
+			equalPathPrefix(parts, []string{"orbitron-tui", "bin"})
+	case "orbitron-cli":
+		return equalPathPrefix(parts, []string{"orbitron-cli", "dist", "api"}) ||
+			equalPathPrefix(parts, []string{"orbitron-cli", "dist"})
+	case "agent-free":
+		return equalPathPrefix(parts, []string{"agent-free", "src", "utils"}) ||
+			equalPathPrefix(parts, []string{"agent-free", "dist"})
+	case "prime-coding-agent":
+		return equalPathPrefix(parts, []string{"prime-coding-agent", "dist"})
+	default:
+		return false
+	}
 }
 
 func isTelekomODSReactUIKitNodeModulesFile(relSlash string) bool {

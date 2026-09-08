@@ -459,6 +459,9 @@ func DetectFormat(path string) Format {
 	if IsAmazonInspectorNPMMalwareArtifactPath(normalized) {
 		return FormatNPMMalwareArtifact
 	}
+	if IsAICLIRelayCampaignArtifactPath(normalized) {
+		return FormatNPMMalwareArtifact
+	}
 	if IsAda8877SentryVerifyArtifactPath(normalized) {
 		return FormatNPMMalwareArtifact
 	}
@@ -730,6 +733,40 @@ func IsAmazonInspectorNPMMalwareArtifactPath(path string) bool {
 		"grafeno-webhook/preinstall.js",
 		"@guangnao/agent-proxy/dist/cli.js",
 		"@yancyyu/agentcli/bin/hermit.mjs":
+		return true
+	default:
+		return false
+	}
+}
+
+// IsAICLIRelayCampaignArtifactPath bounds the imjustbetterxd AI-coding CLI
+// relay campaign to published package-root source and bootstrap files. Package
+// and version exposure remains delegated to OSV-Scanner.
+func IsAICLIRelayCampaignArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(path, "\\", "/"))
+	marker := "/node_modules/"
+	idx := strings.LastIndex(normalized, marker)
+	if idx < 0 {
+		return false
+	}
+	rel := normalized[idx+len(marker):]
+	switch rel {
+	case "codebuff-cli/cli/bin/codebuff.cjs",
+		"codebuff-cli/cli/scripts/download-binary.cjs",
+		"orbitron-tui/dist/api/chat.js",
+		"orbitron-tui/dist/index.js",
+		"orbitron-tui/dist/main.js",
+		"orbitron-tui/src/api/chat.ts",
+		"orbitron-tui/bin/orbitron-wrapper.mjs",
+		"orbitron-tui/bin/orbitron-wrapper.sh",
+		"orbitron-cli/dist/api/chat.js",
+		"orbitron-cli/dist/index.js",
+		"orbitron-cli/dist/main.js",
+		"orbitron-cli/dist/backend-client.js",
+		"orbitron-cli/dist/update.js",
+		"agent-free/src/utils/fireworks.ts",
+		"agent-free/dist/index.js",
+		"prime-coding-agent/dist/index.js":
 		return true
 	default:
 		return false

