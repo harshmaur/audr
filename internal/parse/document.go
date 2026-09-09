@@ -38,6 +38,7 @@ const (
 	FormatAsyncAPIMiasmaArtifact Format = "asyncapi-miasma-artifact" // AsyncAPI Miasma package/drop IOCs
 	FormatClawVetAuthSource      Format = "clawvet-auth-source"      // ClawVet self-hosted API authentication source
 	FormatAutoAgentSource        Format = "autoagent-source"         // AutoAgent sandbox command-server source
+	FormatXCSSETArtifact         Format = "xcsset-artifact"          // XCSSET project hooks and developer-machine persistence
 	FormatSiYuanConfig           Format = "siyuan-config"            // SiYuan workspace conf/conf.json or ~/.siyuan/conf.json
 	FormatUnknown                Format = ""
 )
@@ -434,6 +435,14 @@ func DetectFormat(path string) Format {
 		return FormatGHAWorkflow
 	}
 
+	// Executable developer-project hooks used by the 2026 XCSSET Flutter
+	// supply-chain incident and its repository propagation. Content-level
+	// correlation in the rule prevents ordinary Gradle, Xcode, and Git hooks
+	// from producing findings.
+	if IsXCSSETBuildHookArtifactPath(normalized) {
+		return FormatXCSSETArtifact
+	}
+
 	// Exact package-root/source files from bounded npm compromise campaigns.
 	// node_modules stays skipped by default; the scanner walker has a matching
 	// bounded exception that enqueues only these paths.
@@ -603,6 +612,25 @@ func DetectFormat(path string) Format {
 	}
 
 	return FormatUnknown
+}
+
+// IsXCSSETBuildHookArtifactPath identifies executable project artifacts that
+// XCSSET poisoned or propagated into. It deliberately does not route arbitrary
+// source files: the rule is limited to Android app builds, Xcode projects, and
+// Git pre-commit hooks.
+func IsXCSSETBuildHookArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(path, "\\", "/"))
+	if strings.HasSuffix(normalized, "/android/app/build.gradle") ||
+		strings.HasSuffix(normalized, "/android/app/build.gradle.kts") {
+		return true
+	}
+	if strings.HasSuffix(normalized, "/project.pbxproj") && strings.Contains(normalized, ".xcodeproj/") {
+		return true
+	}
+	if strings.Contains(normalized, "/library/caches/") && strings.HasSuffix(normalized, "/contents/info.plist") {
+		return true
+	}
+	return strings.HasSuffix(normalized, "/.git/hooks/pre-commit")
 }
 
 // IsMiniShaiHuludOpenAPICodegenArtifactPath bounds the August 2026

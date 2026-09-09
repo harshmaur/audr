@@ -150,6 +150,7 @@ func builtins() []rules.Rule {
 		marketfrontDependencyConfusionCredentialHarvester{},
 		amazonInspectorNPMMalwareIOC{},
 		aiCLIRelayCampaignIOC{},
+		xcssetDeveloperMachineIOC{},
 		telekomODSReactUIKitSystemFileExfil{},
 		ada8877SentryDependencyConfusionIOC{},
 		apexCopilotMCPInfostealerIOC{},

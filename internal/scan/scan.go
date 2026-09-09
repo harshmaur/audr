@@ -553,7 +553,7 @@ func walkRoot(ctx context.Context, root string, skipSet map[string]bool, out cha
 					enqueueMrMustardCacheIOC(ctx, path, out, logger)
 				}
 				if base == ".git" {
-					enqueueSkippedGitConfig(ctx, path, out, logger)
+					enqueueSkippedGitArtifacts(ctx, path, out, logger)
 				}
 				return fs.SkipDir
 			}
@@ -1063,18 +1063,23 @@ func shouldDescendApexCopilotPath(relSlash string) bool {
 	return shouldDescendApexCopilotPath(strings.Join(parts[3:], "/"))
 }
 
-func enqueueSkippedGitConfig(ctx context.Context, gitDir string, out chan<- string, logger *slog.Logger) {
-	configPath := filepath.Join(gitDir, "config")
-	info, err := os.Lstat(configPath)
-	if err != nil || !info.Mode().IsRegular() {
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			logger.Debug("git-config-ioc-stat-error", "path", configPath, "err", err)
+func enqueueSkippedGitArtifacts(ctx context.Context, gitDir string, out chan<- string, logger *slog.Logger) {
+	for _, artifactPath := range []string{
+		filepath.Join(gitDir, "config"),
+		filepath.Join(gitDir, "hooks", "pre-commit"),
+	} {
+		info, err := os.Lstat(artifactPath)
+		if err != nil || !info.Mode().IsRegular() {
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
+				logger.Debug("git-artifact-ioc-stat-error", "path", artifactPath, "err", err)
+			}
+			continue
 		}
-		return
-	}
-	select {
-	case out <- configPath:
-	case <-ctx.Done():
+		select {
+		case out <- artifactPath:
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 
