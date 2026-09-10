@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -233,8 +234,13 @@ func TestRunBackendPassesScanignoreConfigFile(t *testing.T) {
 	}
 
 	for _, segment := range scanignore.Defaults() {
-		if !strings.Contains(capturedConfigBody, segment) {
-			t.Fatalf("config file missing segment %q; body:\n%s", segment, capturedConfigBody)
+		for _, part := range strings.FieldsFunc(segment, func(r rune) bool { return r == '/' || r == '\\' }) {
+			if part == "" {
+				continue
+			}
+			if !strings.Contains(capturedConfigBody, regexp.QuoteMeta(part)) {
+				t.Fatalf("config file missing segment component %q from %q; body:\n%s", part, segment, capturedConfigBody)
+			}
 		}
 	}
 

@@ -191,7 +191,7 @@ func TestWriteBetterleaksConfigContainsAllPatterns(t *testing.T) {
 
 	// Every Defaults() entry must appear as a path-component regex.
 	for _, segment := range Defaults() {
-		want := `(^|/)` + regexp.QuoteMeta(segment) + `(/|$)`
+		want := patternForSegment(segment)
 		if !strings.Contains(body, want) {
 			t.Fatalf("config missing pattern %q for segment %q; body:\n%s", want, segment, body)
 		}
@@ -236,14 +236,14 @@ func TestWriteBetterleaksConfigWithExtrasAppendsSegments(t *testing.T) {
 
 	// Defaults still present.
 	for _, segment := range Defaults() {
-		want := `(^|/)` + regexp.QuoteMeta(segment) + `(/|$)`
+		want := patternForSegment(segment)
 		if !strings.Contains(body, want) {
 			t.Fatalf("config dropped default pattern %q for segment %q; body:\n%s", want, segment, body)
 		}
 	}
 	// Extras appended.
 	for _, segment := range extras {
-		want := `(^|/)` + regexp.QuoteMeta(segment) + `(/|$)`
+		want := patternForSegment(segment)
 		if !strings.Contains(body, want) {
 			t.Fatalf("config missing extra pattern %q for segment %q; body:\n%s", want, segment, body)
 		}
@@ -265,10 +265,12 @@ func TestWriteBetterleaksConfigWithExtrasSkipsEmptyEntries(t *testing.T) {
 	// Empty / whitespace entries must NOT have produced a `(^|/)(/|$)`
 	// pattern (which would match any path with a `//` segment) or a
 	// pattern that escapes the literal whitespace.
-	if strings.Contains(body, "(^|/)(/|$)") {
-		t.Fatalf("empty extras leaked an empty-segment pattern into config:\n%s", body)
+	for _, emptyPattern := range []string{"(^|/)(/|$)", patternForSegment("")} {
+		if strings.Contains(body, emptyPattern) {
+			t.Fatalf("empty extras leaked an empty-segment pattern %q into config:\n%s", emptyPattern, body)
+		}
 	}
-	want := `(^|/)` + regexp.QuoteMeta("testdata") + `(/|$)`
+	want := patternForSegment("testdata")
 	if !strings.Contains(body, want) {
 		t.Fatalf("config missing testdata pattern %q; body:\n%s", want, body)
 	}
@@ -350,24 +352,29 @@ func TestPatternForSegmentMatchesAsPathComponent(t *testing.T) {
 	// Verify the pattern shape: matches segment as a real path component,
 	// not as a substring of an unrelated name.
 	tests := []struct {
-		segment       string
-		shouldMatch   []string
+		segment        string
+		shouldMatch    []string
 		shouldNotMatch []string
 	}{
 		{
 			segment:        "node_modules",
-			shouldMatch:    []string{"node_modules/foo", "/a/node_modules/b", "node_modules"},
+			shouldMatch:    []string{"node_modules/foo", `/a/node_modules/b`, `C:\repo\node_modules\pkg`, "node_modules"},
 			shouldNotMatch: []string{"node_modules.lock", "anode_modules", "node_modulesfoo"},
 		},
 		{
 			segment:        ".git",
-			shouldMatch:    []string{".git/HEAD", "/repo/.git/objects"},
+			shouldMatch:    []string{".git/HEAD", "/repo/.git/objects", `C:\repo\.git\objects`},
 			shouldNotMatch: []string{".gitignore", ".gitattributes"},
 		},
 		{
 			segment:        "Library/Caches",
-			shouldMatch:    []string{"Users/x/Library/Caches/foo", "Library/Caches"},
+			shouldMatch:    []string{"Users/x/Library/Caches/foo", `Users\x\Library\Caches\foo`, "Library/Caches"},
 			shouldNotMatch: []string{"Library/Caches.bak", "MyLibrary/Caches/x"},
+		},
+		{
+			segment:        "",
+			shouldMatch:    nil,
+			shouldNotMatch: []string{"", "/", `\`, "node_modules"},
 		},
 	}
 	for _, tt := range tests {
