@@ -87,6 +87,12 @@ func TestRule_MCPUnpinnedNPX_GeneralizedAcrossSources(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "Windsurf JSON with disabled unpinned npx server is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"mastra":{"command":"npx","args":["-y","@mastra/mcp-docs-server"],"disabled":true}}}`,
+			want: false,
+		},
+		{
 			name: "Windsurf JSON with pinned package",
 			path: "/test/.codeium/windsurf/mcp_config.json",
 			body: `{"mcpServers":{"foo":{"command":"npx","args":["-y","pkg@2.0.0"]}}}`,
@@ -285,6 +291,12 @@ func TestRule_MCPUnauthRemoteURL(t *testing.T) {
 			path: "/test/.codeium/windsurf/mcp_config.json",
 			body: `{"mcpServers":{"GitLab":{"type":"http","url":"https://gitlab.com/api/v4/mcp"}}}`,
 			want: true,
+		},
+		{
+			name: "Windsurf: disabled remote URL is ignored",
+			path: "/test/.codeium/windsurf/mcp_config.json",
+			body: `{"mcpServers":{"GitLab":{"type":"http","url":"https://gitlab.com/api/v4/mcp","disabled":true}}}`,
+			want: false,
 		},
 		{
 			name: "Codex: URL with auth header (safe)",
