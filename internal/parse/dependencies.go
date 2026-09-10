@@ -58,12 +58,20 @@ func packageJSONDependencyManifest(pkg *PackageJSON, raw []byte) *DependencyMani
 }
 
 var requirementLineRE = regexp.MustCompile(`^\s*([A-Za-z0-9_.-]+)\s*(?:\[[^\]]+\])?\s*([<>=!~]{1,3})?\s*([^;#]+)?`)
+var editableRequirementRE = regexp.MustCompile(`(?i)^-(?:e|editable)\s+([^\s#]+)(?:#egg=([A-Za-z0-9_.-]+))`)
 
 func parseRequirementsTXT(raw []byte) *DependencyManifest {
 	m := &DependencyManifest{Ecosystem: "pypi"}
 	for i, line := range strings.Split(string(raw), "\n") {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "-") {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if editable := editableRequirementRE.FindStringSubmatch(trimmed); len(editable) != 0 {
+			m.Dependencies = append(m.Dependencies, Dependency{Name: normalizePythonName(editable[2]), Version: editable[1], Scope: "requirements.editable", Line: i + 1})
+			continue
+		}
+		if strings.HasPrefix(trimmed, "-") {
 			continue
 		}
 		match := requirementLineRE.FindStringSubmatch(trimmed)
