@@ -26,6 +26,30 @@ func (langflowToolGuardCodeInjection) Apply(doc *parse.Document) []finding.Findi
 	return dependencyVersionFinding(doc, isLangflowPackage, vulnerableLangflowToolGuardVersion, langflowToolGuardCodeInjectionFinding)
 }
 
+type langflowPublicMCPFlowIsolationRCE struct{}
+
+func (langflowPublicMCPFlowIsolationRCE) ID() string {
+	return "langflow-public-mcp-session-isolation-rce"
+}
+func (langflowPublicMCPFlowIsolationRCE) Title() string {
+	return "Langflow public MCP projects can bypass flow and session isolation"
+}
+func (langflowPublicMCPFlowIsolationRCE) Severity() finding.Severity {
+	return finding.SeverityCritical
+}
+func (langflowPublicMCPFlowIsolationRCE) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (langflowPublicMCPFlowIsolationRCE) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest}
+}
+func (langflowPublicMCPFlowIsolationRCE) Apply(doc *parse.Document) []finding.Finding {
+	if doc.DependencyManifest == nil || doc.DependencyManifest.Ecosystem != "pypi" {
+		return nil
+	}
+	return dependencyVersionFinding(doc, isLangflowPackage, vulnerableLangflowPublicMCPFlowVersion, langflowPublicMCPFlowIsolationRCEFinding)
+}
+
 func isLangflowPackage(name string) bool {
 	return normalizePackageName(name) == "langflow"
 }
@@ -36,13 +60,21 @@ type langflowVersionBound struct {
 }
 
 func vulnerableLangflowToolGuardVersion(raw string) bool {
+	return vulnerableLangflowVersionBefore(raw, "1.10.1")
+}
+
+func vulnerableLangflowPublicMCPFlowVersion(raw string) bool {
+	return vulnerableLangflowVersionBefore(raw, "1.11.6")
+}
+
+func vulnerableLangflowVersionBefore(raw, fixedVersion string) bool {
 	v := strings.TrimSpace(raw)
 	if v == "" || strings.ContainsAny(v, "*xX") || strings.HasPrefix(v, "git+") || strings.HasPrefix(v, "file:") || strings.HasPrefix(v, "workspace:") {
 		return false
 	}
 
 	lower := langflowVersionBound{version: "1.0.0", inclusive: true}
-	upper := langflowVersionBound{version: "1.10.1", inclusive: false}
+	upper := langflowVersionBound{version: fixedVersion, inclusive: false}
 	for _, rawClause := range strings.Split(v, ",") {
 		clause := strings.TrimSpace(rawClause)
 		version := packageVersionRE.FindString(clause)
@@ -146,5 +178,20 @@ func langflowToolGuardCodeInjectionFinding(path string, line int, match string) 
 		Match:        fmt.Sprintf("%s (affected Langflow range 1.0.0 through 1.10.0)", match),
 		SuggestedFix: "Upgrade Langflow OSS to 1.10.1 or later, then review stored flows for unexpected ToolGuard dynamic CodeInput Python and audit use of update_flow_component_field across users.",
 		Tags:         []string{"cve", "langflow", "toolguard", "dependency-manifest", "code-injection"},
+	})
+}
+
+func langflowPublicMCPFlowIsolationRCEFinding(path string, line int, match string) finding.Finding {
+	return finding.New(finding.Args{
+		RuleID:       "langflow-public-mcp-session-isolation-rce",
+		Severity:     finding.SeverityCritical,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "Langflow through 1.11.5 exposes unsafe public MCP project isolation",
+		Description:  "CVE-2026-85025: Langflow OSS 1.0.0 through 1.11.5 can let unauthenticated callers execute code and access or modify chat sessions through publicly shared MCP project endpoints because public-flow security restrictions and session isolation are not enforced correctly.",
+		Path:         path,
+		Line:         line,
+		Match:        fmt.Sprintf("%s (affected Langflow range 1.0.0 through 1.11.5)", match),
+		SuggestedFix: "Upgrade Langflow OSS to 1.11.6 or later, disable publicly shared MCP project endpoints until upgraded, and review public flows and chat sessions for unauthorized access or modification.",
+		Tags:         []string{"cve", "langflow", "mcp", "dependency-manifest", "incorrect-authorization", "code-execution"},
 	})
 }

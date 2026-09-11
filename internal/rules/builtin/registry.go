@@ -97,6 +97,7 @@ func builtins() []rules.Rule {
 		microsoftAPMPluginComponentTraversal{},
 		kiotaPluginStaticTemplateTraversal{},
 		langflowToolGuardCodeInjection{},
+		langflowPublicMCPFlowIsolationRCE{},
 		mlflowAssistantOriginBypass{},
 		mcpPythonSDKWebSocketOriginValidation{},
 		clawVetHardcodedJWTSecret{},

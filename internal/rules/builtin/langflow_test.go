@@ -1,9 +1,11 @@
 package builtin
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/harshmaur/audr/internal/parse"
+	"github.com/harshmaur/audr/internal/rules"
 )
 
 func TestLangflowToolGuardCodeInjection_FlagsVulnerableRequirements(t *testing.T) {
@@ -99,5 +101,45 @@ func TestLangflowToolGuardCodeInjection_AllowsRangeStartingAtFixedVersion(t *tes
 	doc := parse.Parse("requirements.txt", []byte("langflow>=1.10.1\n"))
 	if findings := (langflowToolGuardCodeInjection{}).Apply(doc); len(findings) != 0 {
 		t.Fatalf("got %d findings, want 0", len(findings))
+	}
+}
+
+func TestLangflowPublicMCPFlowIsolationRCE_FlagsVulnerableRequirements(t *testing.T) {
+	doc := parse.Parse("requirements.txt", []byte("langflow==1.11.5\n"))
+	for _, rule := range rules.All() {
+		if rule.ID() != "langflow-public-mcp-session-isolation-rce" {
+			continue
+		}
+		findings := rule.Apply(doc)
+		if len(findings) != 1 {
+			t.Fatalf("got %d findings, want 1", len(findings))
+		}
+		got := findings[0]
+		if !strings.Contains(got.Description, "CVE-2026-85025") {
+			t.Fatalf("description = %q, want CVE-specific metadata", got.Description)
+		}
+		if strings.Contains(got.Description, "CVE-2026-81204") {
+			t.Fatalf("description overclaims sibling CVE: %q", got.Description)
+		}
+		return
+	}
+	t.Fatal("langflow-public-mcp-session-isolation-rce is not registered")
+}
+
+func TestLangflowPublicMCPFlowIsolationRCE_FlagsAffectedPyprojectRange(t *testing.T) {
+	doc := parse.Parse("pyproject.toml", []byte(`[project]
+dependencies = [
+  "langflow>=1.11.0,<1.11.6",
+]
+`))
+	if !fired(doc, "langflow-public-mcp-session-isolation-rce") {
+		t.Fatalf("Langflow public MCP flow isolation rule did not fire; got %v", applyRule(doc))
+	}
+}
+
+func TestLangflowPublicMCPFlowIsolationRCE_AllowsFixedVersion(t *testing.T) {
+	doc := parse.Parse("requirements.txt", []byte("langflow==1.11.6\n"))
+	if fired(doc, "langflow-public-mcp-session-isolation-rce") {
+		t.Fatalf("fixed Langflow version fired public MCP flow isolation rule; got %v", applyRule(doc))
 	}
 }
