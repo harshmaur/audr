@@ -20,6 +20,7 @@ type serenaDashboardUnauthFlaskAPI struct{}
 type clineDashboardBrowserOriginBypass struct{}
 type rufloMCPBridgeUnauthRCE struct{}
 type healthLakeMCPPaginationSSRF struct{}
+type postgresMCPCopyProgramCommandInjection struct{}
 
 func (xhsMCPMediaPathsSSRF) ID() string { return "xhs-mcp-media-paths-ssrf" }
 func (xhsMCPMediaPathsSSRF) Title() string {
@@ -195,6 +196,27 @@ func (healthLakeMCPPaginationSSRF) Apply(doc *parse.Document) []finding.Finding 
 	return dependencyVersionFinding(doc, isHealthLakeMCPPackage, func(v string) bool { return vulnerableVersionBefore(v, []int{0, 0, 14}) }, healthLakeMCPPaginationSSRFFinding)
 }
 
+func (postgresMCPCopyProgramCommandInjection) ID() string {
+	return "postgres-mcp-copy-program-command-injection"
+}
+func (postgresMCPCopyProgramCommandInjection) Title() string {
+	return "AWS PostgreSQL MCP Server version is vulnerable to COPY TO PROGRAM command injection"
+}
+func (postgresMCPCopyProgramCommandInjection) Severity() finding.Severity {
+	return finding.SeverityCritical
+}
+func (postgresMCPCopyProgramCommandInjection) Taxonomy() finding.Taxonomy {
+	return finding.TaxDetectable
+}
+func (postgresMCPCopyProgramCommandInjection) Formats() []parse.Format {
+	return []parse.Format{parse.FormatDependencyManifest, parse.FormatPackageJSON}
+}
+func (postgresMCPCopyProgramCommandInjection) Apply(doc *parse.Document) []finding.Finding {
+	return dependencyVersionFinding(doc, isPostgresMCPPackage, func(v string) bool {
+		return vulnerableVersionBefore(v, []int{1, 1, 7})
+	}, postgresMCPCopyProgramCommandInjectionFinding)
+}
+
 func dependencyVersionFinding(doc *parse.Document, matchesPackage func(string) bool, vulnerable func(string) bool, makeFinding func(string, int, string) finding.Finding) []finding.Finding {
 	if doc.DependencyManifest == nil {
 		return nil
@@ -236,6 +258,10 @@ func isRufloPackage(name string) bool { return normalizePackageName(name) == "ru
 func isHealthLakeMCPPackage(name string) bool {
 	n := normalizePackageName(name)
 	return n == "awslabs-healthlake-mcp-server" || n == "awslabs.healthlake-mcp-server"
+}
+func isPostgresMCPPackage(name string) bool {
+	n := normalizePackageName(name)
+	return n == "awslabs-postgres-mcp-server" || n == "awslabs.postgres-mcp-server"
 }
 
 func normalizePackageName(name string) string {
@@ -432,5 +458,20 @@ func healthLakeMCPPaginationSSRFFinding(path string, line int, match string) fin
 		Match:        match,
 		SuggestedFix: "Upgrade awslabs.healthlake-mcp-server to 0.0.14 or later, rotate temporary AWS credentials that may have been exposed, and review HealthLake MCP access logs for pagination requests to unexpected hosts.",
 		Tags:         []string{"cve", "aws", "healthlake", "mcp", "ssrf", "credential-exfiltration", "dependency-manifest"},
+	})
+}
+
+func postgresMCPCopyProgramCommandInjectionFinding(path string, line int, match string) finding.Finding {
+	return finding.New(finding.Args{
+		RuleID:       "postgres-mcp-copy-program-command-injection",
+		Severity:     finding.SeverityCritical,
+		Taxonomy:     finding.TaxDetectable,
+		Title:        "AWS PostgreSQL MCP Server before 1.1.7 allows COPY TO PROGRAM command injection",
+		Description:  "CVE-2026-87911: awslabs.postgres-mcp-server before 1.1.7 can let crafted COPY ... TO PROGRAM SQL escape the default read-only validator and execute operating-system commands on a self-managed PostgreSQL host when an authenticated user interacts with attacker-controlled MCP content.",
+		Path:         path,
+		Line:         line,
+		Match:        match,
+		SuggestedFix: "Upgrade awslabs.postgres-mcp-server to 1.1.7 or later, then review self-managed PostgreSQL hosts and MCP interaction logs for unexpected COPY TO PROGRAM statements or operating-system command execution.",
+		Tags:         []string{"cve", "aws", "postgresql", "mcp", "dependency-manifest", "command-injection"},
 	})
 }

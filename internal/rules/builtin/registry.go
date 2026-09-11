@@ -117,6 +117,7 @@ func builtins() []rules.Rule {
 		clineDashboardBrowserOriginBypass{},
 		rufloMCPBridgeUnauthRCE{},
 		healthLakeMCPPaginationSSRF{},
+		postgresMCPCopyProgramCommandInjection{},
 		rtkRewriteOpenClawExecSyncInjection{},
 		rtkPermissionSplitterShellBoundaryBypass{},
 		xhsMCPMediaPathsSSRF{},

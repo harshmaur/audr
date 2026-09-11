@@ -41,6 +41,9 @@ func TestMCPPackageCVEs_FlagVulnerablePackageAndAllowFixed(t *testing.T) {
 		{"healthlake mcp pagination ssrf", "healthlake-mcp-pagination-ssrf", "awslabs-healthlake-mcp-server", "0.0.13", "0.0.14", func(d *parse.Document) []finding.Finding {
 			return (healthLakeMCPPaginationSSRF{}).Apply(d)
 		}},
+		{"postgres mcp copy program command injection", "postgres-mcp-copy-program-command-injection", "awslabs-postgres-mcp-server", "1.1.6", "1.1.7", func(d *parse.Document) []finding.Finding {
+			return (postgresMCPCopyProgramCommandInjection{}).Apply(d)
+		}},
 		{"claude code worktree git confusion", "claude-code-worktree-git-confusion", "@anthropic-ai/claude-code", "2.1.162", "2.1.163", func(d *parse.Document) []finding.Finding {
 			return (claudeCodeWorktreeGitConfusion{}).Apply(d)
 		}},
@@ -95,6 +98,24 @@ func TestHealthLakeMCPPaginationSSRF_FlagsVulnerableRootPackage(t *testing.T) {
 	}
 	if findings[0].RuleID != "healthlake-mcp-pagination-ssrf" {
 		t.Fatalf("rule id = %q, want healthlake-mcp-pagination-ssrf", findings[0].RuleID)
+	}
+}
+
+func TestPostgresMCPCopyProgramCommandInjection_RequirementsAndMetadata(t *testing.T) {
+	doc := parse.Parse("requirements.txt", []byte("awslabs-postgres-mcp-server==1.1.6\n"))
+	findings := (postgresMCPCopyProgramCommandInjection{}).Apply(doc)
+	if len(findings) != 1 {
+		t.Fatalf("got %d findings, want 1", len(findings))
+	}
+	got := findings[0]
+	if got.RuleID != "postgres-mcp-copy-program-command-injection" {
+		t.Fatalf("rule id = %q, want postgres-mcp-copy-program-command-injection", got.RuleID)
+	}
+	if got.Severity != finding.SeverityCritical {
+		t.Fatalf("severity = %q, want critical", got.Severity)
+	}
+	if !strings.Contains(got.Description, "CVE-2026-87911") || !strings.Contains(got.Title, "COPY TO PROGRAM") {
+		t.Fatalf("finding metadata does not identify CVE and weakness: title=%q description=%q", got.Title, got.Description)
 	}
 }
 
