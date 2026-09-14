@@ -492,6 +492,9 @@ func DetectFormat(path string) Format {
 	if IsMrMustardMalwareArtifactPath(normalized) {
 		return FormatPyPIMalwareArtifact
 	}
+	if IsOpenAIIPTHInfostealerArtifactPath(normalized) {
+		return FormatPyPIMalwareArtifact
+	}
 	if IsCfgzenMalwareArtifactPath(normalized) {
 		return FormatPyPIMalwareArtifact
 	}
@@ -976,6 +979,55 @@ func IsMrMustardPayloadDropPath(path string) bool {
 	}
 	return len(parts) == 3 && strings.HasSuffix(parts[0], ":") &&
 		parts[1] == "users" && parts[2] != ""
+}
+
+// IsOpenAIIPTHInfostealerArtifactPath recognizes only executable Python-startup
+// files under installed package roots and source files under the four package
+// roots known to carry the September 2026 openaii campaign payload. chroma-client
+// is intentionally excluded because the analyzed release carried no payload.
+// Candidate files remain content-gated by the builtin rule.
+func IsOpenAIIPTHInfostealerArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), "\\", "/"))
+	ext := strings.ToLower(filepath.Ext(normalized))
+	if ext == ".pth" &&
+		(strings.Contains(normalized, "/site-packages/") || strings.Contains(normalized, "/dist-packages/")) {
+		return true
+	}
+	if ext != ".py" && ext != ".pyc" && ext != ".pth" {
+		return false
+	}
+	parts := strings.Split(strings.Trim(normalized, "/"), "/")
+	known := map[string]struct{}{"openaii": {}, "transfomers": {}, "langgrap": {}, "ollamaa": {}}
+	for i, part := range parts {
+		if _, ok := known[part]; !ok {
+			continue
+		}
+		if i > 0 && (parts[i-1] == "site-packages" || parts[i-1] == "dist-packages") {
+			return true
+		}
+		if i > 0 && strings.HasPrefix(parts[i-1], part+"-") &&
+			isNumericDottedVersion(strings.TrimPrefix(parts[i-1], part+"-")) {
+			return true
+		}
+	}
+	return false
+}
+
+func isNumericDottedVersion(raw string) bool {
+	if raw == "" {
+		return false
+	}
+	for _, field := range strings.Split(raw, ".") {
+		if field == "" {
+			return false
+		}
+		for _, r := range field {
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // IsCfgzenMalwareArtifactPath recognizes the Python-startup and package-root

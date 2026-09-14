@@ -168,6 +168,7 @@ func builtins() []rules.Rule {
 		tronixPyPIPrivateKeyExfilIOC{},
 		spaysrbdataDiscordNVInfostealerIOC{},
 		deepLiveCamPyplsRequestsGitDependency{},
+		openAIIPTHInfostealerIOC{},
 
 		// Git config rules for nested bare repositories and executable helpers.
 		copilotCLINestedGitConfigExec{},
