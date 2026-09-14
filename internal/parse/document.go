@@ -658,6 +658,22 @@ func IsMiniShaiHuludOpenAPICodegenArtifactPath(path string) bool {
 	}
 }
 
+// IsMiniShaiHuludBunBootstrapArtifactPath identifies files inside the
+// campaign's published trinnyyyy-* temporary directories. The directory prefix
+// is the stable IOC: the downloaded Bun v1.4.0 binary can have a random
+// six-character filename on Windows, so matching a specific basename would
+// miss affected hosts. Package/version exposure remains delegated to OSV.
+func IsMiniShaiHuludBunBootstrapArtifactPath(path string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(filepath.ToSlash(path), `\`, "/"))
+	parts := strings.Split(normalized, "/")
+	for i := 0; i < len(parts)-1; i++ {
+		if strings.HasPrefix(parts[i], "trinnyyyy-") && len(parts[i]) > len("trinnyyyy-") {
+			return true
+		}
+	}
+	return false
+}
+
 func isMarketfrontCampaignPostinstallPath(path string) bool {
 	if strings.HasSuffix(path, "/node_modules/@tqm-mfe/main/scripts/postinstall.js") {
 		return true

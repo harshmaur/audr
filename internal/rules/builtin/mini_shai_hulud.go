@@ -230,9 +230,14 @@ func (miniShaiHuludDroppedPayload) Apply(doc *parse.Document) []finding.Finding 
 		strings.HasSuffix(path, "/.local/bin/gh-token-monitor.sh") ||
 		strings.HasSuffix(path, "/var/tmp/.gh_update_state") ||
 		(strings.Contains(path, "/node_modules/") && (base == "router_init.js" || base == "tanstack_runner.js")) ||
+		parse.IsMiniShaiHuludBunBootstrapArtifactPath(path) ||
 		openAPICodegenIOC
 	if !known {
 		return nil
+	}
+	match := base
+	if parse.IsMiniShaiHuludBunBootstrapArtifactPath(path) {
+		match = "trinnyyyy-* Bun bootstrap artifact"
 	}
 	return []finding.Finding{finding.New(finding.Args{
 		RuleID:       "mini-shai-hulud-dropped-payload",
@@ -242,7 +247,7 @@ func (miniShaiHuludDroppedPayload) Apply(doc *parse.Document) []finding.Finding 
 		Description:  "This path matches a Mini Shai-Hulud dropped payload or package-root launcher artifact. The worm used agent persistence files and bounded npm package-root payloads to execute and propagate credential-stealing malware.",
 		Path:         doc.Path,
 		Line:         1,
-		Match:        base,
+		Match:        match,
 		SuggestedFix: "Remove the file only after isolating the machine and preserving evidence. Reinstall dependencies from a clean lockfile and rotate credentials exposed on this host.",
 		Tags:         []string{"mini-shai-hulud", "payload", "malware"},
 	})}

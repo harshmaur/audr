@@ -448,6 +448,30 @@ func TestRule_MiniShaiHuludOpenAPICodegenArtifactsStayPackageBounded(t *testing.
 	}
 }
 
+func TestRule_MiniShaiHuludTrinnyyyyBootstrapArtifact(t *testing.T) {
+	doc := parse.Parse("/tmp/trinnyyyy-a1b2c3/bun", []byte("synthetic Bun bootstrap"))
+	findings := (miniShaiHuludDroppedPayload{}).Apply(doc)
+	if len(findings) != 1 {
+		t.Fatalf("Mini Shai-Hulud trinnyyyy bootstrap findings = %d, want 1; got %v", len(findings), findings)
+	}
+	if findings[0].Match != "trinnyyyy-* Bun bootstrap artifact" {
+		t.Fatalf("match = %q, want fixed redacted IOC label", findings[0].Match)
+	}
+}
+
+func TestRule_MiniShaiHuludTrinnyyyyBootstrapArtifactStaysPathBounded(t *testing.T) {
+	for _, path := range []string{
+		"/tmp/not-trinnyyyy-a1b2c3/bun",
+		"/tmp/trinnyyyy-/bun",
+		"/repo/docs/trinnyyyy-a1b2c3.txt",
+	} {
+		doc := parse.Parse(path, []byte("synthetic Bun bootstrap"))
+		if findings := (miniShaiHuludDroppedPayload{}).Apply(doc); len(findings) != 0 {
+			t.Fatalf("Mini Shai-Hulud trinnyyyy bootstrap rule fired on bounded negative %s: %v", path, findings)
+		}
+	}
+}
+
 func TestRule_MiniShaiHuludStage6GitHubC2IOCs(t *testing.T) {
 	cases := []struct {
 		name string

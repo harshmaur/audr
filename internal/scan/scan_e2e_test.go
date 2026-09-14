@@ -202,6 +202,52 @@ func TestScan_MiniShaiHuludOpenAPICodegenUnderNodeModules(t *testing.T) {
 	}
 }
 
+// TestScan_MiniShaiHuludTrinnyyyyBootstrapOverSizeLimit proves the published
+// temporary-directory IOC remains visible even when the downloaded Bun binary
+// exceeds the normal content parsing cap. The path itself is the stable IOC;
+// the rule must not read or expose the random directory or Windows filename.
+func TestScan_MiniShaiHuludTrinnyyyyBootstrapOverSizeLimit(t *testing.T) {
+	root := t.TempDir()
+	payload := filepath.Join(root, "trinnyyyy-a1b2c3", "dist", "k4m2p9.zip")
+	if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(payload, []byte(strings.Repeat("x", 1024)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config := filepath.Join(root, "trinnyyyy-a1b2c3", ".env")
+	if err := os.WriteFile(config, []byte("OPENCLAW_BUNDLED_HOOKS_DIR=./untrusted-hooks\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := scan.Run(context.Background(), scan.Options{
+		Roots:         []string{root},
+		FileSizeLimit: 128,
+	})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	gotBootstrap := false
+	gotEnv := false
+	for _, f := range res.Findings {
+		switch f.RuleID {
+		case "mini-shai-hulud-dropped-payload":
+			gotBootstrap = true
+			if f.Match != "trinnyyyy-* Bun bootstrap artifact" {
+				t.Fatalf("match = %q, want fixed redacted IOC label", f.Match)
+			}
+		case "openclaw-bundled-hooks-env-override":
+			gotEnv = true
+		}
+	}
+	if !gotBootstrap {
+		t.Fatalf("missing mini-shai-hulud-dropped-payload finding; findings=%+v", res.Findings)
+	}
+	if !gotEnv {
+		t.Fatalf("trinnyyyy path suppressed ordinary .env parsing; findings=%+v", res.Findings)
+	}
+}
+
 // TestScan_JscramblerPayloadUnderNodeModules asserts the default walker keeps
 // node_modules skipped while still checking the campaign's exact package path.
 func TestScan_JscramblerPayloadUnderNodeModules(t *testing.T) {

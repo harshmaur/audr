@@ -427,6 +427,30 @@ func worker(
 			}
 			_ = id // worker ID currently unused, retained for log-context wiring
 			s := workerStat{seen: 1}
+			detectedFormat := parse.DetectFormat(path)
+			pathIOC := false
+			if parse.IsMiniShaiHuludBunBootstrapArtifactPath(path) {
+				if info, err := os.Lstat(path); err == nil && info.Mode().IsRegular() {
+					pathIOC = true
+					pathDoc := &parse.Document{Path: path, Format: parse.FormatMiniShaiHuludArtifact}
+					for _, f := range rules.ApplyWithPolicy(pathDoc, opts.Policy) {
+						select {
+						case out <- f:
+						case <-ctx.Done():
+							return
+						}
+					}
+					if detectedFormat == parse.FormatUnknown {
+						s.parsed = 1
+						select {
+						case stat <- s:
+						case <-ctx.Done():
+							return
+						}
+						continue
+					}
+				}
+			}
 
 			// Cache fast path: when the entry's (mtime, size, version)
 			// matches the file's current stat, replay the prior
@@ -437,6 +461,9 @@ func worker(
 			// document persistence through the cache schema.
 			if cached, ok, mtime, size := tryCacheHit(ctx, opts, path); ok {
 				for _, f := range cached {
+					if pathIOC && f.RuleID == "mini-shai-hulud-dropped-payload" {
+						continue
+					}
 					select {
 					case out <- f:
 					case <-ctx.Done():
@@ -491,6 +518,9 @@ func worker(
 				} else {
 					fileFindings := rules.ApplyWithPolicy(doc, opts.Policy)
 					for _, f := range fileFindings {
+						if pathIOC && f.RuleID == "mini-shai-hulud-dropped-payload" {
+							continue
+						}
 						select {
 						case out <- f:
 						case <-ctx.Done():
@@ -545,6 +575,12 @@ func walkRoot(ctx context.Context, root string, skipSet map[string]bool, out cha
 		}
 		base := filepath.Base(path)
 		if d.IsDir() {
+			// Once a published trinnyyyy-* IOC directory is reached, keep
+			// walking its small bootstrap subtree even if a child directory
+			// has a normally skipped name such as dist or node_modules.
+			if parse.IsMiniShaiHuludBunBootstrapArtifactPath(filepath.Join(path, "_")) {
+				return nil
+			}
 			if skipSet[base] {
 				if base == "node_modules" {
 					walkKnownNodeModulesIOCs(ctx, path, out, logger)
@@ -569,9 +605,10 @@ func walkRoot(ctx context.Context, root string, skipSet map[string]bool, out cha
 		if shouldSkipFile(path) {
 			return nil
 		}
-		// Only enqueue files DetectFormat recognizes.
-		if parse.DetectFormat(path) == parse.FormatUnknown {
-			// Don't enqueue unknown formats — saves parser time.
+		// Only enqueue files DetectFormat recognizes, plus the published
+		// trinnyyyy-* path IOC whose randomized Bun filename has no stable format.
+		if parse.DetectFormat(path) == parse.FormatUnknown && !parse.IsMiniShaiHuludBunBootstrapArtifactPath(path) {
+			// Don't enqueue unrelated unknown formats — saves parser time.
 			return nil
 		}
 		select {
@@ -1101,7 +1138,7 @@ func enqueueMrMustardCacheIOC(ctx context.Context, cacheDir string, out chan<- s
 // shouldSkipFile is a fast-path filter based on extension/basename to avoid
 // invoking DetectFormat on giant files we know we don't care about.
 func shouldSkipFile(path string) bool {
-	if parse.IsApexCopilotMalwareArtifactPath(path) {
+	if parse.IsApexCopilotMalwareArtifactPath(path) || parse.IsMiniShaiHuludBunBootstrapArtifactPath(path) {
 		return false
 	}
 	// Files we'll never scan even though they might match by basename.

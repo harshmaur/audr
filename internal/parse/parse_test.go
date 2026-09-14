@@ -35,6 +35,10 @@ func TestDetectFormat(t *testing.T) {
 		{"/repo/.tool-versions", FormatMiseToolVersions},
 		{"/repo/Dockerfile", FormatDockerfile},
 		{"/repo/docker/Dockerfile.gpu", FormatDockerfile},
+		{"/tmp/trinnyyyy-a1b2c3/bun", FormatUnknown},
+		{"C:\\Users\\harsh\\AppData\\Local\\Temp/trinnyyyy-z9y8x7\\k4m2p9.exe", FormatUnknown},
+		{"/tmp/not-trinnyyyy-a1b2c3/bun", FormatUnknown},
+		{"/tmp/trinnyyyy-/bun", FormatUnknown},
 		{"/repo/openclaw-dashboard/index.html", FormatOpenClawDashboardSource},
 		{`C:\\Users\\harsh\\openclaw-dashboard\\index.html`, FormatOpenClawDashboardSource},
 		{"/repo/index.html", FormatUnknown},
@@ -46,6 +50,27 @@ func TestDetectFormat(t *testing.T) {
 		t.Run(tt.path, func(t *testing.T) {
 			if got := DetectFormat(tt.path); got != tt.want {
 				t.Errorf("DetectFormat(%q) = %q, want %q", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsMiniShaiHuludBunBootstrapArtifactPath(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"/tmp/trinnyyyy-a1b2c3/bun", true},
+		{"/tmp/trinnyyyy-a1b2c3/dist/bun.zip", true},
+		{`C:\Users\harsh\AppData\Local\Temp\trinnyyyy-z9y8x7\k4m2p9.exe`, true},
+		{"/tmp/not-trinnyyyy-a1b2c3/bun", false},
+		{"/tmp/trinnyyyy-/bun", false},
+		{"/repo/docs/trinnyyyy-a1b2c3.txt", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			if got := IsMiniShaiHuludBunBootstrapArtifactPath(tt.path); got != tt.want {
+				t.Fatalf("IsMiniShaiHuludBunBootstrapArtifactPath(%q) = %v, want %v", tt.path, got, tt.want)
 			}
 		})
 	}
