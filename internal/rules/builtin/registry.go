@@ -98,6 +98,7 @@ func builtins() []rules.Rule {
 		kiotaPluginStaticTemplateTraversal{},
 		langflowToolGuardCodeInjection{},
 		langflowPublicMCPFlowIsolationRCE{},
+		langfunQueryEvalInjection{},
 		mlflowAssistantOriginBypass{},
 		mcpPythonSDKWebSocketOriginValidation{},
 		clawVetHardcodedJWTSecret{},
