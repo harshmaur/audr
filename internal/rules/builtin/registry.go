@@ -102,6 +102,7 @@ func builtins() []rules.Rule {
 		mcpPythonSDKWebSocketOriginValidation{},
 		clawVetHardcodedJWTSecret{},
 		autoAgentUnauthTCPCommandServer{},
+		pentestAgentMCPUnauthHTTP{},
 		deeptutorMCPToolGrantBypass{},
 		deepseekMCPSessionIDHijack{},
 		mcpCalculateServerEvalRCE{},
